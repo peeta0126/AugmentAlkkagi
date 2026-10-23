@@ -458,7 +458,11 @@ func _choose_augment(augment_id: StringName) -> void:
 		return
 	if online_mode:
 		network_manager.submit_augment_choice(augment_id)
-		network_show_waiting("상대 플레이어의 증강 선택을 기다리는 중…")
+		# Host submissions are processed synchronously. If this was the second
+		# choice, the handler already started/resumed the game and must not be
+		# covered by a stale waiting screen.
+		if state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
+			network_show_waiting("상대 플레이어의 증강 선택을 기다리는 중…")
 		return
 	if not augment_manager.acquire(self, selection_player, augment_id):
 		return
@@ -611,7 +615,8 @@ func _activate_skill(effect: AugmentEffect) -> void:
 		if current_player != local_player_id:
 			return
 		if effect.definition.target_mode == AugmentDefinition.TargetMode.NONE:
-			network_manager.submit_active_skill(effect.definition.id, [])
+			var target_ids: Array[int] = []
+			network_manager.submit_active_skill(effect.definition.id, target_ids)
 			network_show_waiting("스킬 요청을 호스트가 검증하는 중…")
 		else:
 			begin_skill_targeting(effect, current_player)
@@ -690,11 +695,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.button_index == MOUSE_BUTTON_RIGHT:
 				cancel_active_skill()
 			elif event.button_index == MOUSE_BUTTON_LEFT and active_skill and active_skill.definition.target_mode == AugmentDefinition.TargetMode.BOARD_POSITION:
-				if online_mode and not online_is_host:
-					network_manager.submit_active_skill(active_skill.definition.id, [], get_global_mouse_position())
-					network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
-				else:
-					active_skill.on_position_target(self, active_skill_player, get_global_mouse_position())
+				confirm_board_position_skill(get_global_mouse_position())
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		if aim_cancelled_until_left_release:
@@ -721,6 +722,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		update_aim(get_global_mouse_position())
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		fire_selected(get_global_mouse_position())
+
+func confirm_board_position_skill(board_position: Vector2) -> void:
+	if state_machine.current != GameStateMachine.State.SKILL_TARGETING or active_skill == null or active_skill.definition.target_mode != AugmentDefinition.TargetMode.BOARD_POSITION:
+		return
+	if online_mode and not online_is_host:
+		var target_ids: Array[int] = []
+		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position)
+		network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
+	else:
+		active_skill.on_position_target(self, active_skill_player, board_position)
 
 func fire_selected(pointer: Vector2) -> void:
 	if not state_machine.allows_aiming() or selected_piece == null or not is_instance_valid(selected_piece):

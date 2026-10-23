@@ -174,6 +174,48 @@ func run_test() -> void:
 	game.round_actions = {1: true, 2: false}
 	game.network_prepare_match(false, 2, 3)
 	check(game.augment_manager.owned[1].is_empty() and game.round_count == 0 and not bool(game.round_actions[1]), "network rematch preparation clears augments and round progress")
+	var validated_targets: Array[int] = []
+	check(game.network_manager.validate_active_target_ids([], validated_targets) and validated_targets.is_empty(), "RPC validation accepts an untyped empty target array")
+	check(game.network_manager.validate_active_target_ids([101, 102], validated_targets) and validated_targets == [101, 102], "RPC validation converts integer target IDs to Array[int]")
+	check(not game.network_manager.validate_active_target_ids(["invalid"], validated_targets), "RPC validation rejects non-integer target IDs")
+
+	# All active targeting modes keep Array[int] at the submit/host-processing boundary.
+	game.online_mode = false
+	game.network_manager.mode = AlkkagiNetworkManager.Mode.HOST
+	game.network_manager.match_active = true
+	game.start_game()
+	game.augment_manager.acquire(game, 1, &"wall_maria")
+	var no_targets: Array[int] = []
+	game.network_manager.submit_active_skill(&"wall_maria", no_targets, AlkkagiBoard.BOARD_RECT.get_center())
+	check(game.temporary_walls.size() == 1, "board-position active accepts typed empty targets")
+
+	game.start_game()
+	game.augment_manager.acquire(game, 1, &"coup")
+	game.network_manager.submit_active_skill(&"coup", no_targets)
+	check(game.state_machine.current == GameStateMachine.State.PIECES_MOVING, "targetless active accepts typed empty targets")
+
+	game.start_game()
+	game.augment_manager.acquire(game, 1, &"snowball")
+	var white_target: AlkkagiPiece
+	for piece in game.get_pieces():
+		if piece.owner_id == 2:
+			white_target = piece
+			break
+	var one_target: Array[int] = [white_target.piece_id]
+	game.network_manager.submit_active_skill(&"snowball", one_target)
+	check(white_target.status_kind == "snow", "single-piece active accepts Array[int]")
+
+	game.start_game()
+	game.augment_manager.acquire(game, 1, &"piggyback")
+	var own_targets: Array[int] = []
+	for piece in game.get_pieces():
+		if piece.owner_id == 1 and own_targets.size() < 2:
+			own_targets.append(piece.piece_id)
+	var before_merge: int = game.count_owner(1)
+	game.network_manager.submit_active_skill(&"piggyback", own_targets)
+	await process_frame
+	check(game.count_owner(1) == before_merge - 1, "multi-piece active accepts Array[int]")
+	game.network_manager.mode = AlkkagiNetworkManager.Mode.OFFLINE
 	if failures == 0:
 		print("PASS: augment system and effects tests")
 	quit(failures)

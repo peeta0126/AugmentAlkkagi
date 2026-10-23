@@ -40,8 +40,18 @@ func _ready() -> void:
 func game() -> Node:
 	return get_parent()
 
+func _selection_debug(message: String) -> void:
+	if OS.is_debug_build():
+		print("[augment-selection] %s" % message)
+
+func _selection_reject(reason: String, player_id: int, stage: int, augment_id: StringName = &"") -> void:
+	if OS.is_debug_build():
+		push_warning("[augment-selection] rejected: %s (player=%d stage=%d active_stage=%d augment=%s completed=%s pending=%s)" % [reason, player_id, stage, active_selection_stage, augment_id, selection_completed, pending_choices])
+
 func create_host(port: int = DEFAULT_PORT) -> Error:
 	shutdown(false)
+	last_sequences.clear()
+	local_sequence = 0
 	var peer := ENetMultiplayerPeer.new()
 	var error := peer.create_server(port, MAX_CLIENTS)
 	if error != OK:
@@ -59,6 +69,8 @@ func create_host(port: int = DEFAULT_PORT) -> Error:
 
 func join_host(address: String, port: int = DEFAULT_PORT) -> Error:
 	shutdown(false)
+	last_sequences.clear()
+	local_sequence = 0
 	if not address.is_valid_ip_address() or ":" in address or port < 1 or port > 65535:
 		connection_message.emit("올바른 IPv4 주소를 입력하세요.", true)
 		return ERR_INVALID_PARAMETER
@@ -138,23 +150,27 @@ func receive_return_lobby() -> void:
 
 func _start_selection(initial: bool, resume_player: int, completed_round: int) -> void:
 	if mode != Mode.HOST:
+		_selection_reject("selection start requested by non-host", local_player_id, active_selection_stage)
 		return
 	active_selection_stage += 1
 	offers.clear()
 	pending_choices.clear()
 	selection_completed = {1: false, 2: false}
 	selection_context = {"initial": initial, "resume": resume_player, "round": completed_round}
+	_selection_debug("stage %d started (initial=%s round=%d resume=%d)" % [active_selection_stage, initial, completed_round, resume_player])
 	_begin_selection(2, initial, resume_player)
 	_begin_selection(1, initial, resume_player)
 
 func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void:
 	if mode != Mode.HOST:
+		_selection_reject("offer generation requested by non-host", player_id, active_selection_stage)
 		return
 	var definitions: Array[AugmentDefinition] = game().augment_manager.get_choices(player_id, 3)
 	var ids: Array[String] = []
 	for definition in definitions:
 		ids.append(str(definition.id))
 	offers[player_id] = {"stage": active_selection_stage, "ids": ids}
+	_selection_debug("stage %d offer for player %d: %s" % [active_selection_stage, player_id, ids])
 	var completed_round := int(selection_context.get("round", 0))
 	if player_id == 1:
 		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round)
@@ -168,6 +184,7 @@ func host_begin_round_selection(resume_player: int, completed_round: int) -> voi
 func submit_augment_choice(augment_id: StringName) -> void:
 	local_sequence += 1
 	var stage: int = game().selection_stage_id
+	_selection_debug("local submit player=%d stage=%d sequence=%d augment=%s" % [local_player_id, stage, local_sequence, augment_id])
 	if mode == Mode.HOST:
 		_host_process_augment_choice(1, stage, augment_id, local_sequence)
 	elif mode == Mode.CLIENT:
@@ -197,9 +214,11 @@ func _process(delta: float) -> void:
 		snapshot_elapsed = 0.0
 		receive_snapshot.rpc(game().create_network_snapshot())
 
-func _valid_sequence(peer_id: int, sequence: int) -> bool:
+func _valid_sequence(peer_id: int, sequence: int, request_kind: String = "request") -> bool:
 	var previous := int(last_sequences.get(peer_id, 0))
 	if sequence <= previous:
+		if OS.is_debug_build():
+			push_warning("[network] rejected %s sequence from peer %d: received=%d previous=%d" % [request_kind, peer_id, sequence, previous])
 		return false
 	last_sequences[peer_id] = sequence
 	return true
@@ -231,7 +250,7 @@ func request_shot(piece_id: int, pull_vector: Vector2, sequence: int) -> void:
 	if mode != Mode.HOST:
 		return
 	var sender := multiplayer.get_remote_sender_id()
-	if _valid_sequence(sender, sequence):
+	if _valid_sequence(sender, sequence, "shot"):
 		_host_process_shot(_player_for_peer(sender), piece_id, pull_vector, sequence)
 
 func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _sequence: int) -> void:
@@ -242,30 +261,62 @@ func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _se
 @rpc("any_peer", "call_remote", "reliable")
 func request_augment_choice(stage: int, augment_id: String, sequence: int) -> void:
 	if mode != Mode.HOST:
+		_selection_reject("choice RPC received by non-host", 0, stage, StringName(augment_id))
 		return
 	var sender := multiplayer.get_remote_sender_id()
-	if _valid_sequence(sender, sequence):
-		_host_process_augment_choice(_player_for_peer(sender), stage, StringName(augment_id), sequence)
+	var player_id := _player_for_peer(sender)
+	_selection_debug("remote submit peer=%d player=%d stage=%d sequence=%d augment=%s" % [sender, player_id, stage, sequence, augment_id])
+	if not _valid_sequence(sender, sequence, "augment choice"):
+		_selection_reject("duplicate or stale sequence", player_id, stage, StringName(augment_id))
+		return
+	_host_process_augment_choice(player_id, stage, StringName(augment_id), sequence)
 
 func _host_process_augment_choice(player_id: int, stage: int, augment_id: StringName, _sequence: int) -> void:
-	if mode != Mode.HOST or not match_active or player_id not in [1, 2] or stage != active_selection_stage:
+	if mode != Mode.HOST:
+		_selection_reject("processor is not host", player_id, stage, augment_id)
 		return
-	if bool(selection_completed.get(player_id, false)) or not offers.has(player_id) or not game().augment_manager.can_acquire(player_id):
+	if not match_active:
+		_selection_reject("match is not active", player_id, stage, augment_id)
+		return
+	if player_id not in [1, 2]:
+		_selection_reject("unknown network player", player_id, stage, augment_id)
+		return
+	if stage != active_selection_stage:
+		_selection_reject("stage mismatch", player_id, stage, augment_id)
+		return
+	if bool(selection_completed.get(player_id, false)):
+		_selection_reject("player already selected", player_id, stage, augment_id)
+		return
+	if not offers.has(player_id):
+		_selection_reject("no offer for player", player_id, stage, augment_id)
+		return
+	if not game().augment_manager.can_acquire(player_id):
+		_selection_reject("augment inventory is full", player_id, stage, augment_id)
 		return
 	var offer: Dictionary = offers[player_id]
-	if int(offer.get("stage", -1)) != stage or not str(augment_id) in offer.get("ids", []):
+	if int(offer.get("stage", -1)) != stage:
+		_selection_reject("offer stage mismatch", player_id, stage, augment_id)
+		return
+	if not str(augment_id) in offer.get("ids", []):
+		_selection_reject("augment was not offered", player_id, stage, augment_id)
 		return
 	pending_choices[player_id] = augment_id
 	selection_completed[player_id] = true
+	_selection_debug("stage %d accepted player %d augment=%s completed=%s" % [stage, player_id, augment_id, selection_completed])
 	if not (bool(selection_completed[1]) and bool(selection_completed[2])):
 		return
 	for selected_player in [1, 2]:
 		var selected_id: StringName = pending_choices.get(selected_player, StringName())
-		if selected_id == StringName() or not game().augment_manager.can_acquire(selected_player):
+		if selected_id == StringName():
+			_selection_reject("completed player has no pending choice", selected_player, stage)
+			return
+		if not game().augment_manager.can_acquire(selected_player):
+			_selection_reject("inventory became full before commit", selected_player, stage, selected_id)
 			return
 	for selected_player in [1, 2]:
 		var selected_id: StringName = pending_choices[selected_player]
 		if not game().augment_manager.acquire(game(), selected_player, selected_id):
+			_selection_reject("augment_manager.acquire failed", selected_player, stage, selected_id)
 			return
 		receive_augment_granted.rpc(selected_player, str(selected_id))
 		game().network_augment_granted(selected_player, selected_id)
@@ -274,6 +325,7 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 	var completed_round := int(selection_context.get("round", 0))
 	offers.clear()
 	pending_choices.clear()
+	_selection_debug("stage %d committed for both players (initial=%s)" % [stage, initial])
 	if initial:
 		receive_world_start.rpc(piece_count)
 		game().network_start_world(piece_count)
@@ -282,12 +334,26 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 		game().network_selection_complete(stage, resume, completed_round)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_active_skill(augment_id: String, target_ids: Array[int], board_position: Vector2, sequence: int) -> void:
+func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int) -> void:
 	if mode != Mode.HOST:
 		return
 	var sender := multiplayer.get_remote_sender_id()
-	if _valid_sequence(sender, sequence):
-		_host_process_active(_player_for_peer(sender), StringName(augment_id), target_ids, board_position, sequence)
+	if not _valid_sequence(sender, sequence, "active skill"):
+		return
+	var validated_target_ids: Array[int] = []
+	if not validate_active_target_ids(target_ids, validated_target_ids):
+		return
+	_host_process_active(_player_for_peer(sender), StringName(augment_id), validated_target_ids, board_position, sequence)
+
+func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Array[int]) -> bool:
+	validated_target_ids.clear()
+	for target_id in raw_target_ids:
+		if typeof(target_id) != TYPE_INT:
+			if OS.is_debug_build():
+				push_warning("[network] rejected active skill with non-integer target id: %s" % target_id)
+			return false
+		validated_target_ids.append(int(target_id))
+	return true
 
 func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int) -> void:
 	if mode != Mode.HOST or player_id != game().current_player or not game().state_machine.allows_aiming():
@@ -375,6 +441,7 @@ func _on_peer_connected(peer_id: int) -> void:
 		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
 		return
 	peer_to_player[peer_id] = 2
+	last_sequences.erase(peer_id)
 	connected_players[2] = true
 	ready_state[2] = false
 	connection_message.emit("참가자가 연결되었습니다.", false)
