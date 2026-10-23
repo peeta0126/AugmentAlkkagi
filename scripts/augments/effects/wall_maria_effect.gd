@@ -2,8 +2,10 @@ class_name WallMariaAugmentEffect
 extends AugmentEffect
 
 func on_position_target(game: Node, player_id: int, position: Vector2) -> bool:
-	if not AlkkagiBoard.BOARD_RECT.grow(-35.0).has_point(position) or game.position_overlaps_piece(position, 85.0):
+	var wall_rotation: float = 0.0 if game.augment_manager.rng.randi() % 2 == 0 else PI * 0.5
+	if not game.can_place_wall(position, wall_rotation):
 		return false
-	game.spawn_wall(position, int(definition.duration_turns) + 1)
+	if not game.spawn_wall(position, int(definition.duration_turns) + 1, wall_rotation):
+		return false
 	commit_use(game, player_id)
 	return true

@@ -52,20 +52,46 @@ func run_test() -> void:
 	if game.count_owner(1) != 5 or game.count_owner(2) != 5:
 		fail("piece count mismatch")
 		return
-	var host_piece: AlkkagiPiece
-	for piece in game.get_pieces():
-		if piece.owner_id == 1:
-			host_piece = piece
-			break
-	game._on_piece_pressed(host_piece)
-	game.fire_selected(host_piece.global_position + Vector2(48, 0))
-	if not await wait_until(func(): return game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 10.0):
-		fail("host shot did not resolve")
+	for round_index in 3:
+		var host_piece: AlkkagiPiece
+		for piece in game.get_pieces():
+			if piece.owner_id == 1:
+				host_piece = piece
+				break
+		game._on_piece_pressed(host_piece)
+		if round_index == 0:
+			var right_click := InputEventMouseButton.new()
+			right_click.button_index = MOUSE_BUTTON_RIGHT
+			right_click.pressed = true
+			game._unhandled_input(right_click)
+			if game.state_machine.current != GameStateMachine.State.PLAYER_AIMING or game.round_count != 0:
+				fail("host aim cancellation consumed action")
+				return
+			game._on_piece_pressed(host_piece)
+		game.fire_selected(host_piece.global_position + Vector2(48, 0))
+		if not await wait_until(func(): return game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 10.0):
+			fail("host shot did not resolve")
+			return
+		if round_index < 2:
+			if not await wait_until(func(): return game.current_player == 1 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
+				fail("client shot request did not resolve")
+				return
+		else:
+			if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION and game.selection_player == 1 and not game.current_choices.is_empty(), 12.0):
+				fail("shared third-round selection did not open")
+				return
+	if game.round_count != 3:
+		fail("shared round count mismatch")
 		return
-	if not await wait_until(func(): return game.current_player == 1 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
-		fail("client shot request did not resolve")
+	game._choose_augment(game.current_choices[0].id)
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PLAYER_AIMING and game.augment_manager.owned[1].size() == 2 and game.augment_manager.owned[2].size() == 2, 10.0):
+		fail("both third-round choices did not complete")
 		return
-	await create_timer(0.35).timeout
+	var wall_position := AlkkagiBoard.BOARD_RECT.get_center()
+	if not game.spawn_wall(wall_position, 3, PI * 0.5):
+		fail("host wall creation")
+		return
+	await create_timer(0.75).timeout
 	print("PASS: ENet host authoritative localhost integration")
 	game.network_manager.shutdown(false)
 	quit(0)

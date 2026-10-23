@@ -60,7 +60,8 @@ func setup(new_owner_id: int, new_piece_id: int) -> void:
 	contact_monitor = true
 	max_contacts_reported = 8
 	collision_layer = 1
-	collision_mask = 1
+	# Layer 1 contains stones; layer 2 contains host-authoritative temporary walls.
+	collision_mask = 1 | GameplayRules.WALL_COLLISION_LAYER
 	input_pickable = true
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()

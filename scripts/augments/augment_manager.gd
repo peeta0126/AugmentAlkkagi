@@ -41,6 +41,8 @@ func reset_match() -> void:
 
 func get_choices(player_id: int, count: int = 3) -> Array[AugmentDefinition]:
 	var pool: Array[AugmentDefinition] = []
+	if owned[player_id].size() >= GameplayRules.MAX_AUGMENTS_PER_PLAYER:
+		return pool
 	for definition in CATALOG:
 		if definition.enabled and not has_augment(player_id, definition.id):
 			pool.append(definition)
@@ -53,7 +55,7 @@ func get_choices(player_id: int, count: int = 3) -> Array[AugmentDefinition]:
 	return pool.slice(0, mini(count, pool.size()))
 
 func acquire(game: Node, player_id: int, augment_id: StringName) -> bool:
-	if has_augment(player_id, augment_id):
+	if player_id not in owned or owned[player_id].size() >= GameplayRules.MAX_AUGMENTS_PER_PLAYER or has_augment(player_id, augment_id):
 		return false
 	var definition := get_definition(augment_id)
 	if definition == null or not definition.enabled or definition.effect_script == null:
@@ -121,15 +123,13 @@ func physics_tick(game: Node, delta: float) -> void:
 		for effect: AugmentEffect in effects[player_id]:
 			effect.on_physics_tick(game, player_id, delta)
 
-func finish_turn(game: Node, player_id: int) -> bool:
+func finish_turn(game: Node, player_id: int) -> void:
 	completed_turns[player_id] += 1
 	for effect: AugmentEffect in effects[player_id]:
 		effect.on_turn_ended(game, player_id)
-	return completed_turns[player_id] % GameplayRules.AUGMENT_TURN_INTERVAL == 0 and not get_choices(player_id).is_empty()
 
-func turns_until_next(player_id: int) -> int:
-	var remainder: int = int(completed_turns[player_id]) % GameplayRules.AUGMENT_TURN_INTERVAL
-	return GameplayRules.AUGMENT_TURN_INTERVAL if remainder == 0 else GameplayRules.AUGMENT_TURN_INTERVAL - remainder
+func can_acquire(player_id: int) -> bool:
+	return player_id in owned and owned[player_id].size() < GameplayRules.MAX_AUGMENTS_PER_PLAYER
 
 func has_augment(player_id: int, augment_id: StringName) -> bool:
 	for definition: AugmentDefinition in owned[player_id]:

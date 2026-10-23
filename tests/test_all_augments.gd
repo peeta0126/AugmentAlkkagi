@@ -39,9 +39,10 @@ func run_test() -> void:
 		ids[definition.id] = true
 	check(ids.size() == 20, "all augment IDs are unique")
 	game.augment_manager.reset_match()
-	for definition in game.augment_manager.CATALOG:
-		check(game.augment_manager.acquire(game, 1, definition.id), "acquire succeeds for %s" % definition.id)
-	check(game.augment_manager.owned[1].size() == 20, "one player can independently own all 20 unique augments")
+	for index in 3:
+		check(game.augment_manager.acquire(game, 1, game.augment_manager.CATALOG[index].id), "acquire succeeds within cap")
+	check(not game.augment_manager.acquire(game, 1, game.augment_manager.CATALOG[3].id), "a player cannot own a fourth augment")
+	check(game.augment_manager.owned[1].size() == GameplayRules.MAX_AUGMENTS_PER_PLAYER, "inventory is capped at three augments")
 	game.augment_manager.reset_match()
 
 	# 01 삼연발: 원본 하나가 물리 충돌을 가진 소형 돌 셋으로 교체된다.
@@ -228,11 +229,28 @@ func run_test() -> void:
 	# 18 월마리아: 빈 위치에 실제 StaticBody2D 충돌 벽을 설치한다.
 	await reset_game(game)
 	var wall_position := AlkkagiBoard.BOARD_RECT.get_center()
-	check(not game.position_overlaps_piece(wall_position, 85.0), "wall test position is empty")
-	game.spawn_wall(wall_position, 3)
-	check(game.temporary_walls.size() == 1 and game.temporary_walls[0].get_child_count() > 0, "wall maria creates a physical collision body")
-	game.run_train_event(760.0)
-	check(is_instance_valid(game.temporary_walls[0]), "wall remains active during train event")
+	check(game.can_place_wall(wall_position, PI * 0.5), "wall test position is empty")
+	check(game.spawn_wall(wall_position, 3, PI * 0.5), "valid wall placement succeeds")
+	var wall: TemporaryWall = game.temporary_walls[0]
+	var wall_collision := wall.get_node("WallCollision") as CollisionShape2D
+	check(wall is StaticBody2D and wall_collision != null and wall_collision.shape is RectangleShape2D, "wall maria creates a StaticBody2D rectangle collider")
+	check(wall.collision_layer == GameplayRules.WALL_COLLISION_LAYER, "wall uses the configured collision layer")
+	black = first_piece(game, 1)
+	check(not game.can_place_wall(black.position, 0.0), "wall placement rejects overlap with a stone")
+	black.position = wall_position - Vector2(110, 0)
+	black.prepare_shot_speed_cap(GameplayRules.BALANCE.max_speed * 1.6)
+	black.sleeping = false
+	black.linear_velocity = Vector2(GameplayRules.BALANCE.max_speed * 1.6, 0)
+	for frame in 15:
+		await physics_frame
+	check(black.position.x < wall_position.x + GameplayRules.WALL_SIZE.y * 0.5 + black.visual_radius, "high-speed stone does not tunnel through the wall")
+	var snapshot: Dictionary = game.create_network_snapshot()
+	var wall_states: PackedFloat32Array = snapshot.walls
+	check(wall_states.size() == 5 and is_equal_approx(wall_states[3], PI * 0.5), "network snapshot preserves wall rotation")
+	game.tick_field_effects()
+	game.tick_field_effects()
+	game.tick_field_effects()
+	check(game.temporary_walls.is_empty(), "wall collider is removed when duration expires")
 
 	# 20 명사수: 제한 각도 안의 적 쪽으로 드래그 방향을 약하게 보정한다.
 	await reset_game(game)

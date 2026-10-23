@@ -31,6 +31,31 @@ func run_test() -> void:
 		if piece.owner_id == 1:
 			red_piece = piece
 			break
+	var starting_round: int = game.round_count
+	game._on_piece_pressed(red_piece)
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	game._unhandled_input(escape)
+	check(not game.dragging and game.selected_piece == null, "escape cancels aiming")
+	check(game.current_player == 1 and game.round_count == starting_round, "escape cancellation consumes no turn or round")
+	var left_release := InputEventMouseButton.new()
+	left_release.button_index = MOUSE_BUTTON_LEFT
+	left_release.pressed = false
+	game._unhandled_input(left_release)
+	check(game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "left release after cancellation does not fire")
+
+	game._on_piece_pressed(red_piece)
+	var right_click := InputEventMouseButton.new()
+	right_click.button_index = MOUSE_BUTTON_RIGHT
+	right_click.pressed = true
+	game._unhandled_input(right_click)
+	check(not game.dragging and game.selected_piece == null, "right click cancels aiming")
+
+	game._on_piece_pressed(red_piece)
+	game.fire_selected(red_piece.global_position + Vector2(GameplayRules.MIN_SHOT_DRAG_DISTANCE - 1.0, 0))
+	check(game.state_machine.current == GameStateMachine.State.PLAYER_AIMING and game.current_player == 1, "short drag does not fire or consume turn")
+
 	game._on_piece_pressed(red_piece)
 	game.fire_selected(red_piece.global_position + Vector2(100, 0))
 	await physics_frame

@@ -8,7 +8,7 @@ signal session_ended(reason: String)
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 1
 const SNAPSHOT_INTERVAL := 0.05
-const PROTOCOL_VERSION := 1
+const PROTOCOL_VERSION := 2
 
 enum Mode { OFFLINE, HOST, CLIENT }
 
@@ -21,7 +21,9 @@ var piece_count := GameplayRules.DEFAULT_PIECES
 var match_active := false
 var offers: Dictionary = {}
 var selection_context: Dictionary = {}
-var selected_initial: Dictionary = {1: false, 2: false}
+var active_selection_stage := 0
+var selection_completed: Dictionary = {1: false, 2: false}
+var pending_choices: Dictionary = {}
 var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
@@ -83,6 +85,8 @@ func shutdown(notify: bool = true) -> void:
 	match_active = false
 	offers.clear()
 	selection_context.clear()
+	pending_choices.clear()
+	selection_completed = {1: false, 2: false}
 	shutting_down = false
 	if notify:
 		session_ended.emit("네트워크 방에서 나왔습니다.")
@@ -114,10 +118,8 @@ func start_match() -> bool:
 		connection_message.emit("두 플레이어가 접속하고 모두 준비해야 합니다.", true)
 		return false
 	match_active = true
-	selected_initial = {1: false, 2: false}
 	game().network_prepare_match(true, 1, piece_count)
-	_begin_selection(2, true, 1)
-	_begin_selection(1, true, 1)
+	_start_selection(true, 1, 0)
 	return true
 
 func return_to_lobby() -> void:
@@ -134,6 +136,17 @@ func receive_return_lobby() -> void:
 	match_active = false
 	game()._show_network_lobby()
 
+func _start_selection(initial: bool, resume_player: int, completed_round: int) -> void:
+	if mode != Mode.HOST:
+		return
+	active_selection_stage += 1
+	offers.clear()
+	pending_choices.clear()
+	selection_completed = {1: false, 2: false}
+	selection_context = {"initial": initial, "resume": resume_player, "round": completed_round}
+	_begin_selection(2, initial, resume_player)
+	_begin_selection(1, initial, resume_player)
+
 func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void:
 	if mode != Mode.HOST:
 		return
@@ -141,23 +154,24 @@ func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void
 	var ids: Array[String] = []
 	for definition in definitions:
 		ids.append(str(definition.id))
-	offers[player_id] = ids
-	selection_context[player_id] = {"initial": initial, "resume": resume_player}
+	offers[player_id] = {"stage": active_selection_stage, "ids": ids}
+	var completed_round := int(selection_context.get("round", 0))
 	if player_id == 1:
-		game().network_receive_offer(player_id, ids, initial, resume_player)
+		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round)
 	else:
-		receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player)
+		receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round)
 		game().network_show_waiting("백돌 플레이어가 증강을 선택하는 중…")
 
-func host_begin_additional_selection(player_id: int, resume_player: int) -> void:
-	_begin_selection(player_id, false, resume_player)
+func host_begin_round_selection(resume_player: int, completed_round: int) -> void:
+	_start_selection(false, resume_player, completed_round)
 
 func submit_augment_choice(augment_id: StringName) -> void:
 	local_sequence += 1
+	var stage: int = game().selection_stage_id
 	if mode == Mode.HOST:
-		_host_process_augment_choice(1, augment_id, local_sequence)
+		_host_process_augment_choice(1, stage, augment_id, local_sequence)
 	elif mode == Mode.CLIENT:
-		request_augment_choice.rpc_id(1, str(augment_id), local_sequence)
+		request_augment_choice.rpc_id(1, stage, str(augment_id), local_sequence)
 
 func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 	local_sequence += 1
@@ -175,6 +189,8 @@ func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_p
 
 func _process(delta: float) -> void:
 	if mode != Mode.HOST or not match_active or game().board == null:
+		return
+	if game().state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
 		return
 	snapshot_elapsed += delta
 	if snapshot_elapsed >= SNAPSHOT_INTERVAL:
@@ -224,31 +240,46 @@ func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _se
 	game().network_execute_shot(player_id, piece_id, pull_vector)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_augment_choice(augment_id: String, sequence: int) -> void:
+func request_augment_choice(stage: int, augment_id: String, sequence: int) -> void:
 	if mode != Mode.HOST:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if _valid_sequence(sender, sequence):
-		_host_process_augment_choice(_player_for_peer(sender), StringName(augment_id), sequence)
+		_host_process_augment_choice(_player_for_peer(sender), stage, StringName(augment_id), sequence)
 
-func _host_process_augment_choice(player_id: int, augment_id: StringName, _sequence: int) -> void:
-	if not offers.has(player_id) or not str(augment_id) in offers[player_id]:
+func _host_process_augment_choice(player_id: int, stage: int, augment_id: StringName, _sequence: int) -> void:
+	if mode != Mode.HOST or not match_active or player_id not in [1, 2] or stage != active_selection_stage:
 		return
-	if not game().augment_manager.acquire(game(), player_id, augment_id):
+	if bool(selection_completed.get(player_id, false)) or not offers.has(player_id) or not game().augment_manager.can_acquire(player_id):
 		return
-	offers.erase(player_id)
-	var context: Dictionary = selection_context.get(player_id, {})
-	receive_augment_granted.rpc(player_id, str(augment_id))
-	game().network_augment_granted(player_id, augment_id)
-	if bool(context.get("initial", false)):
-		selected_initial[player_id] = true
-		if bool(selected_initial[1]) and bool(selected_initial[2]):
-			receive_world_start.rpc(piece_count)
-			game().network_start_world(piece_count)
+	var offer: Dictionary = offers[player_id]
+	if int(offer.get("stage", -1)) != stage or not str(augment_id) in offer.get("ids", []):
+		return
+	pending_choices[player_id] = augment_id
+	selection_completed[player_id] = true
+	if not (bool(selection_completed[1]) and bool(selection_completed[2])):
+		return
+	for selected_player in [1, 2]:
+		var selected_id: StringName = pending_choices.get(selected_player, StringName())
+		if selected_id == StringName() or not game().augment_manager.can_acquire(selected_player):
+			return
+	for selected_player in [1, 2]:
+		var selected_id: StringName = pending_choices[selected_player]
+		if not game().augment_manager.acquire(game(), selected_player, selected_id):
+			return
+		receive_augment_granted.rpc(selected_player, str(selected_id))
+		game().network_augment_granted(selected_player, selected_id)
+	var initial := bool(selection_context.get("initial", false))
+	var resume := int(selection_context.get("resume", 1))
+	var completed_round := int(selection_context.get("round", 0))
+	offers.clear()
+	pending_choices.clear()
+	if initial:
+		receive_world_start.rpc(piece_count)
+		game().network_start_world(piece_count)
 	else:
-		var resume := int(context.get("resume", 1))
-		game().network_finish_additional_selection(resume)
-	selection_context.erase(player_id)
+		receive_selection_complete.rpc(stage, resume, completed_round)
+		game().network_selection_complete(stage, resume, completed_round)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_active_skill(augment_id: String, target_ids: Array[int], board_position: Vector2, sequence: int) -> void:
@@ -314,8 +345,8 @@ func receive_lobby(data: Dictionary) -> void:
 	lobby_updated.emit(data)
 
 @rpc("authority", "call_remote", "reliable")
-func receive_augment_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int) -> void:
-	game().network_receive_offer(player_id, ids, initial, resume_player)
+func receive_augment_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int) -> void:
+	game().network_receive_offer(player_id, ids, initial, resume_player, stage, completed_round)
 
 @rpc("authority", "call_remote", "reliable")
 func receive_augment_granted(player_id: int, augment_id: String) -> void:
@@ -327,6 +358,10 @@ func receive_augment_granted(player_id: int, augment_id: String) -> void:
 func receive_world_start(count: int) -> void:
 	match_active = true
 	game().network_start_world(count)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_selection_complete(stage: int, resume_player: int, completed_round: int) -> void:
+	game().network_selection_complete(stage, resume_player, completed_round)
 
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
 func receive_snapshot(snapshot: Dictionary) -> void:

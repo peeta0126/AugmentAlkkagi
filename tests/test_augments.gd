@@ -75,15 +75,50 @@ func run_test() -> void:
 	# 네 번째 완료 턴에서 추가 선택을 끼워 넣고 다음 플레이어로 복귀한다.
 	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
 	game.current_player = 1
-	game.augment_manager.completed_turns[1] = 3
 	game.resolve_turn()
 	await process_frame
-	check(game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION, "fourth completed turn opens augment selection")
-	check(game.augment_manager.completed_turns[1] == 4, "selection itself does not add a turn")
+	check(game.round_count == 0 and bool(game.round_actions[1]), "black action alone does not complete a round")
+	game.round_count = 2
+	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
+	game.current_player = 2
+	game.resolve_turn()
+	await process_frame
+	check(game.round_count == 3, "white action completes the shared third round")
+	check(game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION, "third shared round opens augment selection")
 	check(game.current_choices.size() == 3, "additional selection still offers three unowned augments")
 	game._choose_augment(game.current_choices[0].id)
 	await process_frame
-	check(game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "additional choice resumes the correct next player")
+	check(game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION and game.selection_player == 2, "local reward waits for white selection")
+	game._choose_augment(game.current_choices[0].id)
+	await process_frame
+	check(game.current_player == 1 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "both reward choices resume the next round")
+	check(game.augment_manager.owned[1].size() == 2 and game.augment_manager.owned[2].size() == 2, "third-round reward grants one augment to each player")
+	game.round_count = 5
+	game.round_actions = {1: true, 2: false}
+	game.current_player = 2
+	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
+	game.resolve_turn()
+	await process_frame
+	check(game.round_count == 6 and game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION, "sixth shared round opens the final selection")
+	game._choose_augment(game.current_choices[0].id)
+	await process_frame
+	game._choose_augment(game.current_choices[0].id)
+	await process_frame
+	check(game.augment_manager.owned[1].size() == 3 and game.augment_manager.owned[2].size() == 3, "sixth-round reward fills both inventories")
+	game.round_count = 8
+	game.round_actions = {1: true, 2: false}
+	game.current_player = 2
+	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
+	game.resolve_turn()
+	await process_frame
+	check(game.round_count == 9 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "ninth round adds no selection after inventories are full")
+	check(game.augment_manager.owned[1].size() == 3 and game.augment_manager.owned[2].size() == 3, "ninth round cannot add a fourth augment")
+
+	game.augment_manager.reset_match()
+	for augment_id in [&"tank", &"sonic_boom", &"scope"]:
+		check(game.augment_manager.acquire(game, 1, augment_id), "first three augments are accepted")
+	check(not game.augment_manager.acquire(game, 1, &"marksman"), "fourth augment is rejected")
+	check(game.augment_manager.get_choices(1, 3).is_empty(), "full inventory produces no card offer")
 
 	# 효과 획득 순서가 달라도 수치 곱 결과는 동일하다.
 	game.augment_manager.reset_match()
@@ -133,7 +168,12 @@ func run_test() -> void:
 	await process_frame
 
 	game.begin_match()
-	check(game.augment_manager.owned[1].is_empty() and game.augment_manager.completed_turns[1] == 0, "restart clears augments and counters")
+	check(game.augment_manager.owned[1].is_empty() and game.augment_manager.completed_turns[1] == 0 and game.round_count == 0, "local restart clears augments and counters")
+	game.augment_manager.acquire(game, 1, &"tank")
+	game.round_count = 5
+	game.round_actions = {1: true, 2: false}
+	game.network_prepare_match(false, 2, 3)
+	check(game.augment_manager.owned[1].is_empty() and game.round_count == 0 and not bool(game.round_actions[1]), "network rematch preparation clears augments and round progress")
 	if failures == 0:
 		print("PASS: augment system and effects tests")
 	quit(failures)

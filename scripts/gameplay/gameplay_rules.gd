@@ -4,7 +4,13 @@ extends RefCounted
 const MIN_PIECES := 3
 const MAX_PIECES := 5
 const DEFAULT_PIECES := 5
-const AUGMENT_TURN_INTERVAL := 4
+const AUGMENT_ROUND_INTERVAL := 3
+const MAX_AUGMENTS_PER_PLAYER := 3
+const MIN_SHOT_DRAG_DISTANCE := 8.0
+const WALL_SIZE := Vector2(150.0, 20.0)
+const WALL_BOUNCE := 0.88
+const WALL_FRICTION := 0.05
+const WALL_COLLISION_LAYER := 2
 const BALANCE: PhysicsBalance = preload("res://resources/balance/default_physics_balance.tres")
 
 static func clamp_piece_count(value: int) -> int:

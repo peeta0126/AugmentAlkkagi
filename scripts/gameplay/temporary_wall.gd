@@ -1,23 +1,27 @@
 class_name TemporaryWall
 extends StaticBody2D
 
-var wall_size := Vector2(150, 12)
+var wall_id := 0
+var wall_size := GameplayRules.WALL_SIZE
 var turns_left := 3
 
-func setup(center: Vector2, horizontal: bool, duration: int) -> void:
+func setup(center: Vector2, wall_rotation: float, duration: int, id: int = 0) -> void:
+	wall_id = id
 	position = center
-	wall_size = Vector2(150, 12) if horizontal else Vector2(12, 150)
+	rotation = wall_rotation
+	wall_size = GameplayRules.WALL_SIZE
 	turns_left = duration
 	var collision := CollisionShape2D.new()
+	collision.name = "WallCollision"
 	var rectangle := RectangleShape2D.new()
 	rectangle.size = wall_size
 	collision.shape = rectangle
 	add_child(collision)
 	var material := PhysicsMaterial.new()
-	material.bounce = 0.88
-	material.friction = 0.05
+	material.bounce = GameplayRules.WALL_BOUNCE
+	material.friction = GameplayRules.WALL_FRICTION
 	physics_material_override = material
-	collision_layer = 2
+	collision_layer = GameplayRules.WALL_COLLISION_LAYER
 	collision_mask = 1
 	queue_redraw()
 
