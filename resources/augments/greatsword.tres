@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/greatsword_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"greatsword"
+display_name = "무한의 대검"
+description = "아군 돌 주변 120px의 상대 돌을 강하게 밀어냅니다."
+rarity = 2
+icon_text = "†"
+kind = 3
+target_mode = 1
+max_uses = -1
+cooldown_turns = 2
+duration_turns = 0
+consumes_turn = true
+values = {"radius": 120.0, "knockback": 500.0}
+effect_script = ExtResource("2")

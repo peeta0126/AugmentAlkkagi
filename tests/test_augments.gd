@@ -1,0 +1,139 @@
+extends SceneTree
+
+var failures := 0
+
+func _init() -> void:
+	call_deferred("run_test")
+
+func check(condition: bool, message: String) -> void:
+	if not condition:
+		failures += 1
+		push_error("FAIL: " + message)
+
+func close_enough(actual: float, expected: float, message: String) -> void:
+	check(absf(actual - expected) < 0.001, "%s (actual %.3f, expected %.3f)" % [message, actual, expected])
+
+func run_test() -> void:
+	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	root.add_child(game)
+	await process_frame
+
+	game.begin_match()
+	await process_frame
+	check(game.state_machine.current == GameStateMachine.State.INITIAL_AUGMENT_SELECTION, "match starts in augment selection")
+	check(game.current_choices.size() == 3, "initial selection offers three cards")
+	var unique_ids := {}
+	for definition in game.current_choices:
+		unique_ids[definition.id] = true
+	check(unique_ids.size() == 3, "selection contains no duplicate cards")
+	check(not game.state_machine.allows_aiming(), "selection blocks aiming")
+
+	var red_choice: StringName = game.current_choices[0].id
+	game._choose_augment(red_choice)
+	await process_frame
+	check(game.augment_manager.has_augment(1, red_choice), "black independently owns its choice")
+	check(not game.augment_manager.has_augment(2, red_choice), "choice is not given to white")
+	check(game.selection_player == 2, "selection advances to blue")
+	game._choose_augment(game.current_choices[0].id)
+	await process_frame
+	check(game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "both initial choices start gameplay")
+
+	# 핵심 세 증강의 물리 검증은 무작위 선택과 분리한다.
+	game.clear_world()
+	game.augment_manager.reset_match()
+	game.augment_manager.acquire(game, 1, &"tank")
+	game.augment_manager.acquire(game, 2, &"sonic_boom")
+	game.start_game_world()
+	await process_frame
+
+	var red_piece: AlkkagiPiece
+	var blue_piece: AlkkagiPiece
+	for piece in game.get_pieces():
+		if piece.owner_id == 1 and red_piece == null:
+			red_piece = piece
+		elif piece.owner_id == 2 and blue_piece == null:
+			blue_piece = piece
+	close_enough(red_piece.visual_radius, AlkkagiPiece.BLACK_RADIUS * 1.25, "tank visual size")
+	close_enough(red_piece.mass, 1.8, "tank mass")
+	close_enough((red_piece.collision_shape.shape as CircleShape2D).radius, red_piece.visual_radius, "tank collider matches visual")
+	close_enough(blue_piece.visual_radius, AlkkagiPiece.WHITE_RADIUS, "tank does not affect opponent")
+	check(red_piece.gravity_scale == 0.0 and blue_piece.gravity_scale == 0.0, "piece gravity is explicitly disabled")
+	var red_start := red_piece.position
+	await physics_frame
+	await physics_frame
+	check(red_piece.position.distance_to(red_start) < 0.01, "pieces do not fall or move after spawning")
+
+	var blue_profile: Dictionary = game.augment_manager.shot_profile(2)
+	close_enough(float(blue_profile.impulse_multiplier), 1.6, "sonic boom increases shot impulse")
+	game.current_player = 2
+	game._on_piece_pressed(blue_piece)
+	game.fire_selected(blue_piece.global_position + Vector2(100, 0))
+	await physics_frame
+	check(blue_piece.sonic_trail, "sonic shot enables enhanced trail")
+	check(blue_piece.continuous_cd == RigidBody2D.CCD_MODE_CAST_RAY, "sonic piece uses CCD")
+
+	# 네 번째 완료 턴에서 추가 선택을 끼워 넣고 다음 플레이어로 복귀한다.
+	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
+	game.current_player = 1
+	game.augment_manager.completed_turns[1] = 3
+	game.resolve_turn()
+	await process_frame
+	check(game.state_machine.current == GameStateMachine.State.AUGMENT_SELECTION, "fourth completed turn opens augment selection")
+	check(game.augment_manager.completed_turns[1] == 4, "selection itself does not add a turn")
+	check(game.current_choices.size() == 3, "additional selection still offers three unowned augments")
+	game._choose_augment(game.current_choices[0].id)
+	await process_frame
+	check(game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "additional choice resumes the correct next player")
+
+	# 효과 획득 순서가 달라도 수치 곱 결과는 동일하다.
+	game.augment_manager.reset_match()
+	game.augment_manager.acquire(game, 1, &"sonic_boom")
+	game.augment_manager.acquire(game, 1, &"scope")
+	game.augment_manager.acquire(game, 2, &"scope")
+	game.augment_manager.acquire(game, 2, &"sonic_boom")
+	var order_a: Dictionary = game.augment_manager.shot_profile(1)
+	var order_b: Dictionary = game.augment_manager.shot_profile(2)
+	close_enough(float(order_a.impulse_multiplier), float(order_b.impulse_multiplier), "stacking impulse is order independent")
+	close_enough(float(order_a.max_drag_multiplier), float(order_b.max_drag_multiplier), "stacking range is order independent")
+	var base_max := GameplayRules.BALANCE.max_launch_impulse
+	var stacked_max := base_max * float(order_a.max_drag_multiplier) * float(order_a.impulse_multiplier)
+	close_enough(stacked_max, base_max * 2.08, "sonic and scope combine to 2.08x maximum impulse")
+	close_enough(float(order_a.guide_multiplier), 1.5, "scope lengthens aiming guide")
+
+	# 탱크의 본체 변경과 음속의 발사 프로필은 서로 독립적으로 함께 적용된다.
+	game.augment_manager.reset_match()
+	game.augment_manager.acquire(game, 1, &"tank")
+	game.augment_manager.acquire(game, 1, &"sonic_boom")
+	var combo_piece := AlkkagiPiece.new()
+	combo_piece.setup(1, 999)
+	root.add_child(combo_piece)
+	game.augment_manager.apply_owned_to_piece(1, combo_piece)
+	close_enough(combo_piece.mass, 1.8, "tank and sonic preserve tank mass")
+	close_enough(float(game.augment_manager.shot_profile(1).impulse_multiplier), 1.6, "tank and sonic preserve sonic impulse")
+	combo_piece.queue_free()
+	await process_frame
+
+	# CCD가 켜진 고속 알이 한 물리 프레임 사이를 건너뛰지 않고 목표에 충격을 준다.
+	var projectile := AlkkagiPiece.new()
+	projectile.setup(1, 1001)
+	projectile.position = Vector2(120, 690)
+	var sonic_speed := GameplayRules.BALANCE.max_speed * 1.6
+	projectile.activate_sonic_trail(sonic_speed)
+	root.add_child(projectile)
+	var target := AlkkagiPiece.new()
+	target.setup(2, 1002)
+	target.position = Vector2(300, 690)
+	root.add_child(target)
+	projectile.linear_velocity = Vector2(sonic_speed, 0)
+	for frame in 12:
+		await physics_frame
+	check(target.linear_velocity.x > 0.0, "high-speed CCD collision transfers momentum")
+	projectile.queue_free()
+	target.queue_free()
+	await process_frame
+
+	game.begin_match()
+	check(game.augment_manager.owned[1].is_empty() and game.augment_manager.completed_turns[1] == 0, "restart clears augments and counters")
+	if failures == 0:
+		print("PASS: augment system and effects tests")
+	quit(failures)

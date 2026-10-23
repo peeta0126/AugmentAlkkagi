@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/connect_four_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"connect_four"
+display_name = "사목"
+description = "격자 가로·세로·대각선에 아군 돌 4개가 연속되면 승리합니다."
+rarity = 3
+icon_text = "四"
+kind = 4
+target_mode = 0
+max_uses = -1
+cooldown_turns = 0
+duration_turns = 0
+consumes_turn = true
+values = {"grid_tolerance": 14.0}
+effect_script = ExtResource("2")

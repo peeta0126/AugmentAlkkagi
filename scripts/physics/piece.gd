@@ -1,0 +1,342 @@
+class_name AlkkagiPiece
+extends RigidBody2D
+
+signal selected(piece: AlkkagiPiece)
+
+# 1mm = 1.2px. 흑돌 22.2mm, 백돌 21.9mm의 실제 지름을 그대로 환산한다.
+const BLACK_DIAMETER := 26.64
+const WHITE_DIAMETER := 26.28
+const BLACK_RADIUS := BLACK_DIAMETER * 0.5
+const WHITE_RADIUS := WHITE_DIAMETER * 0.5
+const RADIUS := BLACK_RADIUS # 이전 테스트/확장 코드와의 호환용 기본값
+const OWNER_COLORS := {1: Color("d2a85f"), 2: Color("eee9dc")}
+const STONE_NAMES := {1: "흑돌", 2: "백돌"}
+const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
+
+var owner_id := 1
+var piece_id := 0
+var is_selected := false
+var trail: Array[Vector2] = []
+var base_radius := BLACK_RADIUS
+var visual_radius := BLACK_RADIUS
+var speed_cap := GameplayRules.BALANCE.max_speed
+var sonic_trail := false
+var is_tank := false
+var collision_shape: CollisionShape2D
+var tank_factor := 1.0
+var fragment_factor := 1.0
+var mass_factor := 1.0
+var status_mass_factor := 1.0
+var status_damp_bonus := 0.0
+var invulnerable := false
+var status_turns := 0
+var status_kind := ""
+var stasis_turns := 0
+var snow_turns := 0
+var transformation := ""
+var carried_count := 0
+var reached_enemy_end := false
+var field_damp_bonus := 0.0
+var field_speed_multiplier := 1.0
+
+static func radius_for_owner(value: int) -> float:
+	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
+
+func setup(new_owner_id: int, new_piece_id: int) -> void:
+	owner_id = new_owner_id
+	piece_id = new_piece_id
+	base_radius = radius_for_owner(owner_id)
+	visual_radius = base_radius
+	mass = 1.0
+	linear_damp = GameplayRules.BALANCE.linear_damp
+	angular_damp = 9.0
+	lock_rotation = true
+	gravity_scale = 0.0
+	continuous_cd = RigidBody2D.CCD_MODE_CAST_RAY
+	var material := PhysicsMaterial.new()
+	material.bounce = GameplayRules.BALANCE.bounce
+	material.friction = GameplayRules.BALANCE.friction
+	physics_material_override = material
+	contact_monitor = true
+	max_contacts_reported = 8
+	collision_layer = 1
+	collision_mask = 1
+	input_pickable = true
+	var shape := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = base_radius
+	shape.shape = circle
+	add_child(shape)
+	collision_shape = shape
+	queue_redraw()
+
+func apply_tank(size_multiplier: float, mass_multiplier: float) -> void:
+	# 흑돌/백돌의 고유 크기 차이를 보존한 채 각 기본값에서 계산한다.
+	is_tank = true
+	tank_factor = size_multiplier
+	mass_factor = mass_multiplier
+	refresh_physics()
+
+func refresh_physics() -> void:
+	visual_radius = base_radius * tank_factor * fragment_factor * (1.12 if carried_count > 0 else 1.0)
+	mass = mass_factor * status_mass_factor * (1.65 if carried_count > 0 else 1.0)
+	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
+	if collision_shape:
+		(collision_shape.shape as CircleShape2D).radius = visual_radius
+	queue_redraw()
+
+func set_fragment() -> void:
+	fragment_factor = 0.62
+	mass_factor *= 0.40
+	refresh_physics()
+
+func change_player_owner(new_owner: int) -> void:
+	owner_id = new_owner
+	base_radius = radius_for_owner(owner_id)
+	refresh_physics()
+
+func set_stasis(turns: int) -> void:
+	stasis_turns = maxi(stasis_turns, turns)
+	status_turns = maxi(status_turns, turns)
+	invulnerable = true
+	linear_velocity = Vector2.ZERO
+	freeze = true
+	_update_status_kind()
+	queue_redraw()
+
+func apply_snow(turns: int) -> void:
+	snow_turns = maxi(snow_turns, turns)
+	status_turns = maxi(status_turns, turns)
+	status_mass_factor = 1.35
+	status_damp_bonus = 1.4
+	_update_status_kind()
+	refresh_physics()
+
+func tick_status(for_owner: int) -> void:
+	if owner_id != for_owner or status_turns <= 0:
+		return
+	if stasis_turns > 0:
+		stasis_turns -= 1
+		if stasis_turns == 0:
+			freeze = false
+			invulnerable = false
+	if snow_turns > 0:
+		snow_turns -= 1
+		if snow_turns == 0:
+			status_mass_factor = 1.0
+			status_damp_bonus = 0.0
+	status_turns = maxi(stasis_turns, snow_turns)
+	_update_status_kind()
+	refresh_physics()
+
+func clear_temporary_status() -> void:
+	freeze = false
+	invulnerable = false
+	stasis_turns = 0
+	snow_turns = 0
+	status_turns = 0
+	status_kind = ""
+	status_mass_factor = 1.0
+	status_damp_bonus = 0.0
+	refresh_physics()
+
+func _update_status_kind() -> void:
+	if stasis_turns > 0 and snow_turns > 0:
+		status_kind = "stasis+snow"
+	elif stasis_turns > 0:
+		status_kind = "stasis"
+	elif snow_turns > 0:
+		status_kind = "snow"
+	else:
+		status_kind = ""
+
+func transform_as(kind: String) -> void:
+	transformation = kind
+	match kind:
+		"SOLDIER": status_damp_bonus -= 0.35
+		"CHARIOT": mass_factor *= 1.35
+		"CANNON": mass_factor *= 1.20
+		"HORSE": speed_cap = maxf(speed_cap, 1100.0)
+		"ELEPHANT": mass_factor *= 1.25
+		"GUARD": status_damp_bonus += 0.7
+		"KING": mass_factor *= 1.50
+	refresh_physics()
+
+func activate_sonic_trail(new_speed_cap: float) -> void:
+	sonic_trail = true
+	speed_cap = maxf(speed_cap, new_speed_cap)
+	queue_redraw()
+
+func prepare_shot_speed_cap(new_speed_cap: float) -> void:
+	speed_cap = maxf(GameplayRules.BALANCE.max_speed, new_speed_cap)
+
+func set_selected(value: bool) -> void:
+	is_selected = value
+	queue_redraw()
+
+func stop_motion() -> void:
+	linear_velocity = Vector2.ZERO
+	angular_velocity = 0.0
+	sleeping = true
+
+func network_state() -> Dictionary:
+	return {
+		"id": piece_id,
+		"owner": owner_id,
+		"position": position,
+		"velocity": linear_velocity,
+		"tank": is_tank,
+		"tank_factor": tank_factor,
+		"fragment_factor": fragment_factor,
+		"mass_factor": mass_factor,
+		"status_mass": status_mass_factor,
+		"status_damp": status_damp_bonus,
+		"invulnerable": invulnerable,
+		"stasis": stasis_turns,
+		"snow": snow_turns,
+		"transformation": transformation,
+		"carried": carried_count,
+		"enemy_end": reached_enemy_end,
+		"sonic": sonic_trail,
+		"speed_cap": speed_cap
+	}
+
+# 20Hz UDP 스냅샷은 MTU를 넘지 않도록 필드명을 제외한 고정 배열로 전송한다.
+func compact_network_state() -> PackedFloat32Array:
+	var flags := (1 if is_tank else 0) | (2 if invulnerable else 0) | (4 if sonic_trail else 0) | (8 if reached_enemy_end else 0)
+	var transform_code := maxi(TRANSFORM_NAMES.find(transformation), 0)
+	return PackedFloat32Array([piece_id, owner_id, position.x, position.y, linear_velocity.x, linear_velocity.y,
+		tank_factor, fragment_factor, mass_factor, status_mass_factor, status_damp_bonus, flags,
+		stasis_turns, snow_turns, transform_code, carried_count, speed_cap])
+
+func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpolate: bool) -> void:
+	if data.size() < offset + 17:
+		return
+	apply_network_state({
+		"id": int(data[offset]), "owner": int(data[offset + 1]),
+		"position": Vector2(data[offset + 2], data[offset + 3]), "velocity": Vector2(data[offset + 4], data[offset + 5]),
+		"tank": (int(data[offset + 11]) & 1) != 0, "tank_factor": data[offset + 6],
+		"fragment_factor": data[offset + 7], "mass_factor": data[offset + 8],
+		"status_mass": data[offset + 9], "status_damp": data[offset + 10],
+		"invulnerable": (int(data[offset + 11]) & 2) != 0, "sonic": (int(data[offset + 11]) & 4) != 0,
+		"enemy_end": (int(data[offset + 11]) & 8) != 0, "stasis": int(data[offset + 12]), "snow": int(data[offset + 13]),
+		"transformation": TRANSFORM_NAMES[clampi(int(data[offset + 14]), 0, TRANSFORM_NAMES.size() - 1)],
+		"carried": int(data[offset + 15]), "speed_cap": data[offset + 16]
+	}, interpolate)
+
+func apply_network_state(data: Dictionary, interpolate: bool) -> void:
+	var new_owner := int(data.get("owner", owner_id))
+	if new_owner != owner_id:
+		change_player_owner(new_owner)
+	var target_position: Vector2 = data.get("position", position)
+	position = position.lerp(target_position, 0.58) if interpolate and position.distance_to(target_position) < 100.0 else target_position
+	linear_velocity = data.get("velocity", Vector2.ZERO)
+	is_tank = bool(data.get("tank", false))
+	tank_factor = float(data.get("tank_factor", 1.0))
+	fragment_factor = float(data.get("fragment_factor", 1.0))
+	mass_factor = float(data.get("mass_factor", 1.0))
+	status_mass_factor = float(data.get("status_mass", 1.0))
+	status_damp_bonus = float(data.get("status_damp", 0.0))
+	invulnerable = bool(data.get("invulnerable", false))
+	stasis_turns = int(data.get("stasis", 0))
+	snow_turns = int(data.get("snow", 0))
+	status_turns = maxi(stasis_turns, snow_turns)
+	transformation = str(data.get("transformation", ""))
+	carried_count = int(data.get("carried", 0))
+	reached_enemy_end = bool(data.get("enemy_end", false))
+	sonic_trail = bool(data.get("sonic", false))
+	speed_cap = float(data.get("speed_cap", GameplayRules.BALANCE.max_speed))
+	_update_status_kind()
+	refresh_physics()
+	freeze = true
+
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	# 작은 돌에서 눈에 띄는 미세 진동을 제거하고 고속 관통 범위를 제한한다.
+	if state.linear_velocity.length() < GameplayRules.BALANCE.stop_threshold:
+		state.linear_velocity = Vector2.ZERO
+	elif state.linear_velocity.length() > speed_cap * field_speed_multiplier:
+		state.linear_velocity = state.linear_velocity.limit_length(speed_cap * field_speed_multiplier)
+
+func _physics_process(_delta: float) -> void:
+	var trail_threshold := 38.0 if sonic_trail else 70.0
+	if linear_velocity.length() > trail_threshold:
+		trail.push_front(global_position)
+		var trail_limit := 14 if sonic_trail else 6
+		if trail.size() > trail_limit:
+			trail.pop_back()
+	else:
+		trail.clear()
+	queue_redraw()
+
+func _input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		selected.emit(self)
+
+func _draw() -> void:
+	# 속도 잔상은 돌의 실제 반지름을 따라가며 음속 폭발만 금빛으로 강화한다.
+	for index in range(trail.size() - 1, -1, -1):
+		var local_point := to_local(trail[index])
+		var alpha := (0.045 if sonic_trail else 0.025) + float(trail.size() - index) * 0.012
+		var trail_color: Color = Color("ffe89a") if sonic_trail else OWNER_COLORS[owner_id]
+		draw_circle(local_point, visual_radius * 0.78, Color(trail_color.r, trail_color.g, trail_color.b, alpha))
+
+	# 접촉 그림자는 세로로 눌린 타원으로 그려 돌이 판 위에 놓인 느낌을 준다.
+	draw_set_transform(Vector2(2.2, 4.0), 0.0, Vector2(1.08, 0.58))
+	draw_circle(Vector2.ZERO, visual_radius + 2.4, Color(0.055, 0.035, 0.018, 0.38))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if is_selected:
+		draw_circle(Vector2.ZERO, visual_radius + 5.0, Color(1.0, 0.72, 0.22, 0.92))
+	if is_tank:
+		draw_circle(Vector2.ZERO, visual_radius + 2.2, Color("b88a3e"))
+	if "stasis" in status_kind:
+		draw_circle(Vector2.ZERO, visual_radius + 3.4, Color(0.95, 0.72, 0.22, 0.72))
+
+	var outer: Color = Color("111110") if owner_id == 1 else Color("aaa79f")
+	var center: Color = Color("343433") if owner_id == 1 else Color("fffdf3")
+	draw_circle(Vector2.ZERO, visual_radius, outer)
+	# 광원 쪽으로 조금씩 이동하는 동심원을 쌓아 양면 볼록 렌즈의 곡면을 표현한다.
+	for layer in range(1, 12):
+		var ratio := float(layer) / 11.0
+		var radius := visual_radius * (1.0 - ratio * 0.075)
+		var light_center := Vector2(-ratio * visual_radius * 0.10, -ratio * visual_radius * 0.13)
+		draw_circle(light_center, radius, outer.lerp(center, ratio * 0.82))
+	if owner_id == 2:
+		# 조개 백돌의 결을 거의 보이지 않을 정도로 얇게 남긴다.
+		draw_arc(Vector2(-1.0, 1.0), visual_radius * 0.66, -2.55, -0.45, 22, Color(0.68, 0.66, 0.61, 0.16), 0.7)
+		draw_arc(Vector2(0.5, 2.0), visual_radius * 0.44, 0.55, 2.45, 18, Color(1, 1, 1, 0.28), 0.65)
+	# 작고 부드러운 반사광은 플라스틱처럼 보이지 않도록 낮은 불투명도를 쓴다.
+	draw_circle(Vector2(-visual_radius * 0.34, -visual_radius * 0.38), maxf(1.25, visual_radius * 0.15), Color(1, 1, 1, 0.22 if owner_id == 1 else 0.42))
+	draw_arc(Vector2.ZERO, visual_radius - 0.8, 0.15, 2.75, 24, Color(1, 1, 1, 0.10 if owner_id == 1 else 0.20), 0.8)
+	if "snow" in status_kind:
+		for angle in [0.2, 2.25, 4.35]:
+			draw_circle(Vector2.from_angle(angle) * visual_radius * 0.72, visual_radius * 0.28, Color(0.88, 0.96, 1.0, 0.9))
+	if carried_count > 0:
+		draw_circle(Vector2(0, -visual_radius * 0.48), visual_radius * 0.42, outer.lerp(center, 0.6))
+	if transformation != "":
+		var mark_color := Color("ff784f") if transformation == "WIZARD" else Color("f4ce73")
+		draw_arc(Vector2.ZERO, visual_radius + 2.8, 0.0, TAU, 20, mark_color, 1.8)
+		_draw_transformation_mark(mark_color)
+	if sonic_trail:
+		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
+
+func _draw_transformation_mark(color: Color) -> void:
+	var size := visual_radius * 0.48
+	match transformation:
+		"SOLDIER":
+			draw_polyline(PackedVector2Array([Vector2(-size, -size * 0.3), Vector2.ZERO, Vector2(size, -size * 0.3)]), color, 1.8)
+		"CHARIOT":
+			draw_rect(Rect2(Vector2(-size, -size), Vector2.ONE * size * 2.0), color, false, 1.8)
+		"CANNON":
+			draw_circle(Vector2.ZERO, size, color, false, 1.8)
+			draw_circle(Vector2.ZERO, size * 0.35, color)
+		"HORSE":
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -size), Vector2(size, size), Vector2(-size, size)]), Color(color.r, color.g, color.b, 0.72))
+		"ELEPHANT":
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -size), Vector2(size, 0), Vector2(0, size), Vector2(-size, 0)]), Color(color.r, color.g, color.b, 0.72))
+		"GUARD":
+			draw_line(Vector2(-size, 0), Vector2(size, 0), color, 2.0)
+			draw_line(Vector2(0, -size), Vector2(0, size), color, 2.0)
+		"KING":
+			draw_polyline(PackedVector2Array([Vector2(-size, size * 0.65), Vector2(-size, -size * 0.35), Vector2(-size * 0.45, 0), Vector2(0, -size), Vector2(size * 0.45, 0), Vector2(size, -size * 0.35), Vector2(size, size * 0.65), Vector2(-size, size * 0.65)]), color, 1.8)
+		"WIZARD":
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -size * 1.25), Vector2(size, size * 0.7), Vector2(-size, size * 0.7)]), Color(color.r, color.g, color.b, 0.68))

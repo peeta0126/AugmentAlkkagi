@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/triple_shot_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"triple_shot"
+display_name = "삼연발!!"
+description = "발사한 돌이 3개의 소형 돌로 갈라져 부채꼴로 날아갑니다."
+rarity = 2
+icon_text = "Ⅲ"
+kind = 1
+target_mode = 0
+max_uses = -1
+cooldown_turns = 0
+duration_turns = 0
+consumes_turn = true
+values = {"spread_degrees": 12.0}
+effect_script = ExtResource("2")

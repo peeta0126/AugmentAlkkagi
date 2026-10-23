@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/tank_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"tank"
+display_name = "탱크"
+description = "모든 아군 알의 크기가 1.25배, 질량이 1.8배가 됩니다."
+rarity = 1
+icon_text = "盾"
+kind = 0
+trigger_description = "획득 즉시 · 지속"
+values = {"size_multiplier": 1.25, "mass_multiplier": 1.8}
+effect_script = ExtResource("2")

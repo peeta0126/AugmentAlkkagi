@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PhysicsBalance" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/physics_balance.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+base_launch_impulse = 9.36
+max_launch_impulse = 1123.2
+drag_distance = 120.0
+linear_damp = 2.68
+max_speed = 1250.0
+stop_threshold = 4.0
+bounce = 0.48
+friction = 0.24

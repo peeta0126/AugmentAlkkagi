@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/sonic_boom_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"sonic_boom"
+display_name = "음속 폭발"
+description = "발사 충격량이 1.6배가 되고 강렬한 고속 잔상이 생깁니다."
+rarity = 2
+icon_text = ">>"
+kind = 1
+trigger_description = "발사 직전"
+values = {"impulse_multiplier": 1.6}
+effect_script = ExtResource("2")
