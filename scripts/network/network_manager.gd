@@ -338,12 +338,15 @@ func request_active_skill(augment_id: String, target_ids: Array, board_position:
 	if mode != Mode.HOST:
 		return
 	var sender := multiplayer.get_remote_sender_id()
+	var player_id := _player_for_peer(sender)
 	if not _valid_sequence(sender, sequence, "active skill"):
+		_reject_active_skill(player_id, "중복되거나 오래된 요청입니다")
 		return
 	var validated_target_ids: Array[int] = []
 	if not validate_active_target_ids(target_ids, validated_target_ids):
+		_reject_active_skill(player_id, "대상 ID 형식이 올바르지 않습니다")
 		return
-	_host_process_active(_player_for_peer(sender), StringName(augment_id), validated_target_ids, board_position, sequence)
+	_host_process_active(player_id, StringName(augment_id), validated_target_ids, board_position, sequence)
 
 func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Array[int]) -> bool:
 	validated_target_ids.clear()
@@ -356,14 +359,26 @@ func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Arr
 	return true
 
 func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int) -> void:
-	if mode != Mode.HOST or player_id != game().current_player or not game().state_machine.allows_aiming():
+	if OS.is_debug_build():
+		print("[active-skill] host request: player=%d augment=%s targets=%s position=%s current_player=%d state=%s" % [player_id, augment_id, target_ids, board_position, game().current_player, GameStateMachine.State.keys()[game().state_machine.current]])
+	if mode != Mode.HOST:
+		return
+	if player_id != game().current_player:
+		_reject_active_skill(player_id, "현재 플레이어의 차례가 아닙니다")
+		return
+	if not game().state_machine.allows_aiming():
+		_reject_active_skill(player_id, "현재 상태에서는 스킬을 사용할 수 없습니다")
 		return
 	var effect: AugmentEffect
 	for candidate: AugmentEffect in game().augment_manager.effects[player_id]:
 		if candidate.definition.id == augment_id:
 			effect = candidate
 			break
-	if effect == null or not effect.can_activate(game(), player_id):
+	if effect == null:
+		_reject_active_skill(player_id, "보유하지 않은 스킬입니다")
+		return
+	if not effect.can_activate(game(), player_id):
+		_reject_active_skill(player_id, "사용 횟수 또는 재사용 대기시간 조건을 만족하지 않습니다")
 		return
 	var required := 0
 	if effect.definition.target_mode in [AugmentDefinition.TargetMode.OWN_PIECE, AugmentDefinition.TargetMode.ENEMY_PIECE]:
@@ -371,28 +386,52 @@ func _host_process_active(player_id: int, augment_id: StringName, target_ids: Ar
 	if effect.definition.target_mode == AugmentDefinition.TargetMode.TWO_OWN_PIECES or augment_id == &"wizard":
 		required = 2
 	if target_ids.size() != required or (target_ids.size() == 2 and target_ids[0] == target_ids[1]):
+		_reject_active_skill(player_id, "필요한 대상 수가 올바르지 않습니다")
 		return
 	for index in target_ids.size():
 		var validated_piece: AlkkagiPiece = game().find_piece(target_ids[index])
 		if validated_piece == null:
+			_reject_active_skill(player_id, "대상 바둑알을 찾을 수 없습니다")
 			return
 		if augment_id == &"wizard":
 			if (index == 0 and validated_piece.owner_id != player_id) or (index == 1 and validated_piece.owner_id == player_id):
+				_reject_active_skill(player_id, "마법사 대상 순서가 올바르지 않습니다")
 				return
 		elif effect.definition.target_mode in [AugmentDefinition.TargetMode.OWN_PIECE, AugmentDefinition.TargetMode.TWO_OWN_PIECES] and validated_piece.owner_id != player_id:
+			_reject_active_skill(player_id, "자신의 바둑알을 선택해야 합니다")
 			return
 		elif effect.definition.target_mode == AugmentDefinition.TargetMode.ENEMY_PIECE and validated_piece.owner_id == player_id:
+			_reject_active_skill(player_id, "상대 바둑알을 선택해야 합니다")
 			return
 	if effect.definition.target_mode == AugmentDefinition.TargetMode.NONE:
 		effect.activate_immediate(game(), player_id)
 	elif effect.definition.target_mode == AugmentDefinition.TargetMode.BOARD_POSITION:
-		effect.on_position_target(game(), player_id, board_position)
+		if not effect.on_position_target(game(), player_id, board_position):
+			_reject_active_skill(player_id, "해당 위치에는 설치할 수 없습니다")
 	else:
-		for target_id in target_ids:
+		var applied := false
+		for index in target_ids.size():
+			var target_id: int = target_ids[index]
 			var piece: AlkkagiPiece = game().find_piece(target_id)
 			if piece == null:
+				_reject_active_skill(player_id, "대상 바둑알이 사라졌습니다")
 				return
-			effect.on_piece_target(game(), player_id, piece)
+			var accepted := effect.on_piece_target(game(), player_id, piece)
+			if index == target_ids.size() - 1:
+				applied = accepted
+		if not applied:
+			effect.cancel_active()
+			_reject_active_skill(player_id, "선택한 대상에 스킬을 적용할 수 없습니다")
+
+func _reject_active_skill(player_id: int, reason: String) -> void:
+	if OS.is_debug_build():
+		push_warning("[active-skill] rejected player %d: %s" % [player_id, reason])
+	if player_id == 1:
+		game().network_active_skill_rejected(reason)
+	elif player_id == 2:
+		var peer_id := _peer_for_player(2)
+		if peer_id != 0:
+			receive_active_skill_rejected.rpc_id(peer_id, reason)
 
 func broadcast_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
 	if mode == Mode.HOST:
@@ -428,6 +467,10 @@ func receive_world_start(count: int) -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_selection_complete(stage: int, resume_player: int, completed_round: int) -> void:
 	game().network_selection_complete(stage, resume_player, completed_round)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_active_skill_rejected(reason: String) -> void:
+	game().network_active_skill_rejected(reason)
 
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
 func receive_snapshot(snapshot: Dictionary) -> void:

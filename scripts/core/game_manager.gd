@@ -51,6 +51,11 @@ var network_status_label: Label
 var network_winner := 0
 var network_wall_signature := ""
 var next_wall_id := 1
+var skill_targeting_snapshot_logged := false
+
+func _skill_debug(message: String) -> void:
+	if OS.is_debug_build():
+		print("[active-skill] %s" % message)
 
 func _ready() -> void:
 	state_machine = StateMachineScript.new()
@@ -576,10 +581,12 @@ func _add_augment_hud(player_id: int, hud_position: Vector2) -> void:
 
 func _add_active_skill_hud() -> void:
 	if online_mode and current_player != local_player_id:
+		_skill_debug("HUD skipped: current_player=%d local_player=%d state=%s" % [current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current]])
 		return
 	var actives := augment_manager.active_effects(current_player)
 	if actives.is_empty():
 		return
+	_skill_debug("HUD built: current_player=%d local_player=%d state=%s active_count=%d" % [current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current], actives.size()])
 	var box := VBoxContainer.new()
 	box.position = Vector2(950, 330)
 	box.size = Vector2(300, 220)
@@ -607,9 +614,16 @@ func _add_blind_overlay() -> void:
 	hud.add_child(warning)
 
 func _activate_skill(effect: AugmentEffect) -> void:
-	if not state_machine.allows_aiming() or not effect.can_activate(self, current_player):
+	var can_use := effect.can_activate(self, current_player)
+	_skill_debug("button pressed: augment=%s current_player=%d local_player=%d state=%s can_activate=%s" % [effect.definition.id, current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current], can_use])
+	if not state_machine.allows_aiming():
+		_skill_debug("activation rejected locally: state does not allow aiming")
+		return
+	if not can_use:
+		_skill_debug("activation rejected locally: can_activate=false")
 		return
 	if online_mode and current_player != local_player_id:
+		_skill_debug("activation rejected locally: not the local player's turn")
 		return
 	if online_mode and not online_is_host:
 		if current_player != local_player_id:
@@ -629,6 +643,8 @@ func begin_skill_targeting(effect: AugmentEffect, player_id: int) -> void:
 	active_skill = effect
 	active_skill_player = player_id
 	state_machine.transition(GameStateMachine.State.SKILL_TARGETING)
+	skill_targeting_snapshot_logged = false
+	_skill_debug("entered SKILL_TARGETING: augment=%s player=%d" % [effect.definition.id, player_id])
 	set_skill_hint("%s: 대상을 선택하세요. 우클릭으로 취소" % effect.definition.display_name)
 
 func cancel_active_skill() -> void:
@@ -636,6 +652,7 @@ func cancel_active_skill() -> void:
 		active_skill.cancel_active()
 	active_skill = null
 	active_skill_player = 0
+	skill_targeting_snapshot_logged = false
 	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
 	update_hud("자신의 돌을 잡아당겨 발사하세요")
 
@@ -661,6 +678,7 @@ func _current_shot_profile() -> Dictionary:
 
 func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 	if state_machine.current == GameStateMachine.State.SKILL_TARGETING and active_skill:
+		_skill_debug("piece target clicked: augment=%s piece=%d owner=%d" % [active_skill.definition.id, piece.piece_id, piece.owner_id])
 		if online_mode and not online_is_host:
 			_network_collect_skill_target(piece)
 			return
@@ -728,6 +746,7 @@ func confirm_board_position_skill(board_position: Vector2) -> void:
 		return
 	if online_mode and not online_is_host:
 		var target_ids: Array[int] = []
+		_skill_debug("board target submitted: augment=%s position=%s" % [active_skill.definition.id, board_position])
 		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position)
 		network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
 	else:
@@ -1253,11 +1272,30 @@ func apply_network_snapshot(snapshot: Dictionary) -> void:
 	if state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
 		return
 	var remote_state := int(snapshot.get("state", GameStateMachine.State.PLAYER_AIMING))
+	# Target selection is client-local until an active-skill request reaches the
+	# host. The host legitimately remains in PLAYER_AIMING during that interval.
+	if state_machine.current == GameStateMachine.State.SKILL_TARGETING and current_player == local_player_id and remote_state == GameStateMachine.State.PLAYER_AIMING:
+		if not skill_targeting_snapshot_logged:
+			_skill_debug("kept local SKILL_TARGETING while host snapshot is PLAYER_AIMING")
+			skill_targeting_snapshot_logged = true
+		return
+	skill_targeting_snapshot_logged = false
 	if remote_state in [GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
 		state_machine.transition(remote_state as GameStateMachine.State)
 	if previous_player != current_player or turn_label == null:
 		build_hud()
 	update_hud("자신의 차례입니다" if current_player == local_player_id else "상대 차례를 기다리는 중…")
+
+func network_active_skill_rejected(reason: String) -> void:
+	_skill_debug("host rejected active request: %s" % reason)
+	network_skill_targets.clear()
+	build_hud()
+	if active_skill != null:
+		state_machine.transition(GameStateMachine.State.SKILL_TARGETING)
+		set_skill_hint("요청 거절: %s — 대상을 다시 선택하세요" % reason)
+	else:
+		state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
+		update_hud("스킬 요청 거절: %s" % reason)
 
 func _apply_network_effect_runtime(states: Dictionary) -> void:
 	for player_id in [1, 2]:

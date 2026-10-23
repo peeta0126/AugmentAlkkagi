@@ -79,7 +79,26 @@ func run_test() -> void:
 			if wall_effect == null:
 				fail("wall maria effect missing after initial selection")
 				return
-			game._activate_skill(wall_effect)
+			var wall_button: Button
+			for candidate in game.hud.find_children("*", "Button", true, false):
+				if candidate is Button and wall_effect.definition.display_name in candidate.text:
+					wall_button = candidate
+					break
+			if wall_button == null:
+				fail("wall maria active button missing")
+				return
+			wall_button.pressed.emit()
+			await create_timer(0.15).timeout
+			if game.state_machine.current != GameStateMachine.State.SKILL_TARGETING:
+				fail("client skill targeting was overwritten by snapshots")
+				return
+			game.confirm_board_position_skill(Vector2.ZERO)
+			if not await wait_until(func(): return game.hint_label != null and is_instance_valid(game.hint_label) and "요청 거절" in game.hint_label.text, 5.0):
+				fail("invalid wall placement did not return a retry reason")
+				return
+			if game.state_machine.current != GameStateMachine.State.SKILL_TARGETING:
+				fail("rejected wall request did not restore targeting")
+				return
 			game.confirm_board_position_skill(AlkkagiBoard.BOARD_RECT.get_center())
 		else:
 			game._on_piece_pressed(client_piece)
