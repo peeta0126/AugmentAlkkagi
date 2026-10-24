@@ -79,6 +79,12 @@ func transform_shot(_game: Node, _player_id: int, _piece: AlkkagiPiece, _impulse
 func on_opponent_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece, _impulse: Vector2) -> void:
 	pass
 
+func after_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece) -> void:
+	pass
+
+func grants_bonus_turn(_game: Node, _player_id: int, _opponent_eliminated: int) -> bool:
+	return false
+
 func adjust_pointer(_game: Node, _player_id: int, _piece: AlkkagiPiece, pointer: Vector2) -> Vector2:
 	return pointer
 

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/blood_festival_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"blood_festival"
+display_name = "피의 축제"
+description = "내 발사로 상대 돌을 탈락시키면 한 번만 추가 발사 기회를 얻습니다."
+rarity = 2
+icon_text = "血"
+kind = 4
+target_mode = 0
+max_uses = -1
+values = {}
+effect_script = ExtResource("2")

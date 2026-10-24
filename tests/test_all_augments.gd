@@ -33,11 +33,11 @@ func run_test() -> void:
 	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(game)
 	await process_frame
-	check(game.augment_manager.CATALOG.size() == 20, "catalog registers all 20 augments")
+	check(game.augment_manager.CATALOG.size() == 25, "catalog registers all 25 augments")
 	var ids := {}
 	for definition in game.augment_manager.CATALOG:
 		ids[definition.id] = true
-	check(ids.size() == 20, "all augment IDs are unique")
+	check(ids.size() == 25, "all augment IDs are unique")
 	game.augment_manager.reset_match()
 	for index in 3:
 		check(game.augment_manager.acquire(game, 1, game.augment_manager.CATALOG[index].id), "acquire succeeds within cap")
@@ -292,5 +292,5 @@ func run_test() -> void:
 	game.begin_match()
 	check(game.augment_manager.owned[1].is_empty() and game.temporary_walls.is_empty(), "restart clears all augment and field state")
 	if failures == 0:
-		print("PASS: all 20 augment gameplay effects tests")
+		print("PASS: existing augment gameplay effects tests with version 2 changes")
 	quit(failures)

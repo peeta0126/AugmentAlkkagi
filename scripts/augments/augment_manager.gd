@@ -24,6 +24,11 @@ const CATALOG: Array[AugmentDefinition] = [
 	preload("res://resources/augments/wall_maria.tres"),
 	preload("res://resources/augments/scope.tres"),
 	preload("res://resources/augments/marksman.tres"),
+	preload("res://resources/augments/blood_festival.tres"),
+	preload("res://resources/augments/gravity_field.tres"),
+	preload("res://resources/augments/stealth.tres"),
+	preload("res://resources/augments/earthquake.tres"),
+	preload("res://resources/augments/wish.tres"),
 ]
 
 var owned: Dictionary = {1: [], 2: []}
@@ -97,6 +102,16 @@ func notify_opponent_shot(game: Node, shooter_id: int, piece: AlkkagiPiece, impu
 	var opponent := 2 if shooter_id == 1 else 1
 	for effect: AugmentEffect in effects[opponent]:
 		effect.on_opponent_shot(game, opponent, piece, impulse)
+
+func after_shot(game: Node, player_id: int, piece: AlkkagiPiece) -> void:
+	for effect: AugmentEffect in effects[player_id]:
+		effect.after_shot(game, player_id, piece)
+
+func grants_bonus_turn(game: Node, player_id: int, opponent_eliminated: int) -> bool:
+	for effect: AugmentEffect in effects[player_id]:
+		if effect.grants_bonus_turn(game, player_id, opponent_eliminated):
+			return true
+	return false
 
 func adjust_pointer(game: Node, player_id: int, piece: AlkkagiPiece, pointer: Vector2) -> Vector2:
 	var result := pointer

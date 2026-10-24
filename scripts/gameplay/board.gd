@@ -117,13 +117,34 @@ func _draw() -> void:
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	for data: Dictionary in field_visuals.values():
-		if str(data.get("type", "")) == "lantern":
+		var visual_type := str(data.get("type", ""))
+		if visual_type == "lantern":
 			var field_position: Vector2 = data.get("position", Vector2.ZERO)
 			var radius := float(data.get("radius", 48.0))
 			draw_circle(field_position, radius, Color(1.0, 0.75, 0.22, 0.08))
 			draw_arc(field_position, radius, 0.0, TAU, 40, Color(1.0, 0.78, 0.25, 0.62), 2.0)
 			draw_circle(field_position, 11.0, Color("e5a62e"))
 			draw_circle(field_position + Vector2(0, -4), 6.0, Color("fff1a8"))
+		elif visual_type == "gravity":
+			var gravity_position: Vector2 = data.get("position", Vector2.ZERO)
+			var gravity_radius := float(data.get("radius", 125.0))
+			draw_circle(gravity_position, gravity_radius, Color(0.25, 0.28, 0.95, 0.07))
+			for ring_ratio in [0.35, 0.65, 1.0]:
+				draw_arc(gravity_position, gravity_radius * ring_ratio, 0.0, TAU, 48, Color(0.47, 0.42, 1.0, 0.58), 2.0)
+		elif visual_type == "cracks":
+			var crack_width := float(data.get("width", 18.0))
+			for crack: Dictionary in data.get("cracks", []):
+				draw_line(crack.from, crack.to, Color(0.08, 0.045, 0.04, 0.88), crack_width, true)
+				draw_line(crack.from, crack.to, Color(0.58, 0.22, 0.16, 0.66), 2.0, true)
+		elif visual_type == "dragon_balls":
+			for ball: Dictionary in data.get("balls", []):
+				var ball_position: Vector2 = ball.position
+				var number := int(ball.number)
+				draw_circle(ball_position, 11.0, Color("f28a24"))
+				draw_arc(ball_position, 11.0, 0.0, TAU, 24, Color("ffd272"), 2.0)
+				for star_index in number:
+					var angle := TAU * float(star_index) / float(maxi(number, 1)) - PI * 0.5
+					draw_circle(ball_position + Vector2.from_angle(angle) * (3.5 if number > 1 else 0.0), 1.2, Color("b51f2e"))
 	if show_aim:
 		var impulse := GameplayRules.shot_impulse(aim_origin, aim_pointer, aim_max_drag)
 		var pull_end := aim_origin - impulse / GameplayRules.BALANCE.base_launch_impulse

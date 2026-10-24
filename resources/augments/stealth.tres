@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/augments/effects/stealth_effect.gd" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"stealth"
+display_name = "은신"
+description = "아군 돌 하나를 상대의 다음 1턴 동안 상대 화면에서 숨깁니다. 충돌은 유지됩니다."
+rarity = 1
+icon_text = "◌"
+kind = 3
+target_mode = 1
+max_uses = 1
+cooldown_turns = 0
+duration_turns = 1
+consumes_turn = true
+values = {}
+effect_script = ExtResource("2")

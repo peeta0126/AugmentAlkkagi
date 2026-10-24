@@ -53,6 +53,8 @@ var network_wall_signature := ""
 var next_wall_id := 1
 var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
+var shot_opponent_count_before := -1
+var bonus_turn_active := false
 
 func _skill_debug(message: String) -> void:
 	if OS.is_debug_build():
@@ -622,6 +624,7 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 		piece.refresh_physics()
 
 func build_hud() -> void:
+	update_piece_visibility()
 	set_screen(_panel_root())
 	hud = screen_root
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -775,6 +778,7 @@ func cancel_active_skill() -> void:
 func finish_active_skill(player_id: int, consumes_turn: bool) -> void:
 	active_skill = null
 	active_skill_player = 0
+	shot_opponent_count_before = -1
 	if consumes_turn:
 		settle_time = 0.0
 		shot_elapsed = 0.0
@@ -889,6 +893,8 @@ func fire_selected(pointer: Vector2) -> void:
 		update_hud("발사 요청을 호스트가 검증하는 중…")
 		return
 	selected_piece.prepare_shot_speed_cap(GameplayRules.BALANCE.max_speed * float(profile.speed_multiplier))
+	var opponent := 2 if current_player == 1 else 1
+	shot_opponent_count_before = count_owner(opponent)
 	augment_manager.before_shot(current_player, selected_piece)
 	augment_manager.notify_opponent_shot(self, current_player, selected_piece, impulse)
 	selected_piece.set_selected(false)
@@ -896,6 +902,7 @@ func fire_selected(pointer: Vector2) -> void:
 	var transformed := augment_manager.transform_shot(self, current_player, selected_piece, impulse)
 	if not transformed:
 		selected_piece.apply_central_impulse(impulse)
+	augment_manager.after_shot(self, current_player, selected_piece)
 	selected_piece = null
 	dragging = false
 	board.clear_aim()
@@ -949,6 +956,7 @@ func resolve_turn() -> void:
 	for piece in get_pieces():
 		piece.stop_motion()
 		piece.tick_status(current_player)
+		piece.tick_stealth(current_player)
 	tick_field_effects()
 	var special_winner := augment_manager.check_special_victory(self)
 	if special_winner != 0:
@@ -960,6 +968,16 @@ func resolve_turn() -> void:
 		show_game_over(2 if red_count == 0 else 1)
 		return
 	var completed_player := current_player
+	var opponent_count := blue_count if completed_player == 1 else red_count
+	var opponent_eliminated := maxi(shot_opponent_count_before - opponent_count, 0) if shot_opponent_count_before >= 0 else 0
+	shot_opponent_count_before = -1
+	if not bonus_turn_active and augment_manager.grants_bonus_turn(self, completed_player, opponent_eliminated):
+		bonus_turn_active = true
+		build_hud()
+		state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
+		update_hud("피의 축제 발동 · 추가 발사 기회")
+		return
+	bonus_turn_active = false
 	var next_player := 2 if current_player == 1 else 1
 	augment_manager.finish_turn(self, completed_player)
 	round_actions[completed_player] = true
@@ -986,6 +1004,8 @@ func reset_runtime_effects() -> void:
 	blizzard_speed_multiplier = 1.0
 	blind_turns = {1: 0, 2: 0}
 	blind_material = null
+	shot_opponent_count_before = -1
+	bonus_turn_active = false
 	temporary_walls.clear()
 	network_wall_signature = ""
 	round_count = 0
@@ -1154,6 +1174,19 @@ func position_overlaps_piece(position: Vector2, radius: float) -> bool:
 		if piece.position.distance_to(position) < radius + piece.visual_radius:
 			return true
 	return false
+
+func can_place_collectible(position: Vector2, radius: float) -> bool:
+	if not AlkkagiBoard.BOARD_RECT.grow(-radius).has_point(position):
+		return false
+	for wall: TemporaryWall in temporary_walls:
+		if not is_instance_valid(wall):
+			continue
+		var local_position := (position - wall.position).rotated(-wall.rotation)
+		var half_size := GameplayRules.WALL_SIZE * 0.5
+		var closest := Vector2(clampf(local_position.x, -half_size.x, half_size.x), clampf(local_position.y, -half_size.y, half_size.y))
+		if local_position.distance_to(closest) < radius + 4.0:
+			return false
+	return true
 
 func can_place_wall(position: Vector2, wall_rotation: float) -> bool:
 	var half_size := GameplayRules.WALL_SIZE * 0.5
@@ -1349,6 +1382,7 @@ func create_network_snapshot() -> Dictionary:
 		"walls": wall_states,
 		"blizzard": blizzard_turns,
 		"blind": blind_turns.duplicate(),
+		"bonus_turn": bonus_turn_active,
 		"round": round_count,
 		"round_flags": (1 if bool(round_actions[1]) else 0) | (2 if bool(round_actions[2]) else 0),
 		"effects": effect_states
@@ -1359,8 +1393,8 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		return
 	var seen := {}
 	var piece_states: PackedFloat32Array = snapshot.get("pieces", PackedFloat32Array())
-	for offset in range(0, piece_states.size(), 17):
-		if offset + 16 >= piece_states.size():
+	for offset in range(0, piece_states.size(), 19):
+		if offset + 18 >= piece_states.size():
 			break
 		var piece_id := int(piece_states[offset])
 		seen[piece_id] = true
@@ -1369,6 +1403,7 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 			spawn_piece(int(piece_states[offset + 1]), piece_id, Vector2(piece_states[offset + 2], piece_states[offset + 3]))
 			piece = find_piece(piece_id)
 		piece.apply_compact_network_state(piece_states, offset, true, interpolation_duration)
+	update_piece_visibility()
 	for piece in get_pieces():
 		if not seen.has(piece.piece_id):
 			piece.queue_free()
@@ -1378,6 +1413,7 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 	var round_flags := int(snapshot.get("round_flags", 0))
 	round_actions = {1: (round_flags & 1) != 0, 2: (round_flags & 2) != 0}
 	blind_turns = snapshot.get("blind", blind_turns)
+	bonus_turn_active = bool(snapshot.get("bonus_turn", false))
 	blizzard_turns = int(snapshot.get("blizzard", 0))
 	board.set_blizzard(blizzard_turns > 0)
 	_apply_network_effect_runtime(snapshot.get("effects", {}))
@@ -1402,7 +1438,10 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		state_machine.transition(remote_state as GameStateMachine.State)
 	if previous_player != current_player or turn_label == null:
 		build_hud()
-	update_hud("자신의 차례입니다" if current_player == local_player_id else "상대 차례를 기다리는 중…")
+	if bonus_turn_active:
+		update_hud("피의 축제 발동 · 추가 발사 기회")
+	else:
+		update_hud("자신의 차례입니다" if current_player == local_player_id else "상대 차례를 기다리는 중…")
 
 func network_active_skill_rejected(reason: String) -> void:
 	_skill_debug("host rejected active request: %s" % reason)
@@ -1439,6 +1478,11 @@ func _update_blind_centers() -> void:
 	blind_material.set_shader_parameter("center_count", centers.size())
 	blind_material.set_shader_parameter("board_size", AlkkagiBoard.BOARD_RECT.size)
 
+func update_piece_visibility() -> void:
+	var viewer := local_player_id if online_mode else current_player
+	for piece: AlkkagiPiece in get_pieces():
+		piece.visible = piece.hidden_from_player == 0 or piece.hidden_from_player != viewer
+
 func _sync_network_walls(states: PackedFloat32Array) -> void:
 	var signature := str(states)
 	if signature == network_wall_signature:
@@ -1463,6 +1507,10 @@ func update_hud(hint: String) -> void:
 	turn_label.text = "%s 차례" % player_name
 	turn_label.modulate = AlkkagiPiece.OWNER_COLORS[current_player]
 	count_label.text = "라운드 %d  ·  흑돌 %d  ·  백돌 %d" % [round_count, count_owner(1), count_owner(2)]
+	for player_id in [1, 2]:
+		for effect: AugmentEffect in augment_manager.effects[player_id]:
+			if effect.definition.id == &"wish":
+				count_label.text += "  ·  P%d 소원 %s" % [player_id, effect.status_text()]
 	hint_label.text = hint
 
 func clear_world() -> void:

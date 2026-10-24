@@ -40,6 +40,8 @@ var carried_count := 0
 var reached_enemy_end := false
 var field_damp_bonus := 0.0
 var field_speed_multiplier := 1.0
+var hidden_from_player := 0
+var stealth_turns := 0
 var network_interpolation_from := Vector2.ZERO
 var network_interpolation_to := Vector2.ZERO
 var network_interpolation_elapsed := 0.0
@@ -110,6 +112,19 @@ func set_stasis(turns: int) -> void:
 	linear_velocity = Vector2.ZERO
 	freeze = true
 	_update_status_kind()
+	queue_redraw()
+
+func set_stealth(player_id: int, turns: int) -> void:
+	hidden_from_player = player_id
+	stealth_turns = maxi(turns, 1)
+	queue_redraw()
+
+func tick_stealth(completed_player: int) -> void:
+	if hidden_from_player != completed_player or stealth_turns <= 0:
+		return
+	stealth_turns -= 1
+	if stealth_turns <= 0:
+		hidden_from_player = 0
 	queue_redraw()
 
 func apply_snow(turns: int) -> void:
@@ -216,10 +231,10 @@ func compact_network_state() -> PackedFloat32Array:
 	var transform_code := maxi(TRANSFORM_NAMES.find(transformation), 0)
 	return PackedFloat32Array([piece_id, owner_id, position.x, position.y, linear_velocity.x, linear_velocity.y,
 		tank_factor, fragment_factor, mass_factor, status_mass_factor, status_damp_bonus, flags,
-		stasis_turns, snow_turns, transform_code, carried_count, speed_cap])
+		stasis_turns, snow_turns, transform_code, carried_count, speed_cap, hidden_from_player, stealth_turns])
 
 func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpolate: bool, interpolation_duration: float = 0.05) -> void:
-	if data.size() < offset + 17:
+	if data.size() < offset + 19:
 		return
 	apply_network_state({
 		"id": int(data[offset]), "owner": int(data[offset + 1]),
@@ -230,7 +245,8 @@ func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpol
 		"invulnerable": (int(data[offset + 11]) & 2) != 0, "sonic": (int(data[offset + 11]) & 4) != 0,
 		"enemy_end": (int(data[offset + 11]) & 8) != 0, "stasis": int(data[offset + 12]), "snow": int(data[offset + 13]),
 		"transformation": TRANSFORM_NAMES[clampi(int(data[offset + 14]), 0, TRANSFORM_NAMES.size() - 1)],
-		"carried": int(data[offset + 15]), "speed_cap": data[offset + 16]
+		"carried": int(data[offset + 15]), "speed_cap": data[offset + 16],
+		"hidden_from": int(data[offset + 17]), "stealth_turns": int(data[offset + 18])
 	}, interpolate, interpolation_duration)
 
 func apply_network_state(data: Dictionary, interpolate: bool, interpolation_duration: float = 0.05) -> void:
@@ -263,6 +279,8 @@ func apply_network_state(data: Dictionary, interpolate: bool, interpolation_dura
 	reached_enemy_end = bool(data.get("enemy_end", false))
 	sonic_trail = bool(data.get("sonic", false))
 	speed_cap = float(data.get("speed_cap", GameplayRules.BALANCE.max_speed))
+	hidden_from_player = int(data.get("hidden_from", 0))
+	stealth_turns = int(data.get("stealth_turns", 0))
 	_update_status_kind()
 	refresh_physics()
 	freeze = true
