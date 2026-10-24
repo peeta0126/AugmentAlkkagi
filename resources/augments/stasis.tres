@@ -7,12 +7,12 @@
 script = ExtResource("1")
 id = &"stasis"
 display_name = "존야"
-description = "아군 돌 하나를 1턴 동안 이동·탈락 불가 상태로 만듭니다."
+description = "아군 돌 하나를 기존 지속 시간 동안 이동 불가·무적 상태로 만듭니다."
 rarity = 1
-icon_text = "◇"
+icon_text = "⌛"
 kind = 3
 target_mode = 1
-max_uses = 2
+max_uses = 1
 cooldown_turns = 2
 duration_turns = 1
 consumes_turn = true

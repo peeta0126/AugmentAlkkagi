@@ -6,10 +6,10 @@
 [resource]
 script = ExtResource("1")
 id = &"piggyback"
-display_name = "업기"
-description = "아군 돌 둘을 합쳐 더 무겁고 큰 한 스택으로 만듭니다."
+display_name = "합체"
+description = "아군 돌 두 개를 합쳐 더 크고 무거운 하나의 돌로 만듭니다."
 rarity = 0
-icon_text = "↑"
+icon_text = "⊕"
 kind = 3
 target_mode = 3
 max_uses = 2

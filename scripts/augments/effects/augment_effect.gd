@@ -87,3 +87,9 @@ func check_special_victory(_game: Node, _player_id: int) -> bool:
 
 func on_physics_tick(_game: Node, _player_id: int, _delta: float) -> void:
 	pass
+
+func network_state() -> Dictionary:
+	return {}
+
+func apply_network_state(_game: Node, _state: Dictionary) -> void:
+	pass

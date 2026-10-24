@@ -18,6 +18,7 @@ var guide_multiplier := 1.0
 var empowered_aim := false
 var effect_lines: Array[Dictionary] = []
 var blizzard_active := false
+var field_visuals: Dictionary = {}
 
 func _ready() -> void:
 	queue_redraw()
@@ -37,6 +38,14 @@ func add_effect_line(from: Vector2, to: Vector2, color: Color, duration: float =
 
 func set_blizzard(active: bool) -> void:
 	blizzard_active = active
+	queue_redraw()
+
+func set_field_visual(key: String, data: Dictionary) -> void:
+	field_visuals[key] = data
+	queue_redraw()
+
+func remove_field_visual(key: String) -> void:
+	field_visuals.erase(key)
 	queue_redraw()
 
 func set_aim(origin: Vector2, pointer: Vector2, color: Color, max_drag: float = -1.0, guide_scale: float = 1.0, empowered: bool = false) -> void:
@@ -107,6 +116,14 @@ func _draw() -> void:
 			draw_line(Vector2(x, y), Vector2(x + 8, y + 3), Color(0.9, 0.97, 1.0, 0.55), 1.2)
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
+	for data: Dictionary in field_visuals.values():
+		if str(data.get("type", "")) == "lantern":
+			var field_position: Vector2 = data.get("position", Vector2.ZERO)
+			var radius := float(data.get("radius", 48.0))
+			draw_circle(field_position, radius, Color(1.0, 0.75, 0.22, 0.08))
+			draw_arc(field_position, radius, 0.0, TAU, 40, Color(1.0, 0.78, 0.25, 0.62), 2.0)
+			draw_circle(field_position, 11.0, Color("e5a62e"))
+			draw_circle(field_position + Vector2(0, -4), 6.0, Color("fff1a8"))
 	if show_aim:
 		var impulse := GameplayRules.shot_impulse(aim_origin, aim_pointer, aim_max_drag)
 		var pull_end := aim_origin - impulse / GameplayRules.BALANCE.base_launch_impulse

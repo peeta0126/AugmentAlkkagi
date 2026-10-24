@@ -51,7 +51,11 @@ func run_test() -> void:
 	game.augment_manager.acquire(game, 1, &"sonic_boom")
 	var original := first_piece(game, 1)
 	var before_count: int = game.count_owner(1)
-	find_effect(game, 1, &"triple_shot").transform_shot(game, 1, original, Vector2(400, 0))
+	var triple := find_effect(game, 1, &"triple_shot")
+	check(not triple.transform_shot(game, 1, original, Vector2(400, 0)), "triple shot does not trigger before activation")
+	triple.activate_immediate(game, 1)
+	check(triple.armed and triple.uses_left == 0, "triple shot arms once and consumes its use")
+	triple.transform_shot(game, 1, original, Vector2(400, 0))
 	await process_frame
 	check(game.count_owner(1) == before_count + 2, "triple shot replaces one stone with three")
 	var fragment_count := 0
@@ -62,6 +66,7 @@ func run_test() -> void:
 	for piece in game.get_pieces():
 		if piece.owner_id == 1 and piece.fragment_factor < 1.0:
 			check(piece.sonic_trail, "triple-shot fragments inherit sonic trail")
+	check(not triple.armed, "triple shot disarms after the next shot")
 
 	# 02 존야: 실제 스킬 선택 상태, 동결, 무적, 지속 종료를 검증한다.
 	await reset_game(game)
@@ -72,6 +77,7 @@ func run_test() -> void:
 	var black := first_piece(game, 1)
 	game._on_piece_pressed(black)
 	check(black.freeze and black.invulnerable, "stasis freezes and protects its target")
+	check(stasis.uses_left == 0, "stasis has one use")
 	black.tick_status(1)
 	check(black.freeze and black.invulnerable, "stasis remains through the activation turn")
 	black.tick_status(1)
@@ -91,11 +97,11 @@ func run_test() -> void:
 	black = first_piece(game, 1)
 	find_effect(game, 1, &"janggi").on_piece_target(game, 1, black)
 	check(black.transformation in JanggiAugmentEffect.PIECES, "janggi assigns a supported piece type")
+	check(is_equal_approx(black.mass_factor, 1.0) and is_equal_approx(black.status_damp_bonus, 0.0) and is_equal_approx(black.speed_cap, GameplayRules.BALANCE.max_speed), "janggi keeps base mass, drag, and speed")
 
 	# 05 업기: 두 돌을 한 스택으로 합치고 질량/외형을 변경한다.
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"piggyback")
-	game.augment_manager.acquire(game, 1, &"tank")
 	var own: Array[AlkkagiPiece] = []
 	for piece in game.get_pieces():
 		if piece.owner_id == 1:
@@ -104,7 +110,8 @@ func run_test() -> void:
 	piggy.on_piece_target(game, 1, own[0])
 	piggy.on_piece_target(game, 1, own[1])
 	await process_frame
-	check(own[0].carried_count == 1 and own[0].mass > 1.8, "piggyback and tank create a heavier visible stack")
+	check(own[0].carried_count == 1 and own[0].mass > 1.0, "merge creates a heavier visible stack")
+	check(find_effect(game, 1, &"piggyback").definition.display_name == "합체", "merge keeps the compatible piggyback id with the new name")
 	check(game.count_owner(1) == GameplayRules.DEFAULT_PIECES - 1, "piggyback merges the carried stone")
 
 	# 06 랜턴: 두 아군 사이 연결선과 실제 견인 속도를 만든다.
@@ -114,11 +121,16 @@ func run_test() -> void:
 	for piece in game.get_pieces():
 		if piece.owner_id == 1:
 			own.append(piece)
-	var lantern := find_effect(game, 1, &"lantern")
-	lantern.on_piece_target(game, 1, own[0])
-	lantern.on_piece_target(game, 1, own[1])
+	var lantern: LanternAugmentEffect = find_effect(game, 1, &"lantern")
+	var lantern_position := AlkkagiBoard.BOARD_RECT.get_center()
+	check(lantern.on_position_target(game, 1, lantern_position), "lantern installs at a valid board position")
+	own[1].position = lantern_position
+	own[1].linear_velocity = Vector2.RIGHT * 20.0
+	lantern.on_physics_tick(game, 1, 0.016)
+	check(lantern.pieces_inside.has(own[1].piece_id), "lantern detects an allied stone entering its field")
 	await physics_frame
-	check(own[1].linear_velocity.length() > 0.0, "lantern physically pulls an allied stone")
+	check(own[1].linear_velocity.length() > 20.0, "lantern accelerates an allied stone (velocity=%s)" % own[1].linear_velocity)
+	check(game.board.field_visuals.has("lantern_1"), "installed lantern remains visible on the board")
 
 	# 07 사목: 서로 다른 네 돌의 격자 연속 배치를 승리로 판정한다.
 	await reset_game(game)
@@ -161,9 +173,11 @@ func run_test() -> void:
 	game.augment_manager.acquire(game, 1, &"sonic_boom")
 	game.augment_manager.acquire(game, 1, &"scope")
 	black = first_piece(game, 1)
-	game.augment_manager.apply_owned_to_piece(1, black)
+	var tank := find_effect(game, 1, &"tank")
+	tank.on_piece_target(game, 1, black)
 	var profile: Dictionary = game.augment_manager.shot_profile(1)
 	check(is_equal_approx(black.mass, 1.8) and is_equal_approx(float(profile.impulse_multiplier), 1.6) and is_equal_approx(float(profile.max_drag_multiplier), 1.3), "tank, sonic and scope combine (mass=%s profile=%s)" % [black.mass, profile])
+	check(not tank.on_piece_target(game, 1, black), "tank cannot be applied twice to the same stone")
 
 	# 11 쿠데타: 실제 소유권과 돌 외형 기반 반지름을 맞바꾼다.
 	await reset_game(game)
@@ -225,6 +239,12 @@ func run_test() -> void:
 	await reset_game(game)
 	game.apply_blind(2, 1)
 	check(game.blind_turns[2] == 1 and game.blind_turns[1] == 0, "blindness is isolated to the opponent")
+	game.online_mode = true
+	game.local_player_id = 2
+	game.current_player = 2
+	game.build_hud()
+	check(game.blind_material != null, "blindness uses a local sight-limited material")
+	game.online_mode = false
 
 	# 18 월마리아: 빈 위치에 실제 StaticBody2D 충돌 벽을 설치한다.
 	await reset_game(game)

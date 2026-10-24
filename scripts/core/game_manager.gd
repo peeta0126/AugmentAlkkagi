@@ -52,6 +52,7 @@ var network_winner := 0
 var network_wall_signature := ""
 var next_wall_id := 1
 var skill_targeting_snapshot_logged := false
+var blind_material: ShaderMaterial
 
 func _skill_debug(message: String) -> void:
 	if OS.is_debug_build():
@@ -711,11 +712,17 @@ func _add_active_skill_hud() -> void:
 
 func _add_blind_overlay() -> void:
 	var veil := ColorRect.new()
-	veil.color = Color(0.01, 0.008, 0.006, 0.68)
+	veil.color = Color.WHITE
 	veil.position = AlkkagiBoard.BOARD_RECT.position
 	veil.size = AlkkagiBoard.BOARD_RECT.size
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shader := Shader.new()
+	shader.code = "shader_type canvas_item; uniform vec2 centers[5]; uniform int center_count = 0; uniform vec2 board_size = vec2(504.0, 540.0); uniform float sight_radius = 82.0; void fragment(){ float visible = 0.0; for(int i=0;i<5;i++){ if(i < center_count){ float d = length((UV - centers[i]) * board_size); visible = max(visible, 1.0 - smoothstep(sight_radius * 0.72, sight_radius, d)); }} COLOR = vec4(0.01, 0.008, 0.006, 0.78 * (1.0 - visible)); }"
+	blind_material = ShaderMaterial.new()
+	blind_material.shader = shader
+	veil.material = blind_material
 	hud.add_child(veil)
+	_update_blind_centers()
 	var warning := _label("시야 제한", 22, Color(1, 1, 1, 0.72))
 	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	warning.position = Vector2(veil.position.x, veil.position.y + 18)
@@ -909,6 +916,7 @@ func cancel_aim() -> void:
 		power_bar.value = 0
 
 func _physics_process(delta: float) -> void:
+	_update_blind_centers()
 	if state_machine == null or state_machine.current not in [GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
 		return
 	if online_mode and not online_is_host:
@@ -977,6 +985,7 @@ func reset_runtime_effects() -> void:
 	blizzard_damp_bonus = 0.0
 	blizzard_speed_multiplier = 1.0
 	blind_turns = {1: 0, 2: 0}
+	blind_material = null
 	temporary_walls.clear()
 	network_wall_signature = ""
 	round_count = 0
@@ -1315,7 +1324,7 @@ func _network_collect_skill_target(piece: AlkkagiPiece) -> void:
 	if target_mode == AugmentDefinition.TargetMode.ENEMY_PIECE and piece.owner_id == local_player_id:
 		return
 	network_skill_targets.append(piece.piece_id)
-	var required := 2 if active_skill.definition.id in [&"piggyback", &"lantern", &"wizard"] else 1
+	var required := 2 if active_skill.definition.id in [&"piggyback", &"wizard"] else 1
 	if network_skill_targets.size() >= required:
 		network_manager.submit_active_skill(active_skill.definition.id, network_skill_targets)
 		network_show_waiting("스킬 요청을 호스트가 검증하는 중…")
@@ -1331,7 +1340,7 @@ func create_network_snapshot() -> Dictionary:
 	var effect_states := {1: [], 2: []}
 	for player_id in [1, 2]:
 		for effect: AugmentEffect in augment_manager.effects[player_id]:
-			effect_states[player_id].append({"id": str(effect.definition.id), "uses": effect.uses_left, "cooldown": effect.cooldown_left})
+			effect_states[player_id].append({"id": str(effect.definition.id), "uses": effect.uses_left, "cooldown": effect.cooldown_left, "runtime": effect.network_state()})
 	return {
 		"state": int(state_machine.current),
 		"current_player": current_player,
@@ -1416,6 +1425,19 @@ func _apply_network_effect_runtime(states: Dictionary) -> void:
 				if effect.definition.id == augment_id:
 					effect.uses_left = int(state.get("uses", effect.uses_left))
 					effect.cooldown_left = int(state.get("cooldown", effect.cooldown_left))
+					effect.apply_network_state(self, state.get("runtime", {}))
+
+func _update_blind_centers() -> void:
+	if blind_material == null or board == null:
+		return
+	var centers := PackedVector2Array()
+	var blinded_player := local_player_id if online_mode else current_player
+	for piece: AlkkagiPiece in get_pieces():
+		if piece.owner_id == blinded_player and centers.size() < 5:
+			centers.append((piece.position - AlkkagiBoard.BOARD_RECT.position) / AlkkagiBoard.BOARD_RECT.size)
+	blind_material.set_shader_parameter("centers", centers)
+	blind_material.set_shader_parameter("center_count", centers.size())
+	blind_material.set_shader_parameter("board_size", AlkkagiBoard.BOARD_RECT.size)
 
 func _sync_network_walls(states: PackedFloat32Array) -> void:
 	var signature := str(states)

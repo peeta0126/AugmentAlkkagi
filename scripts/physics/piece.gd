@@ -12,6 +12,7 @@ const RADIUS := BLACK_RADIUS # 이전 테스트/확장 코드와의 호환용 �
 const OWNER_COLORS := {1: Color("d2a85f"), 2: Color("eee9dc")}
 const STONE_NAMES := {1: "흑돌", 2: "백돌"}
 const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
+const TRANSFORM_SIZES := {"SOLDIER": 0.90, "CHARIOT": 1.15, "CANNON": 1.08, "HORSE": 0.96, "ELEPHANT": 1.20, "GUARD": 1.05, "KING": 1.18, "WIZARD": 1.0}
 const NETWORK_SNAP_DISTANCE := 100.0
 
 var owner_id := 1
@@ -85,7 +86,7 @@ func apply_tank(size_multiplier: float, mass_multiplier: float) -> void:
 	refresh_physics()
 
 func refresh_physics() -> void:
-	visual_radius = base_radius * tank_factor * fragment_factor * (1.12 if carried_count > 0 else 1.0)
+	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * (1.12 if carried_count > 0 else 1.0)
 	mass = mass_factor * status_mass_factor * (1.65 if carried_count > 0 else 1.0)
 	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
 	if collision_shape:
@@ -157,16 +158,17 @@ func _update_status_kind() -> void:
 	else:
 		status_kind = ""
 
-func transform_as(kind: String) -> void:
+func transform_as(kind: String, apply_physics_bonus: bool = true) -> void:
 	transformation = kind
-	match kind:
-		"SOLDIER": status_damp_bonus -= 0.35
-		"CHARIOT": mass_factor *= 1.35
-		"CANNON": mass_factor *= 1.20
-		"HORSE": speed_cap = maxf(speed_cap, 1100.0)
-		"ELEPHANT": mass_factor *= 1.25
-		"GUARD": status_damp_bonus += 0.7
-		"KING": mass_factor *= 1.50
+	if apply_physics_bonus:
+		match kind:
+			"SOLDIER": status_damp_bonus -= 0.35
+			"CHARIOT": mass_factor *= 1.35
+			"CANNON": mass_factor *= 1.20
+			"HORSE": speed_cap = maxf(speed_cap, 1100.0)
+			"ELEPHANT": mass_factor *= 1.25
+			"GUARD": status_damp_bonus += 0.7
+			"KING": mass_factor *= 1.50
 	refresh_physics()
 
 func activate_sonic_trail(new_speed_cap: float) -> void:
