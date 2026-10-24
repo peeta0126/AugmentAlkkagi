@@ -53,7 +53,18 @@ func _ready() -> void:
 	GDSync.connected.connect(_on_gdsync_connected)
 	GDSync.disconnected.connect(_on_gdsync_disconnected)
 	GDSync.expose_func(request_lobby_ready, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_shot, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_augment_choice, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_active_skill, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(receive_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_return_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_projectile, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_augment_offer, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_augment_granted, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_world_start, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_selection_complete, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_active_skill_rejected, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_snapshot, ENUMS.EXPOSE_PERMISSION.HOST)
 
 func game() -> Node:
 	return get_parent()
@@ -210,11 +221,14 @@ func start_match() -> bool:
 	return true
 
 func return_to_lobby() -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		return
 	match_active = false
 	ready_state = {1: false, 2: false}
-	receive_return_lobby.rpc()
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_return_lobby)
+	else:
+		receive_return_lobby.rpc()
 	game()._show_network_lobby()
 	_broadcast_lobby()
 
@@ -224,7 +238,7 @@ func receive_return_lobby() -> void:
 	game()._show_network_lobby()
 
 func _start_selection(initial: bool, resume_player: int, completed_round: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		_selection_reject("selection start requested by non-host", local_player_id, active_selection_stage)
 		return
 	active_selection_stage += 1
@@ -237,7 +251,7 @@ func _start_selection(initial: bool, resume_player: int, completed_round: int) -
 	_begin_selection(1, initial, resume_player)
 
 func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		_selection_reject("offer generation requested by non-host", player_id, active_selection_stage)
 		return
 	var definitions: Array[AugmentDefinition] = game().augment_manager.get_choices(player_id, 3)
@@ -250,7 +264,10 @@ func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void
 	if player_id == 1:
 		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round)
 	else:
-		receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round)
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume_player, active_selection_stage, completed_round)
+		else:
+			receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round)
 		game().network_show_waiting("백돌 플레이어가 증강을 선택하는 중…")
 
 func host_begin_round_selection(resume_player: int, completed_round: int) -> void:
@@ -260,34 +277,44 @@ func submit_augment_choice(augment_id: StringName) -> void:
 	local_sequence += 1
 	var stage: int = game().selection_stage_id
 	_selection_debug("local submit player=%d stage=%d sequence=%d augment=%s" % [local_player_id, stage, local_sequence, augment_id])
-	if mode == Mode.HOST:
+	if is_host():
 		_host_process_augment_choice(1, stage, augment_id, local_sequence)
 	elif mode == Mode.CLIENT:
 		request_augment_choice.rpc_id(1, stage, str(augment_id), local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_augment_choice, stage, str(augment_id), local_sequence)
 
 func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 	local_sequence += 1
-	if mode == Mode.HOST:
+	if is_host():
 		_host_process_shot(1, piece_id, pull_vector, local_sequence)
 	elif mode == Mode.CLIENT:
 		request_shot.rpc_id(1, piece_id, pull_vector, local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_shot, piece_id, pull_vector, local_sequence)
 
 func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO) -> void:
 	local_sequence += 1
-	if mode == Mode.HOST:
+	if is_host():
 		_host_process_active(1, augment_id, target_ids, board_position, local_sequence)
 	elif mode == Mode.CLIENT:
 		request_active_skill.rpc_id(1, str(augment_id), target_ids, board_position, local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_active_skill, str(augment_id), target_ids, board_position, local_sequence)
 
 func _process(delta: float) -> void:
-	if mode != Mode.HOST or not match_active or game().board == null:
+	if not is_host() or not match_active or game().board == null:
 		return
 	if game().state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
 		return
 	snapshot_elapsed += delta
 	if snapshot_elapsed >= SNAPSHOT_INTERVAL:
 		snapshot_elapsed = 0.0
-		receive_snapshot.rpc(game().create_network_snapshot())
+		var snapshot: Dictionary = game().create_network_snapshot()
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func_unreliable(receive_snapshot, snapshot)
+		else:
+			receive_snapshot.rpc(snapshot)
 
 func _valid_sequence(peer_id: int, sequence: int, request_kind: String = "request") -> bool:
 	var previous := int(last_sequences.get(peer_id, 0))
@@ -307,11 +334,14 @@ func _peer_for_player(player_id: int) -> int:
 			return int(peer_id)
 	return 0
 
+func _remote_sender_id() -> int:
+	return GDSync.get_sender_id() if is_gdsync_mode() else multiplayer.get_remote_sender_id()
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_lobby_ready(value: bool, protocol: int) -> void:
 	if not is_host():
 		return
-	var sender := GDSync.get_sender_id() if is_gdsync_mode() else multiplayer.get_remote_sender_id()
+	var sender := _remote_sender_id()
 	if protocol != PROTOCOL_VERSION:
 		if is_gdsync_mode():
 			GDSync.lobby_kick_client(sender, "프로토콜 버전이 일치하지 않습니다.")
@@ -325,23 +355,23 @@ func request_lobby_ready(value: bool, protocol: int) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_shot(piece_id: int, pull_vector: Vector2, sequence: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		return
-	var sender := multiplayer.get_remote_sender_id()
+	var sender := _remote_sender_id()
 	if _valid_sequence(sender, sequence, "shot"):
 		_host_process_shot(_player_for_peer(sender), piece_id, pull_vector, sequence)
 
 func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _sequence: int) -> void:
-	if mode != Mode.HOST or player_id == 0 or not match_active:
+	if not is_host() or player_id == 0 or not match_active:
 		return
 	game().network_execute_shot(player_id, piece_id, pull_vector)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_augment_choice(stage: int, augment_id: String, sequence: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		_selection_reject("choice RPC received by non-host", 0, stage, StringName(augment_id))
 		return
-	var sender := multiplayer.get_remote_sender_id()
+	var sender := _remote_sender_id()
 	var player_id := _player_for_peer(sender)
 	_selection_debug("remote submit peer=%d player=%d stage=%d sequence=%d augment=%s" % [sender, player_id, stage, sequence, augment_id])
 	if not _valid_sequence(sender, sequence, "augment choice"):
@@ -350,7 +380,7 @@ func request_augment_choice(stage: int, augment_id: String, sequence: int) -> vo
 	_host_process_augment_choice(player_id, stage, StringName(augment_id), sequence)
 
 func _host_process_augment_choice(player_id: int, stage: int, augment_id: StringName, _sequence: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		_selection_reject("processor is not host", player_id, stage, augment_id)
 		return
 	if not match_active:
@@ -396,7 +426,10 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 		if not game().augment_manager.acquire(game(), selected_player, selected_id):
 			_selection_reject("augment_manager.acquire failed", selected_player, stage, selected_id)
 			return
-		receive_augment_granted.rpc(selected_player, str(selected_id))
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func(receive_augment_granted, selected_player, str(selected_id))
+		else:
+			receive_augment_granted.rpc(selected_player, str(selected_id))
 		game().network_augment_granted(selected_player, selected_id)
 	var initial := bool(selection_context.get("initial", false))
 	var resume := int(selection_context.get("resume", 1))
@@ -405,17 +438,23 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 	pending_choices.clear()
 	_selection_debug("stage %d committed for both players (initial=%s)" % [stage, initial])
 	if initial:
-		receive_world_start.rpc(piece_count)
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func(receive_world_start, piece_count)
+		else:
+			receive_world_start.rpc(piece_count)
 		game().network_start_world(piece_count)
 	else:
-		receive_selection_complete.rpc(stage, resume, completed_round)
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func(receive_selection_complete, stage, resume, completed_round)
+		else:
+			receive_selection_complete.rpc(stage, resume, completed_round)
 		game().network_selection_complete(stage, resume, completed_round)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		return
-	var sender := multiplayer.get_remote_sender_id()
+	var sender := _remote_sender_id()
 	var player_id := _player_for_peer(sender)
 	if not _valid_sequence(sender, sequence, "active skill"):
 		_reject_active_skill(player_id, "중복되거나 오래된 요청입니다")
@@ -439,7 +478,7 @@ func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Arr
 func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int) -> void:
 	if OS.is_debug_build():
 		print("[active-skill] host request: player=%d augment=%s targets=%s position=%s current_player=%d state=%s" % [player_id, augment_id, target_ids, board_position, game().current_player, GameStateMachine.State.keys()[game().state_machine.current]])
-	if mode != Mode.HOST:
+	if not is_host():
 		return
 	if player_id != game().current_player:
 		_reject_active_skill(player_id, "현재 플레이어의 차례가 아닙니다")
@@ -509,15 +548,21 @@ func _reject_active_skill(player_id: int, reason: String) -> void:
 	elif player_id == 2:
 		var peer_id := _peer_for_player(2)
 		if peer_id != 0:
-			receive_active_skill_rejected.rpc_id(peer_id, reason)
+			if mode == Mode.GDSYNC_HOST:
+				GDSync.call_func_on(peer_id, receive_active_skill_rejected, reason)
+			else:
+				receive_active_skill_rejected.rpc_id(peer_id, reason)
 
 func broadcast_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
-	if mode == Mode.HOST:
-		receive_projectile.rpc(from, to, color, size)
+	if is_host():
+		if mode == Mode.GDSYNC_HOST:
+			GDSync.call_func(receive_projectile, from, to, color, size)
+		else:
+			receive_projectile.rpc(from, to, color, size)
 
 @rpc("authority", "call_remote", "reliable")
 func receive_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
-	if mode == Mode.CLIENT:
+	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT]:
 		game().animate_projectile(from, to, color, size, false)
 
 @rpc("authority", "call_remote", "reliable")
@@ -554,7 +599,7 @@ func receive_active_skill_rejected(reason: String) -> void:
 
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
 func receive_snapshot(snapshot: Dictionary) -> void:
-	if mode == Mode.CLIENT:
+	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT]:
 		game().apply_network_snapshot(snapshot)
 
 func _on_peer_connected(peer_id: int) -> void:

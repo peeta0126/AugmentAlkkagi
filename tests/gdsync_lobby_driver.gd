@@ -3,6 +3,7 @@ extends Node
 var game: Node
 var role := ""
 var room_code := ""
+var gameplay_test := false
 
 func _ready() -> void:
 	game = get_parent()
@@ -11,6 +12,8 @@ func _ready() -> void:
 			role = argument.trim_prefix("--gdsync-test-role=")
 		elif argument.begins_with("--room-code="):
 			room_code = argument.trim_prefix("--room-code=")
+		elif argument == "--gdsync-test-gameplay":
+			gameplay_test = true
 	call_deferred("run_test")
 
 func wait_until(predicate: Callable, seconds: float = 15.0) -> bool:
@@ -61,6 +64,9 @@ func run_host() -> void:
 		fail("start conditions rejected")
 		return
 	print("PASS: GD-Sync host room, two-player limit, and ready state")
+	if gameplay_test:
+		await run_host_gameplay()
+		return
 	await get_tree().create_timer(1.0).timeout
 	game.network_manager.shutdown(false)
 	get_tree().quit(0)
@@ -80,6 +86,86 @@ func run_client() -> void:
 		fail("player assignment mismatch")
 		return
 	print("PASS: GD-Sync client joined by room code and synchronized ready state")
+	if gameplay_test:
+		await run_client_gameplay()
+		return
+	await get_tree().create_timer(1.0).timeout
+	game.network_manager.shutdown(false)
+	get_tree().quit(0)
+
+func run_host_gameplay() -> void:
+	game.augment_manager.rng.seed = 7
+	if not game.network_manager.start_match():
+		fail("game start rejected")
+		return
+	if not await wait_until(func(): return game.selection_player == 1 and not game.current_choices.is_empty(), 10.0):
+		fail("host augment offer timeout")
+		return
+	if not await wait_until(func(): return bool(game.network_manager.selection_completed[2]), 10.0):
+		fail("client augment choice timeout")
+		return
+	game._choose_augment(game.current_choices[0].id)
+	if not await wait_until(func(): return game.board != null and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
+		fail("world start timeout")
+		return
+	var host_piece: AlkkagiPiece
+	for piece in game.get_pieces():
+		if piece.owner_id == 1:
+			host_piece = piece
+			break
+	game._on_piece_pressed(host_piece)
+	game.fire_selected(host_piece.global_position + Vector2(48, 0))
+	if not await wait_until(func(): return game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
+		fail("host shot did not advance turn")
+		return
+	if not await wait_until(func(): return game.current_player == 1 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
+		fail("client shot did not advance turn")
+		return
+	for piece in game.get_pieces():
+		if piece.owner_id == 2:
+			piece.position = AlkkagiBoard.BOARD_RECT.end + Vector2(200, 200)
+	host_piece = null
+	for piece in game.get_pieces():
+		if piece.owner_id == 1:
+			host_piece = piece
+			break
+	game._on_piece_pressed(host_piece)
+	game.fire_selected(host_piece.global_position + Vector2(48, 0))
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.GAME_OVER and game.network_winner == 1, 12.0):
+		fail("host victory resolution timeout")
+		return
+	print("PASS: GD-Sync host authoritative shot, turn, and victory flow")
+	await get_tree().create_timer(3.0).timeout
+	game.network_manager.shutdown(false)
+	get_tree().quit(0)
+
+func run_client_gameplay() -> void:
+	if not await wait_until(func(): return game.selection_player == 2 and not game.current_choices.is_empty(), 12.0):
+		fail("client augment offer timeout")
+		return
+	game._choose_augment(game.current_choices[0].id)
+	if not await wait_until(func(): return game.board != null, 12.0):
+		fail("client world start timeout")
+		return
+	if not await wait_until(func(): return game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, 12.0):
+		fail("host shot snapshot timeout")
+		return
+	var client_piece: AlkkagiPiece
+	for piece in game.get_pieces():
+		if piece.owner_id == 2:
+			client_piece = piece
+			break
+	game._on_piece_pressed(client_piece)
+	var pull_vector := Vector2(-48, 0)
+	game.fire_selected(client_piece.global_position - pull_vector)
+	GDSync.call_func_on(game.network_manager.gdsync_host_id, game.network_manager.request_shot, client_piece.piece_id, pull_vector, game.network_manager.local_sequence)
+	if not await wait_until(func(): return game.current_player == 1, 12.0):
+		fail("validated client shot result timeout")
+		return
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.GAME_OVER and game.network_winner == 1, 15.0):
+		fail("victory snapshot timeout")
+		return
+	print("PASS: GD-Sync client snapshot, duplicate-shot rejection, and game over")
 	await get_tree().create_timer(1.0).timeout
 	game.network_manager.shutdown(false)
 	get_tree().quit(0)
