@@ -120,6 +120,10 @@ func run_test() -> void:
 	check(wish.collected == 7 and wish.check_special_victory(game, 1), "collecting all seven dragon balls grants special victory")
 	check(wish.status_text() == "7/7 수집", "wish UI reports 7/7")
 
+	game.begin_match()
+	check(game.augment_manager.owned[1].is_empty() and game.augment_manager.owned[2].is_empty(), "rematch clears all version 2 augment ownership and runtime objects")
+	check(not game.bonus_turn_active and game.shot_opponent_count_before == -1, "rematch clears bonus-turn runtime state")
+
 	game.queue_free()
 	await process_frame
 	if failures == 0:

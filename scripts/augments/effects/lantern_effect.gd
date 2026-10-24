@@ -33,7 +33,7 @@ func on_physics_tick(game: Node, player_id: int, _delta: float) -> void:
 		if direction.is_zero_approx():
 			direction = Vector2.DOWN if player_id == 1 else Vector2.UP
 		piece.sleeping = false
-		piece.apply_central_impulse(direction * float(definition.values.get("boost_impulse", 260.0)))
+		piece.linear_velocity += direction * float(definition.values.get("boost_impulse", 260.0))
 		game.board.add_effect_line(lantern_position, lantern_position + direction * 70.0, Color("ffcf5c"), 0.55, 5.0)
 	pieces_inside = currently_inside
 

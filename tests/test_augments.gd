@@ -1,5 +1,7 @@
 extends SceneTree
 
+const NETWORK_MODE_OFFLINE := 0
+const NETWORK_MODE_HOST := 1
 var failures := 0
 
 func _init() -> void:
@@ -53,6 +55,7 @@ func run_test() -> void:
 			red_piece = piece
 		elif piece.owner_id == 2 and blue_piece == null:
 			blue_piece = piece
+	red_piece.apply_tank(1.25, 1.8)
 	close_enough(red_piece.visual_radius, AlkkagiPiece.BLACK_RADIUS * 1.25, "tank visual size")
 	close_enough(red_piece.mass, 1.8, "tank mass")
 	close_enough((red_piece.collision_shape.shape as CircleShape2D).radius, red_piece.visual_radius, "tank collider matches visual")
@@ -142,7 +145,7 @@ func run_test() -> void:
 	var combo_piece := AlkkagiPiece.new()
 	combo_piece.setup(1, 999)
 	root.add_child(combo_piece)
-	game.augment_manager.apply_owned_to_piece(1, combo_piece)
+	combo_piece.apply_tank(1.25, 1.8)
 	close_enough(combo_piece.mass, 1.8, "tank and sonic preserve tank mass")
 	close_enough(float(game.augment_manager.shot_profile(1).impulse_multiplier), 1.6, "tank and sonic preserve sonic impulse")
 	combo_piece.queue_free()
@@ -181,7 +184,7 @@ func run_test() -> void:
 
 	# All active targeting modes keep Array[int] at the submit/host-processing boundary.
 	game.online_mode = false
-	game.network_manager.mode = AlkkagiNetworkManager.Mode.HOST
+	game.network_manager.mode = NETWORK_MODE_HOST
 	game.network_manager.match_active = true
 	game.start_game()
 	game.augment_manager.acquire(game, 1, &"wall_maria")
@@ -215,7 +218,7 @@ func run_test() -> void:
 	game.network_manager.submit_active_skill(&"piggyback", own_targets)
 	await process_frame
 	check(game.count_owner(1) == before_merge - 1, "multi-piece active accepts Array[int]")
-	game.network_manager.mode = AlkkagiNetworkManager.Mode.OFFLINE
+	game.network_manager.mode = NETWORK_MODE_OFFLINE
 	if failures == 0:
 		print("PASS: augment system and effects tests")
 	quit(failures)
