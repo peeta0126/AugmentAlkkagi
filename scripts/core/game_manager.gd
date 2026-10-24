@@ -77,6 +77,16 @@ func _ready() -> void:
 	ui = CanvasLayer.new()
 	add_child(ui)
 	show_main_menu()
+	_start_debug_network_driver()
+
+func _start_debug_network_driver() -> void:
+	if not OS.is_debug_build():
+		return
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--gdsync-test-role="):
+			var driver: Node = load("res://tests/gdsync_lobby_driver.gd").new()
+			add_child(driver)
+			return
 
 func _on_gdsync_connected() -> void:
 	print("GD-Sync 연결 성공")
@@ -113,8 +123,8 @@ func show_main_menu() -> void:
 	subtitle.size = Vector2(600, 40)
 	screen_root.add_child(subtitle)
 	var card := PanelContainer.new()
-	card.position = Vector2(438, 230)
-	card.size = Vector2(404, 360)
+	card.position = Vector2(438, 210)
+	card.size = Vector2(404, 410)
 	card.add_theme_stylebox_override("panel", _style(Color("4a2d1f"), 16, Color("7b5134"), 2))
 	screen_root.add_child(card)
 	var menu := VBoxContainer.new()
@@ -122,8 +132,9 @@ func show_main_menu() -> void:
 	menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 28)
 	card.add_child(menu)
 	menu.add_child(_button("로컬 대전 시작", _start_local_setup))
-	menu.add_child(_button("방 만들기", _create_network_room))
-	menu.add_child(_button("방 참가하기", _show_join_room))
+	menu.add_child(_button("온라인 방 만들기", _create_online_room))
+	menu.add_child(_button("온라인 방 코드 참가", _show_online_join_room))
+	menu.add_child(_button("LAN / Tailscale", _show_lan_menu))
 	menu.add_child(_button("설정", _show_settings))
 	menu.add_child(_button("게임 종료", get_tree().quit))
 	var version := _label("Augment Phase · v0.2.0", 15, Color("a88869"))
@@ -215,6 +226,86 @@ func _set_fullscreen(enabled: bool) -> void:
 func _set_master_volume(value: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(value / 100.0, 0.0001)))
 
+func _create_online_room() -> void:
+	var error: Error = network_manager.create_online_room()
+	if error == OK:
+		online_mode = true
+		online_is_host = true
+		local_player_id = 1
+		_show_network_lobby()
+
+func _show_online_join_room() -> void:
+	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
+	set_screen(_panel_root())
+	_add_background(screen_root)
+	var title := _label("온라인 방 참가", 42, Color("f4d79a"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(390, 100)
+	title.size = Vector2(500, 60)
+	screen_root.add_child(title)
+	var guide := _label("친구에게 받은 6자리 방 코드를 입력하세요.", 19, Color("dac7ae"))
+	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide.position = Vector2(300, 180)
+	guide.size = Vector2(680, 35)
+	screen_root.add_child(guide)
+	var code := LineEdit.new()
+	code.name = "RoomCode"
+	code.placeholder_text = "000000"
+	code.max_length = 6
+	code.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	code.position = Vector2(490, 250)
+	code.size = Vector2(300, 58)
+	code.add_theme_font_size_override("font_size", 28)
+	screen_root.add_child(code)
+	network_status_label = _label("", 17, Color("e9c99a"))
+	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	network_status_label.position = Vector2(300, 330)
+	network_status_label.size = Vector2(680, 60)
+	network_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	screen_root.add_child(network_status_label)
+	var join := _button("참가", func(): _join_online_code(code.text))
+	join.position = Vector2(490, 420)
+	join.size = Vector2(300, 60)
+	screen_root.add_child(join)
+	var back := _button("뒤로", show_main_menu)
+	back.position = Vector2(520, 505)
+	back.size = Vector2(240, 54)
+	screen_root.add_child(back)
+
+func _join_online_code(code: String) -> void:
+	var error: Error = network_manager.join_online_room(code)
+	if error == OK:
+		online_mode = true
+		online_is_host = false
+		local_player_id = 2
+
+func _show_lan_menu() -> void:
+	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
+	set_screen(_panel_root())
+	_add_background(screen_root)
+	var title := _label("LAN / Tailscale 대전", 42, Color("f4d79a"))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(340, 120)
+	title.size = Vector2(600, 60)
+	screen_root.add_child(title)
+	var guide := _label("기존 UDP 직접 연결 방식을 사용합니다.", 18, Color("dac7ae"))
+	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide.position = Vector2(300, 195)
+	guide.size = Vector2(680, 35)
+	screen_root.add_child(guide)
+	var create := _button("LAN 방 만들기", _create_network_room)
+	create.position = Vector2(490, 285)
+	create.size = Vector2(300, 60)
+	screen_root.add_child(create)
+	var join := _button("IP 주소로 참가", _show_join_room)
+	join.position = Vector2(490, 370)
+	join.size = Vector2(300, 60)
+	screen_root.add_child(join)
+	var back := _button("뒤로", show_main_menu)
+	back.position = Vector2(520, 475)
+	back.size = Vector2(240, 54)
+	screen_root.add_child(back)
+
 func _create_network_room() -> void:
 	var error: Error = network_manager.create_host()
 	if error == OK:
@@ -279,7 +370,8 @@ func _show_network_lobby() -> void:
 	state_machine.transition(GameStateMachine.State.LOBBY)
 	set_screen(_panel_root())
 	_add_background(screen_root)
-	var title := _label("네트워크 대전 로비", 40, Color("f4d79a"))
+	var room_suffix := " · 방 코드 %s" % network_manager.get_room_code() if network_manager.is_gdsync_mode() else ""
+	var title := _label("네트워크 대전 로비%s" % room_suffix, 40, Color("f4d79a"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(360, 45)
 	title.size = Vector2(560, 60)
@@ -331,7 +423,8 @@ func _show_network_lobby() -> void:
 	start.size = Vector2(210, 54)
 	start.visible = online_is_host
 	screen_root.add_child(start)
-	network_status_label = _label("UDP 7777 · 최대 2명", 16, Color("c6aa85"))
+	var transport_text := "GD-Sync 온라인 · 최대 2명" if network_manager.is_gdsync_mode() else "UDP 7777 · 최대 2명"
+	network_status_label = _label(transport_text, 16, Color("c6aa85"))
 	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	network_status_label.position = Vector2(340, 480)
 	network_status_label.size = Vector2(600, 55)

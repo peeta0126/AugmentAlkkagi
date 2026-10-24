@@ -9,8 +9,11 @@ const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 1
 const SNAPSHOT_INTERVAL := 0.05
 const PROTOCOL_VERSION := 2
+const ROOM_PREFIX := "AA-"
+const ROOM_CODE_LENGTH := 6
+const ROOM_CREATE_ATTEMPTS := 5
 
-enum Mode { OFFLINE, HOST, CLIENT }
+enum Mode { OFFLINE, HOST, CLIENT, GDSYNC_HOST, GDSYNC_CLIENT }
 
 var mode := Mode.OFFLINE
 var local_player_id := 0
@@ -28,6 +31,10 @@ var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
 var shutting_down := false
+var room_code := ""
+var room_create_attempts := 0
+var gdsync_host_id := -1
+var gdsync_connected := false
 
 func _ready() -> void:
 	name = "NetworkManager"
@@ -36,6 +43,17 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	GDSync.lobby_created.connect(_on_gdsync_lobby_created)
+	GDSync.lobby_creation_failed.connect(_on_gdsync_lobby_creation_failed)
+	GDSync.lobby_joined.connect(_on_gdsync_lobby_joined)
+	GDSync.lobby_join_failed.connect(_on_gdsync_lobby_join_failed)
+	GDSync.client_joined.connect(_on_gdsync_client_joined)
+	GDSync.client_left.connect(_on_gdsync_client_left)
+	GDSync.host_changed.connect(_on_gdsync_host_changed)
+	GDSync.connected.connect(_on_gdsync_connected)
+	GDSync.disconnected.connect(_on_gdsync_disconnected)
+	GDSync.expose_func(request_lobby_ready, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(receive_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
 
 func game() -> Node:
 	return get_parent()
@@ -85,11 +103,58 @@ func join_host(address: String, port: int = DEFAULT_PORT) -> Error:
 	connection_message.emit("%s:%d에 연결 중…" % [address, port], false)
 	return OK
 
+func create_online_room(preferred_code: String = "") -> Error:
+	if not gdsync_connected:
+		connection_message.emit("GD-Sync 서버에 아직 연결되지 않았습니다.", true)
+		return ERR_UNAVAILABLE
+	shutdown(false)
+	mode = Mode.GDSYNC_HOST
+	local_player_id = 1
+	room_create_attempts = 0
+	_reset_lobby_state()
+	_create_online_room_attempt(preferred_code)
+	return OK
+
+func _create_online_room_attempt(preferred_code: String = "") -> void:
+	room_create_attempts += 1
+	room_code = preferred_code if preferred_code.length() == ROOM_CODE_LENGTH and preferred_code.is_valid_int() else "%06d" % randi_range(0, 999999)
+	connection_message.emit("온라인 방 %s 생성 중…" % room_code, false)
+	GDSync.lobby_create(ROOM_PREFIX + room_code, "", false, 2, {"protocol": PROTOCOL_VERSION}, {})
+
+func join_online_room(code: String) -> Error:
+	var normalized := code.strip_edges()
+	if normalized.length() != ROOM_CODE_LENGTH or not normalized.is_valid_int():
+		connection_message.emit("6자리 숫자 방 코드를 입력하세요.", true)
+		return ERR_INVALID_PARAMETER
+	if not gdsync_connected:
+		connection_message.emit("GD-Sync 서버에 아직 연결되지 않았습니다.", true)
+		return ERR_UNAVAILABLE
+	shutdown(false)
+	mode = Mode.GDSYNC_CLIENT
+	local_player_id = 2
+	room_code = normalized
+	_reset_lobby_state()
+	connected_players[1] = false
+	connection_message.emit("온라인 방 %s 참가 중…" % room_code, false)
+	GDSync.lobby_join(ROOM_PREFIX + room_code)
+	return OK
+
+func _reset_lobby_state() -> void:
+	last_sequences.clear()
+	local_sequence = 0
+	peer_to_player.clear()
+	ready_state = {1: false, 2: false}
+	connected_players = {1: true, 2: false}
+	match_active = false
+	gdsync_host_id = -1
+
 func shutdown(notify: bool = true) -> void:
 	if mode == Mode.OFFLINE:
 		return
 	shutting_down = true
-	if multiplayer.multiplayer_peer:
+	if is_gdsync_mode() and not GDSync.lobby_get_name().is_empty():
+		GDSync.lobby_leave()
+	elif multiplayer.multiplayer_peer:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.OFFLINE
@@ -99,6 +164,8 @@ func shutdown(notify: bool = true) -> void:
 	selection_context.clear()
 	pending_choices.clear()
 	selection_completed = {1: false, 2: false}
+	room_code = ""
+	gdsync_host_id = -1
 	shutting_down = false
 	if notify:
 		session_ended.emit("네트워크 방에서 나왔습니다.")
@@ -107,23 +174,31 @@ func is_online() -> bool:
 	return mode != Mode.OFFLINE
 
 func is_host() -> bool:
-	return mode == Mode.HOST
+	return mode in [Mode.HOST, Mode.GDSYNC_HOST]
+
+func is_gdsync_mode() -> bool:
+	return mode in [Mode.GDSYNC_HOST, Mode.GDSYNC_CLIENT]
+
+func get_room_code() -> String:
+	return room_code
 
 func set_ready(value: bool) -> void:
-	if mode == Mode.HOST:
+	if is_host():
 		ready_state[1] = value
 		_broadcast_lobby()
 	elif mode == Mode.CLIENT:
 		request_lobby_ready.rpc_id(1, value, PROTOCOL_VERSION)
+	elif mode == Mode.GDSYNC_CLIENT and gdsync_host_id >= 0:
+		GDSync.call_func_on(gdsync_host_id, request_lobby_ready, value, PROTOCOL_VERSION)
 
 func set_piece_count(value: int) -> void:
-	if mode != Mode.HOST or match_active:
+	if not is_host() or match_active:
 		return
 	piece_count = GameplayRules.clamp_piece_count(value)
 	_broadcast_lobby()
 
 func can_start() -> bool:
-	return mode == Mode.HOST and bool(connected_players[1]) and bool(connected_players[2]) and bool(ready_state[1]) and bool(ready_state[2])
+	return is_host() and bool(connected_players[1]) and bool(connected_players[2]) and bool(ready_state[1]) and bool(ready_state[2])
 
 func start_match() -> bool:
 	if not can_start():
@@ -234,11 +309,14 @@ func _peer_for_player(player_id: int) -> int:
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_lobby_ready(value: bool, protocol: int) -> void:
-	if mode != Mode.HOST:
+	if not is_host():
 		return
-	var sender := multiplayer.get_remote_sender_id()
+	var sender := GDSync.get_sender_id() if is_gdsync_mode() else multiplayer.get_remote_sender_id()
 	if protocol != PROTOCOL_VERSION:
-		multiplayer.multiplayer_peer.disconnect_peer(sender)
+		if is_gdsync_mode():
+			GDSync.lobby_kick_client(sender, "프로토콜 버전이 일치하지 않습니다.")
+		else:
+			multiplayer.multiplayer_peer.disconnect_peer(sender)
 		return
 	var player_id := _player_for_peer(sender)
 	if player_id == 2:
@@ -444,6 +522,8 @@ func receive_projectile(from: Vector2, to: Vector2, color: Color, size: float) -
 
 @rpc("authority", "call_remote", "reliable")
 func receive_lobby(data: Dictionary) -> void:
+	if is_gdsync_mode() and GDSync.get_sender_id() != gdsync_host_id:
+		return
 	piece_count = int(data.get("piece_count", GameplayRules.DEFAULT_PIECES))
 	ready_state = data.get("ready", {1: false, 2: false})
 	connected_players = data.get("connected", {1: true, 2: true})
@@ -527,5 +607,111 @@ func _emit_lobby() -> void:
 
 func _broadcast_lobby() -> void:
 	var data := _lobby_data()
-	receive_lobby.rpc(data)
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_lobby, data)
+	else:
+		receive_lobby.rpc(data)
 	lobby_updated.emit(data)
+
+func _on_gdsync_lobby_created(lobby_name: String) -> void:
+	if mode != Mode.GDSYNC_HOST or lobby_name != ROOM_PREFIX + room_code:
+		return
+	GDSync.lobby_join(lobby_name)
+
+func _on_gdsync_lobby_creation_failed(lobby_name: String, error: int) -> void:
+	if mode != Mode.GDSYNC_HOST or lobby_name != ROOM_PREFIX + room_code:
+		return
+	if error == ENUMS.LOBBY_CREATION_ERROR.LOBBY_ALREADY_EXISTS and room_create_attempts < ROOM_CREATE_ATTEMPTS:
+		connection_message.emit("방 코드 충돌. 새 코드를 발급합니다…", false)
+		await get_tree().create_timer(3.1).timeout
+		if mode == Mode.GDSYNC_HOST:
+			_create_online_room_attempt()
+		return
+	var reason: String = str(ENUMS.LOBBY_CREATION_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_CREATION_ERROR.size() else "UNKNOWN"
+	mode = Mode.OFFLINE
+	connection_message.emit("온라인 방 생성 실패: %s (error=%d)" % [reason, error], true)
+
+func _on_gdsync_lobby_joined(lobby_name: String) -> void:
+	if OS.is_debug_build():
+		print("[gdsync] lobby_joined name=%s expected=%s mode=%s host=%d self=%d" % [lobby_name, ROOM_PREFIX + room_code, Mode.keys()[mode], GDSync.get_host(), GDSync.get_client_id()])
+	if not is_gdsync_mode() or lobby_name != ROOM_PREFIX + room_code:
+		return
+	var own_id := GDSync.get_client_id()
+	if mode == Mode.GDSYNC_HOST:
+		gdsync_host_id = own_id
+		mode = Mode.GDSYNC_HOST
+		local_player_id = 1
+		peer_to_player = {own_id: 1}
+		connected_players = {1: true, 2: false}
+		connection_message.emit("온라인 방 생성 완료 · 코드 %s" % room_code, false)
+	else:
+		gdsync_host_id = GDSync.get_host()
+		mode = Mode.GDSYNC_CLIENT
+		local_player_id = 2
+		peer_to_player = {gdsync_host_id: 1, own_id: 2}
+		connected_players = {1: true, 2: true}
+		connection_message.emit("온라인 방 %s에 참가했습니다." % room_code, false)
+	_emit_lobby()
+
+func _on_gdsync_lobby_join_failed(lobby_name: String, error: int) -> void:
+	if OS.is_debug_build():
+		print("[gdsync] lobby_join_failed name=%s error=%d mode=%s" % [lobby_name, error, Mode.keys()[mode]])
+	if mode != Mode.GDSYNC_CLIENT or lobby_name != ROOM_PREFIX + room_code:
+		return
+	var reason: String = str(ENUMS.LOBBY_JOIN_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_JOIN_ERROR.size() else "UNKNOWN"
+	mode = Mode.OFFLINE
+	connection_message.emit("온라인 방 참가 실패: %s (error=%d)" % [reason, error], true)
+
+func _on_gdsync_client_joined(client_id: int) -> void:
+	if not is_gdsync_mode() or client_id == GDSync.get_client_id():
+		return
+	if mode == Mode.GDSYNC_HOST:
+		if bool(connected_players[2]):
+			GDSync.lobby_kick_client(client_id, "이 방은 2인 전용입니다.")
+			return
+		peer_to_player[client_id] = 2
+		connected_players[2] = true
+		ready_state[2] = false
+		connection_message.emit("친구가 온라인 방에 참가했습니다.", false)
+		_broadcast_lobby()
+
+func _on_gdsync_client_left(client_id: int) -> void:
+	if not is_gdsync_mode() or shutting_down:
+		return
+	var player_id := _player_for_peer(client_id)
+	peer_to_player.erase(client_id)
+	if mode == Mode.GDSYNC_HOST and player_id == 2:
+		connected_players[2] = false
+		ready_state[2] = false
+		match_active = false
+		session_ended.emit("참가자의 연결이 끊겼습니다.")
+		_broadcast_lobby()
+	elif mode == Mode.GDSYNC_CLIENT and client_id == gdsync_host_id:
+		mode = Mode.OFFLINE
+		match_active = false
+		session_ended.emit("방장이 방을 나갔거나 연결이 끊겼습니다.")
+
+func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:
+	if OS.is_debug_build():
+		print("[gdsync] host_changed new=%d tracked=%d mode=%s" % [new_host_id, gdsync_host_id, Mode.keys()[mode]])
+	if mode == Mode.GDSYNC_CLIENT:
+		if gdsync_host_id < 0:
+			gdsync_host_id = new_host_id
+			peer_to_player.erase(-1)
+			peer_to_player[new_host_id] = 1
+			connected_players[1] = true
+			_emit_lobby()
+		elif new_host_id != gdsync_host_id:
+			mode = Mode.OFFLINE
+			match_active = false
+			session_ended.emit("방장 연결이 끊겨 온라인 대전을 종료합니다.")
+
+func _on_gdsync_disconnected() -> void:
+	gdsync_connected = false
+	if is_gdsync_mode() and not shutting_down:
+		mode = Mode.OFFLINE
+		match_active = false
+		session_ended.emit("GD-Sync 서버와 연결이 끊겼습니다.")
+
+func _on_gdsync_connected() -> void:
+	gdsync_connected = true
