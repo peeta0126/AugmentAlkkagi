@@ -30,6 +30,7 @@ var pending_choices: Dictionary = {}
 var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
+var last_snapshot_received_usec := 0
 var shutting_down := false
 var room_code := ""
 var room_create_attempts := 0
@@ -100,6 +101,7 @@ func join_host(address: String, port: int = DEFAULT_PORT) -> Error:
 	shutdown(false)
 	last_sequences.clear()
 	local_sequence = 0
+	last_snapshot_received_usec = 0
 	if not address.is_valid_ip_address() or ":" in address or port < 1 or port > 65535:
 		connection_message.emit("올바른 IPv4 주소를 입력하세요.", true)
 		return ERR_INVALID_PARAMETER
@@ -141,6 +143,7 @@ func join_online_room(code: String) -> Error:
 		connection_message.emit("GD-Sync 서버에 아직 연결되지 않았습니다.", true)
 		return ERR_UNAVAILABLE
 	shutdown(false)
+	last_snapshot_received_usec = 0
 	mode = Mode.GDSYNC_CLIENT
 	local_player_id = 2
 	room_code = normalized
@@ -171,6 +174,7 @@ func shutdown(notify: bool = true) -> void:
 	mode = Mode.OFFLINE
 	local_player_id = 0
 	match_active = false
+	last_snapshot_received_usec = 0
 	offers.clear()
 	selection_context.clear()
 	pending_choices.clear()
@@ -587,6 +591,7 @@ func receive_augment_granted(player_id: int, augment_id: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_world_start(count: int) -> void:
 	match_active = true
+	last_snapshot_received_usec = 0
 	game().network_start_world(count)
 
 @rpc("authority", "call_remote", "reliable")
@@ -600,7 +605,12 @@ func receive_active_skill_rejected(reason: String) -> void:
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
 func receive_snapshot(snapshot: Dictionary) -> void:
 	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT]:
-		game().apply_network_snapshot(snapshot)
+		var now_usec := Time.get_ticks_usec()
+		var interpolation_duration := SNAPSHOT_INTERVAL
+		if last_snapshot_received_usec > 0:
+			interpolation_duration = clampf(float(now_usec - last_snapshot_received_usec) / 1000000.0, SNAPSHOT_INTERVAL * 0.5, 0.15)
+		last_snapshot_received_usec = now_usec
+		game().apply_network_snapshot(snapshot, interpolation_duration)
 
 func _on_peer_connected(peer_id: int) -> void:
 	if mode != Mode.HOST:

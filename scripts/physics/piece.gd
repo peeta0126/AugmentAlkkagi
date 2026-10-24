@@ -12,6 +12,7 @@ const RADIUS := BLACK_RADIUS # 이전 테스트/확장 코드와의 호환용 �
 const OWNER_COLORS := {1: Color("d2a85f"), 2: Color("eee9dc")}
 const STONE_NAMES := {1: "흑돌", 2: "백돌"}
 const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
+const NETWORK_SNAP_DISTANCE := 100.0
 
 var owner_id := 1
 var piece_id := 0
@@ -38,6 +39,11 @@ var carried_count := 0
 var reached_enemy_end := false
 var field_damp_bonus := 0.0
 var field_speed_multiplier := 1.0
+var network_interpolation_from := Vector2.ZERO
+var network_interpolation_to := Vector2.ZERO
+var network_interpolation_elapsed := 0.0
+var network_interpolation_duration := 0.05
+var network_interpolation_active := false
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -210,7 +216,7 @@ func compact_network_state() -> PackedFloat32Array:
 		tank_factor, fragment_factor, mass_factor, status_mass_factor, status_damp_bonus, flags,
 		stasis_turns, snow_turns, transform_code, carried_count, speed_cap])
 
-func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpolate: bool) -> void:
+func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpolate: bool, interpolation_duration: float = 0.05) -> void:
 	if data.size() < offset + 17:
 		return
 	apply_network_state({
@@ -223,14 +229,22 @@ func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpol
 		"enemy_end": (int(data[offset + 11]) & 8) != 0, "stasis": int(data[offset + 12]), "snow": int(data[offset + 13]),
 		"transformation": TRANSFORM_NAMES[clampi(int(data[offset + 14]), 0, TRANSFORM_NAMES.size() - 1)],
 		"carried": int(data[offset + 15]), "speed_cap": data[offset + 16]
-	}, interpolate)
+	}, interpolate, interpolation_duration)
 
-func apply_network_state(data: Dictionary, interpolate: bool) -> void:
+func apply_network_state(data: Dictionary, interpolate: bool, interpolation_duration: float = 0.05) -> void:
 	var new_owner := int(data.get("owner", owner_id))
 	if new_owner != owner_id:
 		change_player_owner(new_owner)
 	var target_position: Vector2 = data.get("position", position)
-	position = position.lerp(target_position, 0.58) if interpolate and position.distance_to(target_position) < 100.0 else target_position
+	if interpolate and position.distance_to(target_position) < NETWORK_SNAP_DISTANCE:
+		network_interpolation_from = position
+		network_interpolation_to = target_position
+		network_interpolation_elapsed = 0.0
+		network_interpolation_duration = maxf(interpolation_duration, 0.001)
+		network_interpolation_active = not position.is_equal_approx(target_position)
+	else:
+		position = target_position
+		network_interpolation_active = false
 	linear_velocity = data.get("velocity", Vector2.ZERO)
 	is_tank = bool(data.get("tank", false))
 	tank_factor = float(data.get("tank_factor", 1.0))
@@ -258,7 +272,12 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	elif state.linear_velocity.length() > speed_cap * field_speed_multiplier:
 		state.linear_velocity = state.linear_velocity.limit_length(speed_cap * field_speed_multiplier)
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if freeze and network_interpolation_active:
+		network_interpolation_elapsed = minf(network_interpolation_elapsed + delta, network_interpolation_duration)
+		position = network_interpolation_from.lerp(network_interpolation_to, network_interpolation_elapsed / network_interpolation_duration)
+		if network_interpolation_elapsed >= network_interpolation_duration:
+			network_interpolation_active = false
 	var trail_threshold := 38.0 if sonic_trail else 70.0
 	if linear_velocity.length() > trail_threshold:
 		trail.push_front(global_position)

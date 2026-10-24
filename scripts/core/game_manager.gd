@@ -1345,7 +1345,7 @@ func create_network_snapshot() -> Dictionary:
 		"effects": effect_states
 	}
 
-func apply_network_snapshot(snapshot: Dictionary) -> void:
+func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float = 0.05) -> void:
 	if online_is_host or board == null:
 		return
 	var seen := {}
@@ -1359,7 +1359,7 @@ func apply_network_snapshot(snapshot: Dictionary) -> void:
 		if piece == null:
 			spawn_piece(int(piece_states[offset + 1]), piece_id, Vector2(piece_states[offset + 2], piece_states[offset + 3]))
 			piece = find_piece(piece_id)
-		piece.apply_compact_network_state(piece_states, offset, true)
+		piece.apply_compact_network_state(piece_states, offset, true, interpolation_duration)
 	for piece in get_pieces():
 		if not seen.has(piece.piece_id):
 			piece.queue_free()
