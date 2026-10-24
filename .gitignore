@@ -4,3 +4,7 @@
 
 # GD-Sync API keys. Never commit these.
 addons/GD-Sync/keys.cfg
+
+# Local Windows distribution artifacts.
+/build/*.exe
+/build/*.zip
