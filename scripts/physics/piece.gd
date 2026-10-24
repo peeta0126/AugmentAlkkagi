@@ -42,6 +42,7 @@ var field_damp_bonus := 0.0
 var field_speed_multiplier := 1.0
 var hidden_from_player := 0
 var stealth_turns := 0
+var stealth_effect_time := 0.0
 var network_interpolation_from := Vector2.ZERO
 var network_interpolation_to := Vector2.ZERO
 var network_interpolation_elapsed := 0.0
@@ -117,6 +118,7 @@ func set_stasis(turns: int) -> void:
 func set_stealth(player_id: int, turns: int) -> void:
 	hidden_from_player = player_id
 	stealth_turns = maxi(turns, 1)
+	stealth_effect_time = 0.8
 	queue_redraw()
 
 func tick_stealth(completed_player: int) -> void:
@@ -125,6 +127,7 @@ func tick_stealth(completed_player: int) -> void:
 	stealth_turns -= 1
 	if stealth_turns <= 0:
 		hidden_from_player = 0
+		stealth_effect_time = 0.8
 	queue_redraw()
 
 func apply_snow(turns: int) -> void:
@@ -250,6 +253,7 @@ func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpol
 	}, interpolate, interpolation_duration)
 
 func apply_network_state(data: Dictionary, interpolate: bool, interpolation_duration: float = 0.05) -> void:
+	var previous_hidden_from := hidden_from_player
 	var new_owner := int(data.get("owner", owner_id))
 	if new_owner != owner_id:
 		change_player_owner(new_owner)
@@ -281,6 +285,8 @@ func apply_network_state(data: Dictionary, interpolate: bool, interpolation_dura
 	speed_cap = float(data.get("speed_cap", GameplayRules.BALANCE.max_speed))
 	hidden_from_player = int(data.get("hidden_from", 0))
 	stealth_turns = int(data.get("stealth_turns", 0))
+	if previous_hidden_from != hidden_from_player:
+		stealth_effect_time = 0.8
 	_update_status_kind()
 	refresh_physics()
 	freeze = true
@@ -293,6 +299,7 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		state.linear_velocity = state.linear_velocity.limit_length(speed_cap * field_speed_multiplier)
 
 func _physics_process(delta: float) -> void:
+	stealth_effect_time = maxf(stealth_effect_time - delta, 0.0)
 	if freeze and network_interpolation_active:
 		network_interpolation_elapsed = minf(network_interpolation_elapsed + delta, network_interpolation_duration)
 		position = network_interpolation_from.lerp(network_interpolation_to, network_interpolation_elapsed / network_interpolation_duration)
@@ -358,6 +365,11 @@ func _draw() -> void:
 		_draw_transformation_mark(mark_color)
 	if sonic_trail:
 		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
+	if hidden_from_player != 0 or stealth_effect_time > 0.0:
+		var smoke_alpha := 0.42 if hidden_from_player != 0 else 0.42 * stealth_effect_time / 0.8
+		for smoke_index in 3:
+			var smoke_offset := Vector2.from_angle(float(smoke_index) * TAU / 3.0 + Time.get_ticks_msec() * 0.001) * (visual_radius + 4.0)
+			draw_circle(smoke_offset, 4.5, Color(0.72, 0.78, 0.84, smoke_alpha))
 
 func _draw_transformation_mark(color: Color) -> void:
 	var size := visual_radius * 0.48

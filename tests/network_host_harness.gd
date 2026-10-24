@@ -43,7 +43,8 @@ func run_test() -> void:
 	if not await wait_until(func(): return bool(game.network_manager.ready_state[2])):
 		fail("client ready timeout")
 		return
-	game.augment_manager.rng.seed = 3
+	# Seed 1 keeps Wall Maria in player 2's initial offer after the v2 catalog expansion.
+	game.augment_manager.rng.seed = 1
 	if not game.network_manager.start_match():
 		fail("match start rejected")
 		return
