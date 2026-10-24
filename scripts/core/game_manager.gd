@@ -58,6 +58,10 @@ func _skill_debug(message: String) -> void:
 		print("[active-skill] %s" % message)
 
 func _ready() -> void:
+	GDSync.connected.connect(_on_gdsync_connected)
+	GDSync.connection_failed.connect(_on_gdsync_connection_failed)
+	GDSync.disconnected.connect(_on_gdsync_disconnected)
+	GDSync.start_multiplayer()
 	state_machine = StateMachineScript.new()
 	add_child(state_machine)
 	augment_manager = AugmentManagerScript.new()
@@ -73,6 +77,18 @@ func _ready() -> void:
 	ui = CanvasLayer.new()
 	add_child(ui)
 	show_main_menu()
+
+func _on_gdsync_connected() -> void:
+	print("GD-Sync 연결 성공")
+
+func _on_gdsync_connection_failed(error: int) -> void:
+	var reason := "UNKNOWN"
+	if error >= 0 and error < ENUMS.CONNECTION_FAILED.size():
+		reason = ENUMS.CONNECTION_FAILED.keys()[error]
+	push_error("GD-Sync 연결 실패: %s (error=%d)" % [reason, error])
+
+func _on_gdsync_disconnected() -> void:
+	print("GD-Sync 연결 끊김")
 
 func show_main_menu() -> void:
 	if network_manager and network_manager.is_online():
