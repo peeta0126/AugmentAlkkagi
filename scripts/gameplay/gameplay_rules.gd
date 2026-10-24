@@ -16,6 +16,12 @@ const BALANCE: PhysicsBalance = preload("res://resources/balance/default_physics
 static func clamp_piece_count(value: int) -> int:
 	return clampi(value, MIN_PIECES, MAX_PIECES)
 
+static func clamp_outgoing_pull_vector(pull_vector: Vector2, max_drag: float) -> Vector2:
+	return pull_vector.limit_length(maxf(max_drag, 0.0))
+
+static func is_network_pull_vector_valid(pull_vector: Vector2, max_drag: float) -> bool:
+	return pull_vector.length() >= MIN_SHOT_DRAG_DISTANCE and pull_vector.length() <= max_drag * 1.05
+
 static func shot_impulse(origin: Vector2, pointer: Vector2, max_drag: float = -1.0, impulse_multiplier: float = 1.0) -> Vector2:
 	# 드래그 비례 힘을 만든 뒤 최대 충격량과 증강 배율을 최종 단계에서 한 번만 적용한다.
 	var resolved_drag := BALANCE.drag_distance if max_drag <= 0.0 else max_drag

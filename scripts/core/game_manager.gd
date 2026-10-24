@@ -875,7 +875,7 @@ func fire_selected(pointer: Vector2) -> void:
 		return
 	if online_mode and not online_is_host:
 		var requested_piece_id := selected_piece.piece_id
-		var pull_vector := selected_piece.global_position - pointer
+		var pull_vector := GameplayRules.clamp_outgoing_pull_vector(selected_piece.global_position - pointer, max_drag)
 		cancel_aim()
 		network_manager.submit_shot(requested_piece_id, pull_vector)
 		state_machine.transition(GameStateMachine.State.PIECES_MOVING)
@@ -1295,7 +1295,7 @@ func network_execute_shot(player_id: int, piece_id: int, pull_vector: Vector2) -
 		return
 	var profile := augment_manager.shot_profile(player_id)
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
-	if pull_vector.length() < 8.0 or pull_vector.length() > max_drag * 1.05:
+	if not GameplayRules.is_network_pull_vector_valid(pull_vector, max_drag):
 		return
 	selected_piece = piece
 	selected_piece.set_selected(true)
