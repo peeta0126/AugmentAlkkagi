@@ -8,6 +8,7 @@ const TemporaryWallScript := preload("res://scripts/gameplay/temporary_wall.gd")
 const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.gd")
 const FireballScene := preload("res://scenes/effects/fireball.tscn")
 const SnowballScene := preload("res://scenes/effects/snowball.tscn")
+const GreatswordScene := preload("res://scenes/effects/greatsword.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -980,6 +981,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var snowball := SnowballScene.instantiate() as SnowballVisual
 		world.add_child(snowball)
 		snowball.play(from, to)
+	elif color == Color("d9e4ff") and is_equal_approx(size, 8.0):
+		var greatsword := GreatswordScene.instantiate() as GreatswordVisual
+		world.add_child(greatsword)
+		greatsword.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)
