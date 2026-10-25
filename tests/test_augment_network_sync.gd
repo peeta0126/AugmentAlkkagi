@@ -77,6 +77,14 @@ func run_test() -> void:
 	var guest_quake: EarthquakeAugmentEffect = find_effect(guest, 1, &"earthquake")
 	check(guest_quake != null and guest_quake.cracks.size() == earthquake.cracks.size(), "earthquake crack layout reaches guest")
 	check(guest.board.field_visuals.has("earthquake_1"), "earthquake visual reaches guest")
+	var guest_quake_visual: EarthquakeVisual = guest.board.field_visual_nodes.get("earthquake_1") as EarthquakeVisual
+	var guest_runtime_cracks: Array[Node] = []
+	if guest_quake_visual != null:
+		guest_runtime_cracks.assign(guest_quake_visual.cracks_root.get_children().filter(func(child: Node): return child != guest_quake_visual.crack_template))
+	check(guest_runtime_cracks.size() == earthquake.cracks.size(), "guest duplicates one CrackTemplate per synchronized crack")
+	if not guest_runtime_cracks.is_empty():
+		var guest_sprite := guest_runtime_cracks[0].get_node_or_null("CrackSprite") as Sprite2D
+		check(guest_sprite != null and guest_sprite.is_visible_in_tree() and guest_sprite.texture != null, "guest renders the synchronized earthquake PNG")
 
 	await reset_pair(host, guest)
 	host.augment_manager.acquire(host, 1, &"wish")

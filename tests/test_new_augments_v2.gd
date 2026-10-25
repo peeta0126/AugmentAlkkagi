@@ -99,6 +99,22 @@ func run_test() -> void:
 	var earthquake: EarthquakeAugmentEffect = find_effect(game, 1, &"earthquake")
 	earthquake.activate_immediate(game, 1)
 	check(earthquake.active and earthquake.cracks.size() == 3, "earthquake creates the configured number of safe cracks")
+	var earthquake_visual: EarthquakeVisual = game.board.field_visual_nodes.get("earthquake_1") as EarthquakeVisual
+	check(earthquake_visual != null, "earthquake activation instantiates the editable effect scene")
+	if earthquake_visual != null:
+		var runtime_cracks := earthquake_visual.cracks_root.get_children().filter(func(child: Node): return child != earthquake_visual.crack_template)
+		var template_sprite := earthquake_visual.crack_template.get_node_or_null("CrackSprite") as Sprite2D
+		check(runtime_cracks.size() == earthquake.cracks.size(), "every gameplay crack duplicates CrackTemplate")
+		for index in runtime_cracks.size():
+			var runtime_crack := runtime_cracks[index] as Line2D
+			var crack_sprite := runtime_crack.get_node_or_null("CrackSprite") as Sprite2D
+			var hot_core := runtime_crack.get_node_or_null("HotCore") as Line2D
+			var expected_center: Vector2 = earthquake.cracks[index].from.lerp(earthquake.cracks[index].to, 0.5)
+			var expected_angle: float = (earthquake.cracks[index].to - earthquake.cracks[index].from).angle()
+			check(crack_sprite != null and crack_sprite.is_visible_in_tree() and crack_sprite.texture != null, "runtime crack %d displays the template PNG in the live game tree" % index)
+			check(template_sprite != null and crack_sprite.texture == template_sprite.texture and crack_sprite.scale == template_sprite.scale and crack_sprite.modulate == template_sprite.modulate, "runtime crack %d preserves the editor Texture, Scale, and Modulate" % index)
+			check(is_zero_approx(runtime_crack.width) and (hot_core == null or not hot_core.visible), "runtime crack %d hides legacy line overlays" % index)
+			check(runtime_crack.position.is_equal_approx(expected_center) and is_equal_approx(runtime_crack.rotation, expected_angle) and is_equal_approx(runtime_crack.scale.x, runtime_crack.scale.y), "runtime crack %d follows its gameplay segment without distorting the PNG" % index)
 	var cracked_piece := pieces_for(game, 2)[0]
 	cracked_piece.position = earthquake.cracks[0].from.lerp(earthquake.cracks[0].to, 0.5)
 	earthquake.activation_delay = 0.0

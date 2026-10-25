@@ -10,15 +10,27 @@ var elapsed := 0.0
 func configure(data: Dictionary) -> void:
 	for child in cracks_root.get_children():
 		if child != crack_template:
+			cracks_root.remove_child(child)
 			child.queue_free()
 	crack_template.visible = false
-	var width := float(data.get("width", 18.0))
 	for crack: Dictionary in data.get("cracks", []):
 		var line := crack_template.duplicate() as Line2D
+		var from: Vector2 = crack.get("from", Vector2.ZERO)
+		var to: Vector2 = crack.get("to", Vector2.ZERO)
+		var segment := to - from
+		var template_length := 1.0
+		if line.points.size() >= 2:
+			template_length = maxf(line.points[0].distance_to(line.points[line.points.size() - 1]), 1.0)
+		line.position = from.lerp(to, 0.5)
+		line.rotation = segment.angle()
+		line.scale = Vector2.ONE * (segment.length() / template_length)
+		# Keep the designer-authored CrackSprite intact. Collision continues to
+		# use the authoritative from/to segment stored by EarthquakeAugmentEffect.
+		line.width = 0.0
 		line.visible = true
-		line.width = width
-		line.points = PackedVector2Array([crack.from, crack.to])
-		(line.get_node("HotCore") as Line2D).points = line.points
+		var hot_core := line.get_node_or_null("HotCore") as Line2D
+		if hot_core != null:
+			hot_core.visible = false
 		cracks_root.add_child(line)
 
 
