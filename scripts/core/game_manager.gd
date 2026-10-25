@@ -12,6 +12,7 @@ const GreatswordScene := preload("res://scenes/effects/greatsword.tscn")
 const DodgeScene := preload("res://scenes/effects/dodge.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
 const TrainScene := preload("res://scenes/effects/train.tscn")
+const BloodFestivalScene := preload("res://scenes/effects/blood_festival.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -1000,6 +1001,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var train := TrainScene.instantiate() as TrainVisual
 		world.add_child(train)
 		train.play(from, to)
+	elif color == Color("d9344f") and is_equal_approx(size, 8.0):
+		var blood_festival := BloodFestivalScene.instantiate() as BloodFestivalVisual
+		world.add_child(blood_festival)
+		blood_festival.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)

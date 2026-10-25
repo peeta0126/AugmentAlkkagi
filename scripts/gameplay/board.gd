@@ -5,6 +5,7 @@ const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
 const LanternScene := preload("res://scenes/effects/lantern.tscn")
 const EarthquakeScene := preload("res://scenes/effects/earthquake.tscn")
 const GravityFieldScene := preload("res://scenes/effects/gravity_field.tscn")
+const WishScene := preload("res://scenes/effects/wish.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
@@ -77,6 +78,13 @@ func set_field_visual(key: String, data: Dictionary) -> void:
 			field_visual_nodes[key] = gravity
 			add_child(gravity)
 		gravity.configure(data)
+	elif str(data.get("type", "")) == "dragon_balls":
+		var wish: WishVisual = field_visual_nodes.get(key) as WishVisual
+		if wish == null:
+			wish = WishScene.instantiate() as WishVisual
+			field_visual_nodes[key] = wish
+			add_child(wish)
+		wish.configure(data)
 	queue_redraw()
 
 func remove_field_visual(key: String) -> void:
@@ -148,17 +156,6 @@ func _draw() -> void:
 	draw_line(BOARD_RECT.position + Vector2(8, 5), Vector2(BOARD_RECT.end.x - 8, BOARD_RECT.position.y + 5), Color(1, 0.88, 0.62, 0.20), 1.4)
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
-	for data: Dictionary in field_visuals.values():
-		var visual_type := str(data.get("type", ""))
-		if visual_type == "dragon_balls":
-			for ball: Dictionary in data.get("balls", []):
-				var ball_position: Vector2 = ball.position
-				var number := int(ball.number)
-				draw_circle(ball_position, 11.0, Color("f28a24"))
-				draw_arc(ball_position, 11.0, 0.0, TAU, 24, Color("ffd272"), 2.0)
-				for star_index in number:
-					var angle := TAU * float(star_index) / float(maxi(number, 1)) - PI * 0.5
-					draw_circle(ball_position + Vector2.from_angle(angle) * (3.5 if number > 1 else 0.0), 1.2, Color("b51f2e"))
 	if show_aim:
 		var impulse := GameplayRules.shot_impulse(aim_origin, aim_pointer, aim_max_drag)
 		var pull_end := aim_origin - impulse / GameplayRules.BALANCE.base_launch_impulse
