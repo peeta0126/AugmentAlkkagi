@@ -153,13 +153,33 @@ func run_test() -> void:
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"snowball")
 	var white := first_piece(game, 2)
-	find_effect(game, 1, &"snowball").on_piece_target(game, 1, white)
-	check(white.status_kind == "snow" and white.mass > 1.0 and white.linear_damp > GameplayRules.BALANCE.linear_damp, "snowball adds weight and drag")
+	var snowball: SnowballAugmentEffect = find_effect(game, 1, &"snowball")
+	var snow_origin: Vector2 = game.player_center(1)
+	white.position = snow_origin + Vector2(120, 0)
+	check(snowball.on_position_target(game, 1, snow_origin + Vector2(300, 0)), "snowball accepts an aimed board position")
+	for step in 20:
+		snowball.on_physics_tick(game, 1, 0.02)
+		if not snowball.projectile_active:
+			break
+	check(white.status_kind == "snow" and white.freeze and is_equal_approx(white.mass, 1.0), "snowball freezes only an actually hit enemy without changing mass")
 	white.set_stasis(2)
 	check("snow" in white.status_kind and "stasis" in white.status_kind, "snowball and stasis coexist")
 	white.tick_status(2)
 	white.tick_status(2)
 	check(white.status_kind == "" and is_equal_approx(white.mass, 1.0) and not white.freeze, "snowball and stasis expire independently")
+	await reset_game(game)
+	game.augment_manager.acquire(game, 1, &"snowball")
+	snowball = find_effect(game, 1, &"snowball")
+	snow_origin = game.player_center(1)
+	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.owner_id == 2:
+			piece.position = Vector2(420 + piece.piece_id % 5 * 40, 580)
+	snowball.on_position_target(game, 1, snow_origin + Vector2(300, 0))
+	for step in 80:
+		snowball.on_physics_tick(game, 1, 0.02)
+		if not snowball.projectile_active:
+			break
+	check(not snowball.projectile_active and not game.get_pieces().any(func(piece: AlkkagiPiece): return piece.owner_id == 2 and piece.status_kind == "snow"), "missed snowball expires without freezing an enemy")
 
 	# 09 마법사: 변신 후 적에게 화염구 넉백을 전달한다.
 	await reset_game(game)

@@ -684,7 +684,7 @@ func begin_skill_targeting(effect: AugmentEffect, player_id: int) -> void:
 	state_machine.transition(GameStateMachine.State.SKILL_TARGETING)
 	skill_targeting_snapshot_logged = false
 	_skill_debug("entered SKILL_TARGETING: augment=%s player=%d" % [effect.definition.id, player_id])
-	set_skill_hint("%s: 대상을 선택하세요. 우클릭으로 취소" % effect.definition.display_name)
+	set_skill_hint(effect.targeting_hint())
 
 func cancel_active_skill() -> void:
 	if active_skill:
@@ -756,6 +756,14 @@ func update_aim(pointer: Vector2) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if state_machine != null and state_machine.current == GameStateMachine.State.SKILL_TARGETING:
+		if event is InputEventKey:
+			var skill_key := event as InputEventKey
+			if skill_key.pressed and not skill_key.echo and skill_key.keycode == KEY_ESCAPE:
+				cancel_active_skill()
+				get_viewport().set_input_as_handled()
+				return
+		if event is InputEventMouseMotion and active_skill:
+			active_skill.update_target_preview(self, active_skill_player, get_global_mouse_position())
 		if event is InputEventMouseButton and event.pressed:
 			if event.button_index == MOUSE_BUTTON_RIGHT:
 				cancel_active_skill()
@@ -795,6 +803,7 @@ func confirm_board_position_skill(board_position: Vector2) -> void:
 		var target_ids: Array[int] = []
 		_skill_debug("board target submitted: augment=%s position=%s" % [active_skill.definition.id, board_position])
 		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position)
+		active_skill.cancel_active()
 		network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
 	else:
 		active_skill.on_position_target(self, active_skill_player, board_position)
@@ -863,7 +872,7 @@ func _physics_process(delta: float) -> void:
 	if state_machine.current != GameStateMachine.State.PIECES_MOVING:
 		return
 	shot_elapsed += delta
-	var all_still := true
+	var all_still := not augment_manager.has_pending_action()
 	for piece in get_pieces():
 		if piece.linear_velocity.length() > GameplayRules.BALANCE.stop_threshold:
 			all_still = false

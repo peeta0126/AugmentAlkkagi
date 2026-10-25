@@ -138,6 +138,13 @@ func physics_tick(game: Node, delta: float) -> void:
 		for effect: AugmentEffect in effects[player_id]:
 			effect.on_physics_tick(game, player_id, delta)
 
+func has_pending_action() -> bool:
+	for player_id in [1, 2]:
+		for effect: AugmentEffect in effects[player_id]:
+			if effect.blocks_turn_resolution():
+				return true
+	return false
+
 func finish_turn(game: Node, player_id: int) -> void:
 	completed_turns[player_id] += 1
 	for effect: AugmentEffect in effects[player_id]:

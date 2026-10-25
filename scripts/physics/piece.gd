@@ -176,8 +176,7 @@ func tick_stealth(completed_player: int) -> void:
 func apply_snow(turns: int) -> void:
 	snow_turns = maxi(snow_turns, turns)
 	status_turns = maxi(status_turns, turns)
-	status_mass_factor = 1.35
-	status_damp_bonus = 1.4
+	freeze = true
 	_update_status_kind()
 	refresh_physics()
 
@@ -192,8 +191,7 @@ func tick_status(for_owner: int) -> void:
 	if snow_turns > 0:
 		snow_turns -= 1
 		if snow_turns == 0:
-			status_mass_factor = 1.0
-			status_damp_bonus = 0.0
+			freeze = stasis_turns > 0
 	status_turns = maxi(stasis_turns, snow_turns)
 	_update_status_kind()
 	refresh_physics()

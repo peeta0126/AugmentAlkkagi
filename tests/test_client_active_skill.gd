@@ -57,10 +57,10 @@ func run_test() -> void:
 			own_piece = piece
 		elif piece.owner_id == 1 and enemy_piece == null:
 			enemy_piece = piece
-	game._on_piece_pressed(own_piece)
-	check(game.network_skill_targets.is_empty(), "snowball rejects an allied target locally")
-	game._on_piece_pressed(enemy_piece)
-	check(game.network_skill_targets == [enemy_piece.piece_id], "snowball accepts an enemy target")
+	snowball.update_target_preview(game, 2, enemy_piece.position)
+	check(is_instance_valid((snowball as SnowballAugmentEffect)._visual), "snowball aiming displays a trajectory preview")
+	game.cancel_active_skill()
+	check(game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "snowball targeting can be cancelled")
 
 	var greatsword := prepare_client_turn(game, &"greatsword")
 	press_active_button(game, greatsword)

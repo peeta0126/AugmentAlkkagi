@@ -204,9 +204,18 @@ func run_test() -> void:
 		if piece.owner_id == 2:
 			white_target = piece
 			break
-	var one_target: Array[int] = [white_target.piece_id]
-	game.network_manager.submit_active_skill(&"snowball", one_target)
-	check(white_target.status_kind == "snow", "single-piece active accepts Array[int]")
+	var snow_origin: Vector2 = game.player_center(1)
+	white_target.position = snow_origin + Vector2(100, 0)
+	game.network_manager.submit_active_skill(&"snowball", no_targets, snow_origin + Vector2(260, 0))
+	var snow_effect: SnowballAugmentEffect
+	for effect: AugmentEffect in game.augment_manager.effects[1]:
+		if effect.definition.id == &"snowball":
+			snow_effect = effect as SnowballAugmentEffect
+	for step in 20:
+		snow_effect.on_physics_tick(game, 1, 0.02)
+		if not snow_effect.projectile_active:
+			break
+	check(white_target.status_kind == "snow", "board-position snowball request freezes on host-confirmed collision")
 
 	game.start_game()
 	game.augment_manager.acquire(game, 1, &"piggyback")

@@ -56,6 +56,15 @@ func on_piece_target(_game: Node, _player_id: int, _piece: AlkkagiPiece) -> bool
 func on_position_target(_game: Node, _player_id: int, _position: Vector2) -> bool:
 	return false
 
+func update_target_preview(_game: Node, _player_id: int, _position: Vector2) -> void:
+	pass
+
+func targeting_hint() -> String:
+	return "%s: 대상을 선택하세요. 우클릭/Esc 취소" % definition.display_name
+
+func blocks_turn_resolution() -> bool:
+	return false
+
 func commit_use(game: Node, player_id: int) -> void:
 	if uses_left > 0:
 		uses_left -= 1
