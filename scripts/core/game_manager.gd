@@ -7,6 +7,7 @@ const AugmentManagerScript := preload("res://scripts/augments/augment_manager.gd
 const TemporaryWallScript := preload("res://scripts/gameplay/temporary_wall.gd")
 const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.gd")
 const FireballScene := preload("res://scenes/effects/fireball.tscn")
+const SnowballScene := preload("res://scenes/effects/snowball.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -975,6 +976,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var fireball := FireballScene.instantiate() as FireballVisual
 		world.add_child(fireball)
 		fireball.play(from, to)
+	elif color == Color("e8f8ff") and is_equal_approx(size, 7.0):
+		var snowball := SnowballScene.instantiate() as SnowballVisual
+		world.add_child(snowball)
+		snowball.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)
