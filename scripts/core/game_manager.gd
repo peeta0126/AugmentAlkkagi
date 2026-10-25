@@ -9,6 +9,7 @@ const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.
 const FireballScene := preload("res://scenes/effects/fireball.tscn")
 const SnowballScene := preload("res://scenes/effects/snowball.tscn")
 const GreatswordScene := preload("res://scenes/effects/greatsword.tscn")
+const DodgeScene := preload("res://scenes/effects/dodge.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -985,6 +986,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var greatsword := GreatswordScene.instantiate() as GreatswordVisual
 		world.add_child(greatsword)
 		greatsword.play(from, to)
+	elif color == Color("75e7ff") and is_equal_approx(size, 4.0):
+		var dodge := DodgeScene.instantiate() as DodgeVisual
+		world.add_child(dodge)
+		dodge.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)
@@ -1029,7 +1034,7 @@ func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: 
 	var destination := best.position + side * distance
 	if not AlkkagiBoard.BOARD_RECT.grow(-best.visual_radius).has_point(destination):
 		return false
-	board.add_effect_line(best.position, destination, Color("75e7ff"), 0.45, 4.0)
+	animate_projectile(best.position, destination, Color("75e7ff"), 4.0)
 	best.position = destination
 	return true
 

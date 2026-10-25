@@ -2,6 +2,7 @@ class_name AlkkagiPiece
 extends RigidBody2D
 
 const SonicBoomScene := preload("res://scenes/effects/sonic_boom.tscn")
+const StasisScene := preload("res://scenes/effects/stasis.tscn")
 
 signal selected(piece: AlkkagiPiece)
 
@@ -51,6 +52,7 @@ var network_interpolation_elapsed := 0.0
 var network_interpolation_duration := 0.05
 var network_interpolation_active := false
 var sonic_boom_visual: SonicBoomVisual
+var stasis_visual: StasisVisual
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -178,6 +180,15 @@ func _update_status_kind() -> void:
 		status_kind = "snow"
 	else:
 		status_kind = ""
+	_sync_stasis_visual()
+
+func _sync_stasis_visual() -> void:
+	if stasis_turns > 0 and not is_instance_valid(stasis_visual):
+		stasis_visual = StasisScene.instantiate() as StasisVisual
+		add_child(stasis_visual)
+	elif stasis_turns <= 0 and is_instance_valid(stasis_visual):
+		stasis_visual.release()
+		stasis_visual = null
 
 func transform_as(kind: String, apply_physics_bonus: bool = true) -> void:
 	transformation = kind
