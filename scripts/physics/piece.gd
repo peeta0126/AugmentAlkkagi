@@ -1,6 +1,8 @@
 class_name AlkkagiPiece
 extends RigidBody2D
 
+const SonicBoomScene := preload("res://scenes/effects/sonic_boom.tscn")
+
 signal selected(piece: AlkkagiPiece)
 
 # 1mm = 1.2px. 흑돌 22.2mm, 백돌 21.9mm의 실제 지름을 그대로 환산한다.
@@ -48,6 +50,7 @@ var network_interpolation_to := Vector2.ZERO
 var network_interpolation_elapsed := 0.0
 var network_interpolation_duration := 0.05
 var network_interpolation_active := false
+var sonic_boom_visual: SonicBoomVisual
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -192,7 +195,16 @@ func transform_as(kind: String, apply_physics_bonus: bool = true) -> void:
 func activate_sonic_trail(new_speed_cap: float) -> void:
 	sonic_trail = true
 	speed_cap = maxf(speed_cap, new_speed_cap)
+	_sync_sonic_visual()
 	queue_redraw()
+
+func _sync_sonic_visual() -> void:
+	if sonic_trail and not is_instance_valid(sonic_boom_visual):
+		sonic_boom_visual = SonicBoomScene.instantiate() as SonicBoomVisual
+		add_child(sonic_boom_visual)
+	elif not sonic_trail and is_instance_valid(sonic_boom_visual):
+		sonic_boom_visual.queue_free()
+		sonic_boom_visual = null
 
 func prepare_shot_speed_cap(new_speed_cap: float) -> void:
 	speed_cap = maxf(GameplayRules.BALANCE.max_speed, new_speed_cap)
@@ -282,6 +294,7 @@ func apply_network_state(data: Dictionary, interpolate: bool, interpolation_dura
 	carried_count = int(data.get("carried", 0))
 	reached_enemy_end = bool(data.get("enemy_end", false))
 	sonic_trail = bool(data.get("sonic", false))
+	_sync_sonic_visual()
 	speed_cap = float(data.get("speed_cap", GameplayRules.BALANCE.max_speed))
 	hidden_from_player = int(data.get("hidden_from", 0))
 	stealth_turns = int(data.get("stealth_turns", 0))
