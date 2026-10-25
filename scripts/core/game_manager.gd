@@ -9,6 +9,7 @@ const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
+const OnlineLobbyScene := preload("res://scenes/ui/online_lobby.tscn")
 
 var state_machine: GameStateMachine
 var augment_manager: AugmentManager
@@ -208,6 +209,12 @@ func _set_master_volume(value: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(value / 100.0, 0.0001)))
 
 func _create_online_room() -> void:
+	if not screen_root is OnlineLobby:
+		state_machine.transition(GameStateMachine.State.JOIN_ROOM)
+		var lobby := _create_online_lobby_scene()
+		set_screen(lobby)
+		lobby.show_join()
+		network_status_label = lobby.status_label
 	var error: Error = network_manager.create_online_room()
 	if error == OK:
 		online_mode = true
@@ -217,41 +224,10 @@ func _create_online_room() -> void:
 
 func _show_online_join_room() -> void:
 	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
-	set_screen(_panel_root())
-	_add_background(screen_root)
-	var title := _label("온라인 방 참가", 42, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(390, 100)
-	title.size = Vector2(500, 60)
-	screen_root.add_child(title)
-	var guide := _label("친구에게 받은 6자리 방 코드를 입력하세요.", 19, Color("dac7ae"))
-	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	guide.position = Vector2(300, 180)
-	guide.size = Vector2(680, 35)
-	screen_root.add_child(guide)
-	var code := LineEdit.new()
-	code.name = "RoomCode"
-	code.placeholder_text = "000000"
-	code.max_length = 6
-	code.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	code.position = Vector2(490, 250)
-	code.size = Vector2(300, 58)
-	code.add_theme_font_size_override("font_size", 28)
-	screen_root.add_child(code)
-	network_status_label = _label("", 17, Color("e9c99a"))
-	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	network_status_label.position = Vector2(300, 330)
-	network_status_label.size = Vector2(680, 60)
-	network_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	screen_root.add_child(network_status_label)
-	var join := _button("참가", func(): _join_online_code(code.text))
-	join.position = Vector2(490, 420)
-	join.size = Vector2(300, 60)
-	screen_root.add_child(join)
-	var back := _button("뒤로", show_main_menu)
-	back.position = Vector2(520, 505)
-	back.size = Vector2(240, 54)
-	screen_root.add_child(back)
+	var lobby := _create_online_lobby_scene()
+	set_screen(lobby)
+	lobby.show_join()
+	network_status_label = lobby.status_label
 
 func _join_online_code(code: String) -> void:
 	var error: Error = network_manager.join_online_room(code)
@@ -349,10 +325,33 @@ func _join_network_address(address: String, port: int) -> void:
 
 func _show_network_lobby() -> void:
 	state_machine.transition(GameStateMachine.State.LOBBY)
+	if network_manager.is_gdsync_mode():
+		_show_gdsync_lobby()
+		return
+	_show_lan_network_lobby()
+
+func _create_online_lobby_scene() -> OnlineLobby:
+	var lobby := OnlineLobbyScene.instantiate() as OnlineLobby
+	lobby.room_create_requested.connect(_create_online_room)
+	lobby.room_join_requested.connect(_join_online_code)
+	lobby.ready_changed.connect(func(value: bool): network_manager.set_ready(value))
+	lobby.game_start_requested.connect(func(): network_manager.start_match())
+	lobby.piece_count_change_requested.connect(func(delta: int): network_manager.set_piece_count(int(network_manager.get("piece_count")) + delta))
+	lobby.leave_requested.connect(show_main_menu)
+	return lobby
+
+func _show_gdsync_lobby() -> void:
+	var lobby := _create_online_lobby_scene()
+	set_screen(lobby)
+	var role := "방장 · 흑돌" if online_is_host else "참가자 · 백돌"
+	lobby.show_lobby(network_manager.get_room_code(), online_is_host, role, AlkkagiPiece.OWNER_COLORS[local_player_id])
+	network_status_label = lobby.status_label
+	_refresh_network_lobby()
+
+func _show_lan_network_lobby() -> void:
 	set_screen(_panel_root())
 	_add_background(screen_root)
-	var room_suffix := " · 방 코드 %s" % network_manager.get_room_code() if network_manager.is_gdsync_mode() else ""
-	var title := _label("네트워크 대전 로비%s" % room_suffix, 40, Color("f4d79a"))
+	var title := _label("네트워크 대전 로비", 40, Color("f4d79a"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(360, 45)
 	title.size = Vector2(560, 60)
@@ -404,8 +403,7 @@ func _show_network_lobby() -> void:
 	start.size = Vector2(210, 54)
 	start.visible = online_is_host
 	screen_root.add_child(start)
-	var transport_text := "GD-Sync 온라인 · 최대 2명" if network_manager.is_gdsync_mode() else "UDP 7777 · 최대 2명"
-	network_status_label = _label(transport_text, 16, Color("c6aa85"))
+	network_status_label = _label("UDP 7777 · 최대 2명", 16, Color("c6aa85"))
 	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	network_status_label.position = Vector2(340, 480)
 	network_status_label.size = Vector2(600, 55)
@@ -418,6 +416,16 @@ func _show_network_lobby() -> void:
 
 func _refresh_network_lobby() -> void:
 	if state_machine.current != GameStateMachine.State.LOBBY or screen_root == null:
+		return
+	if screen_root is OnlineLobby:
+		var online_lobby := screen_root as OnlineLobby
+		online_lobby.update_lobby(
+			network_manager.get("ready_state"),
+			network_manager.get("connected_players"),
+			int(network_manager.get("piece_count")),
+			local_player_id,
+			network_manager.can_start()
+		)
 		return
 	var players := screen_root.find_child("LobbyPlayers", true, false) as Label
 	if players:
@@ -449,6 +457,9 @@ func _on_network_lobby_updated(_data: Dictionary) -> void:
 		_refresh_network_lobby()
 
 func _on_network_message(text: String, is_error: bool) -> void:
+	if screen_root is OnlineLobby:
+		(screen_root as OnlineLobby).update_status(text, is_error)
+		return
 	if network_status_label and is_instance_valid(network_status_label):
 		network_status_label.text = text
 		network_status_label.modulate = Color("ff8d7b") if is_error else Color("e9c99a")
