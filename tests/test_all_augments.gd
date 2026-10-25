@@ -289,6 +289,10 @@ func run_test() -> void:
 	game.current_player = 2
 	game.build_hud()
 	check(game.blind_material != null, "blindness uses a local sight-limited material")
+	black = first_piece(game, 2)
+	game.board.set_aim(black.position, black.position + Vector2(90, 0), Color.WHITE)
+	game._update_blind_centers()
+	check(game.blind_visual != null and game.blind_visual.aim_guide.visible, "blindness preserves the essential local aiming guide above the veil")
 	game.online_mode = false
 
 	# 18 월마리아: 빈 위치에 실제 StaticBody2D 충돌 벽을 설치한다.

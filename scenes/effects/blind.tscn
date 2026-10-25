@@ -1,0 +1,52 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/blind.gd" id="1_script"]
+
+[sub_resource type="Shader" id="Shader_blind"]
+code = "shader_type canvas_item;\nuniform vec2 centers[16];\nuniform int center_count = 0;\nuniform vec2 board_size = vec2(504.0, 540.0);\nuniform float sight_radius : hint_range(35.0, 160.0, 1.0) = 82.0;\nuniform vec4 veil_color : source_color = vec4(0.005, 0.004, 0.003, 0.96);\nvoid fragment(){\n float visible_area = 0.0;\n for(int i = 0; i < 16; i++){\n  if(i < center_count){\n   float d = length((UV - centers[i]) * board_size);\n   visible_area = max(visible_area, 1.0 - smoothstep(sight_radius * 0.78, sight_radius, d));\n  }\n }\n COLOR = vec4(veil_color.rgb, veil_color.a * (1.0 - visible_area));\n}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_blind"]
+shader = SubResource("Shader_blind")
+shader_parameter/center_count = 0
+shader_parameter/board_size = Vector2(504, 540)
+shader_parameter/sight_radius = 82.0
+shader_parameter/veil_color = Color(0.005, 0.004, 0.003, 0.96)
+
+[node name="Blind" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="BoardVeil" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 388.0
+offset_top = 96.0
+offset_right = 892.0
+offset_bottom = 636.0
+mouse_filter = 2
+material = SubResource("ShaderMaterial_blind")
+color = Color(1, 1, 1, 1)
+
+[node name="AimGuide" type="Line2D" parent="."]
+unique_name_in_owner = true
+visible = false
+width = 4.0
+default_color = Color(0.95, 0.78, 0.35, 0.92)
+
+[node name="LimitedSightLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 388.0
+offset_top = 112.0
+offset_right = 892.0
+offset_bottom = 147.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.78)
+theme_override_font_sizes/font_size = 22
+text = "시야 제한"
+horizontal_alignment = 1

@@ -98,6 +98,14 @@ func run_test() -> void:
 	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNED_PASS, "train passive phase reaches guest")
 	check(guest_train.warned_path == host_train.warned_path and guest.board.field_visuals.has("train_warning_1"), "host-selected train warning path reaches guest")
 
+	# Blindness is synchronized as state but rendered only for the targeted local viewer.
+	await reset_pair(host, guest)
+	host.current_player = 2
+	host.apply_blind(2, 1)
+	await sync_snapshot(host, guest)
+	check(guest.blind_material != null and guest.blind_visual != null, "blindness veil is created on the targeted guest only")
+	check(host.blind_material == null, "blindness does not cover the opponent host view")
+
 	host.queue_free()
 	guest.queue_free()
 	await process_frame

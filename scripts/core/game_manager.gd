@@ -14,6 +14,7 @@ const MergeScene := preload("res://scenes/effects/merge.tscn")
 const TrainScene := preload("res://scenes/effects/train.tscn")
 const BloodFestivalScene := preload("res://scenes/effects/blood_festival.tscn")
 const KingShockwaveScene := preload("res://scenes/effects/king_shockwave.tscn")
+const BlindScene := preload("res://scenes/effects/blind.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -65,6 +66,7 @@ var network_wall_signature := ""
 var next_wall_id := 1
 var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
+var blind_visual: BlindVisual
 var shot_opponent_count_before := -1
 var bonus_turn_active := false
 var train_followup_resolution := false
@@ -653,23 +655,10 @@ func _add_passive_status_hud() -> void:
 	(hud as GameHud).set_passive_statuses(entries)
 
 func _add_blind_overlay() -> void:
-	var veil := ColorRect.new()
-	veil.color = Color.WHITE
-	veil.position = AlkkagiBoard.BOARD_RECT.position
-	veil.size = AlkkagiBoard.BOARD_RECT.size
-	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var shader := Shader.new()
-	shader.code = "shader_type canvas_item; uniform vec2 centers[5]; uniform int center_count = 0; uniform vec2 board_size = vec2(504.0, 540.0); uniform float sight_radius = 82.0; void fragment(){ float visible = 0.0; for(int i=0;i<5;i++){ if(i < center_count){ float d = length((UV - centers[i]) * board_size); visible = max(visible, 1.0 - smoothstep(sight_radius * 0.72, sight_radius, d)); }} COLOR = vec4(0.01, 0.008, 0.006, 0.78 * (1.0 - visible)); }"
-	blind_material = ShaderMaterial.new()
-	blind_material.shader = shader
-	veil.material = blind_material
-	hud.add_child(veil)
+	blind_visual = BlindScene.instantiate() as BlindVisual
+	hud.add_child(blind_visual)
+	blind_material = blind_visual.veil_material
 	_update_blind_centers()
-	var warning := _label("시야 제한", 22, Color(1, 1, 1, 0.72))
-	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	warning.position = Vector2(veil.position.x, veil.position.y + 18)
-	warning.size = Vector2(veil.size.x, 35)
-	hud.add_child(warning)
 
 func _activate_skill(effect: AugmentEffect) -> void:
 	var can_use := effect.can_activate(self, current_player)
@@ -970,6 +959,7 @@ func reset_runtime_effects() -> void:
 	blizzard_speed_multiplier = 1.0
 	blind_turns = {1: 0, 2: 0}
 	blind_material = null
+	blind_visual = null
 	shot_opponent_count_before = -1
 	bonus_turn_active = false
 	temporary_walls.clear()
@@ -1492,16 +1482,14 @@ func _apply_network_effect_runtime(states: Dictionary) -> void:
 					effect.apply_network_state(self, state.get("runtime", {}))
 
 func _update_blind_centers() -> void:
-	if blind_material == null or board == null:
+	if blind_visual == null or not is_instance_valid(blind_visual) or board == null:
 		return
 	var centers := PackedVector2Array()
 	var blinded_player := local_player_id if online_mode else current_player
 	for piece: AlkkagiPiece in get_pieces():
-		if piece.owner_id == blinded_player and centers.size() < 5:
+		if piece.owner_id == blinded_player and centers.size() < 16:
 			centers.append((piece.position - AlkkagiBoard.BOARD_RECT.position) / AlkkagiBoard.BOARD_RECT.size)
-	blind_material.set_shader_parameter("centers", centers)
-	blind_material.set_shader_parameter("center_count", centers.size())
-	blind_material.set_shader_parameter("board_size", AlkkagiBoard.BOARD_RECT.size)
+	blind_visual.update_view(centers, AlkkagiBoard.BOARD_RECT.size, board.aim_origin, board.aim_pointer, board.show_aim)
 
 func update_piece_visibility() -> void:
 	var viewer := local_player_id if online_mode else current_player
