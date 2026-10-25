@@ -11,6 +11,7 @@ const SnowballScene := preload("res://scenes/effects/snowball.tscn")
 const GreatswordScene := preload("res://scenes/effects/greatsword.tscn")
 const DodgeScene := preload("res://scenes/effects/dodge.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
+const TrainScene := preload("res://scenes/effects/train.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -995,6 +996,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var merge := MergeScene.instantiate() as MergeVisual
 		world.add_child(merge)
 		merge.play(from, to)
+	elif color == Color("ffcf55") and is_equal_approx(size, 18.0):
+		var train := TrainScene.instantiate() as TrainVisual
+		world.add_child(train)
+		train.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)
@@ -1081,7 +1086,8 @@ func run_train_event(knockback: float) -> void:
 		from = Vector2(AlkkagiBoard.BOARD_RECT.position.x + AlkkagiBoard.BOARD_RECT.size.x * ratio, AlkkagiBoard.BOARD_RECT.position.y)
 		to = Vector2(from.x, AlkkagiBoard.BOARD_RECT.end.y)
 		direction = Vector2.DOWN
-	board.add_effect_line(from, to, Color("ffcf55"), 1.25, 18.0)
+	board.add_effect_line(from, to, Color(1.0, 0.81, 0.33, 0.18), 1.25, 18.0)
+	animate_projectile(from, to, Color("ffcf55"), 18.0)
 	for piece in get_pieces():
 		var distance_to_path := absf(piece.position.y - from.y) if horizontal else absf(piece.position.x - from.x)
 		if distance_to_path < 35.0:

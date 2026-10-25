@@ -1,0 +1,37 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/train.gd" id="1"]
+
+[node name="Train" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Route" type="Line2D" parent="."]
+unique_name_in_owner = true
+points = PackedVector2Array(0, 0, 504, 0)
+width = 18.0
+default_color = Color(1, 0.73, 0.2, 0.25)
+
+[node name="TrainBody" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Engine" type="Polygon2D" parent="TrainBody"]
+polygon = PackedVector2Array(-42, -22, 35, -22, 50, -10, 50, 18, -42, 18)
+color = Color(0.72, 0.16, 0.12, 1)
+
+[node name="Window" type="Polygon2D" parent="TrainBody"]
+polygon = PackedVector2Array(-22, -16, 13, -16, 13, -3, -22, -3)
+color = Color(0.55, 0.9, 1, 0.9)
+
+[node name="FrontLight" type="Polygon2D" parent="TrainBody"]
+polygon = PackedVector2Array(38, -7, 54, -3, 54, 7, 38, 11)
+color = Color(1, 0.9, 0.4, 0.9)
+
+[node name="WheelA" type="Polygon2D" parent="TrainBody"]
+position = Vector2(-23, 20)
+polygon = PackedVector2Array(8, 0, 5.66, 5.66, 0, 8, -5.66, 5.66, -8, 0, -5.66, -5.66, 0, -8, 5.66, -5.66)
+color = Color(0.12, 0.1, 0.09, 1)
+
+[node name="WheelB" type="Polygon2D" parent="TrainBody"]
+position = Vector2(27, 20)
+polygon = PackedVector2Array(8, 0, 5.66, 5.66, 0, 8, -5.66, 5.66, -8, 0, -5.66, -5.66, 0, -8, 5.66, -5.66)
+color = Color(0.12, 0.1, 0.09, 1)

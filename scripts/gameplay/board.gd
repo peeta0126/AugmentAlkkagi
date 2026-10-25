@@ -3,6 +3,7 @@ extends Node2D
 
 const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
 const LanternScene := preload("res://scenes/effects/lantern.tscn")
+const EarthquakeScene := preload("res://scenes/effects/earthquake.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
@@ -61,6 +62,13 @@ func set_field_visual(key: String, data: Dictionary) -> void:
 			field_visual_nodes[key] = visual
 			add_child(visual)
 		visual.configure(data)
+	elif str(data.get("type", "")) == "cracks":
+		var earthquake: EarthquakeVisual = field_visual_nodes.get(key) as EarthquakeVisual
+		if earthquake == null:
+			earthquake = EarthquakeScene.instantiate() as EarthquakeVisual
+			field_visual_nodes[key] = earthquake
+			add_child(earthquake)
+		earthquake.configure(data)
 	queue_redraw()
 
 func remove_field_visual(key: String) -> void:
@@ -140,11 +148,6 @@ func _draw() -> void:
 			draw_circle(gravity_position, gravity_radius, Color(0.25, 0.28, 0.95, 0.07))
 			for ring_ratio in [0.35, 0.65, 1.0]:
 				draw_arc(gravity_position, gravity_radius * ring_ratio, 0.0, TAU, 48, Color(0.47, 0.42, 1.0, 0.58), 2.0)
-		elif visual_type == "cracks":
-			var crack_width := float(data.get("width", 18.0))
-			for crack: Dictionary in data.get("cracks", []):
-				draw_line(crack.from, crack.to, Color(0.08, 0.045, 0.04, 0.88), crack_width, true)
-				draw_line(crack.from, crack.to, Color(0.58, 0.22, 0.16, 0.66), 2.0, true)
 		elif visual_type == "dragon_balls":
 			for ball: Dictionary in data.get("balls", []):
 				var ball_position: Vector2 = ball.position
