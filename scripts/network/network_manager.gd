@@ -297,14 +297,14 @@ func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_shot, piece_id, pull_vector, local_sequence)
 
-func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO) -> void:
+func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO, targeting_option: int = 0) -> void:
 	local_sequence += 1
 	if is_host():
-		_host_process_active(1, augment_id, target_ids, board_position, local_sequence)
+		_host_process_active(1, augment_id, target_ids, board_position, local_sequence, targeting_option)
 	elif mode == Mode.CLIENT:
-		request_active_skill.rpc_id(1, str(augment_id), target_ids, board_position, local_sequence)
+		request_active_skill.rpc_id(1, str(augment_id), target_ids, board_position, local_sequence, targeting_option)
 	elif mode == Mode.GDSYNC_CLIENT:
-		GDSync.call_func_on(gdsync_host_id, request_active_skill, str(augment_id), target_ids, board_position, local_sequence)
+		GDSync.call_func_on(gdsync_host_id, request_active_skill, str(augment_id), target_ids, board_position, local_sequence, targeting_option)
 
 func _process(delta: float) -> void:
 	if not is_host() or not match_active or game().board == null:
@@ -455,7 +455,7 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 		game().network_selection_complete(stage, resume, completed_round)
 
 @rpc("any_peer", "call_remote", "reliable")
-func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int) -> void:
+func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int, targeting_option: int = 0) -> void:
 	if not is_host():
 		return
 	var sender := _remote_sender_id()
@@ -467,7 +467,7 @@ func request_active_skill(augment_id: String, target_ids: Array, board_position:
 	if not validate_active_target_ids(target_ids, validated_target_ids):
 		_reject_active_skill(player_id, "대상 ID 형식이 올바르지 않습니다")
 		return
-	_host_process_active(player_id, StringName(augment_id), validated_target_ids, board_position, sequence)
+	_host_process_active(player_id, StringName(augment_id), validated_target_ids, board_position, sequence, targeting_option)
 
 func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Array[int]) -> bool:
 	validated_target_ids.clear()
@@ -479,7 +479,7 @@ func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Arr
 		validated_target_ids.append(int(target_id))
 	return true
 
-func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int) -> void:
+func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int, targeting_option: int = 0) -> void:
 	if OS.is_debug_build():
 		print("[active-skill] host request: player=%d augment=%s targets=%s position=%s current_player=%d state=%s" % [player_id, augment_id, target_ids, board_position, game().current_player, GameStateMachine.State.keys()[game().state_machine.current]])
 	if not is_host():
@@ -501,6 +501,11 @@ func _host_process_active(player_id: int, augment_id: StringName, target_ids: Ar
 	if not effect.can_activate(game(), player_id):
 		_reject_active_skill(player_id, "사용 횟수 또는 재사용 대기시간 조건을 만족하지 않습니다")
 		return
+	if augment_id == &"wall_maria":
+		if targeting_option not in [0, 1]:
+			_reject_active_skill(player_id, "벽 방향 값이 올바르지 않습니다")
+			return
+		effect.apply_targeting_option(targeting_option)
 	var required := 0
 	if effect.definition.target_mode in [AugmentDefinition.TargetMode.OWN_PIECE, AugmentDefinition.TargetMode.ENEMY_PIECE]:
 		required = 1

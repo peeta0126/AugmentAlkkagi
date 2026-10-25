@@ -766,10 +766,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if state_machine != null and state_machine.current == GameStateMachine.State.SKILL_TARGETING:
 		if event is InputEventKey:
 			var skill_key := event as InputEventKey
-			if skill_key.pressed and not skill_key.echo and skill_key.keycode == KEY_ESCAPE:
-				cancel_active_skill()
-				get_viewport().set_input_as_handled()
-				return
+			if skill_key.pressed and not skill_key.echo:
+				if skill_key.keycode == KEY_ESCAPE:
+					cancel_active_skill()
+					get_viewport().set_input_as_handled()
+					return
+				if active_skill and active_skill.on_targeting_key(self, active_skill_player, skill_key.keycode):
+					get_viewport().set_input_as_handled()
+					return
 		if event is InputEventMouseMotion and active_skill:
 			active_skill.update_target_preview(self, active_skill_player, get_global_mouse_position())
 		if event is InputEventMouseButton and event.pressed:
@@ -810,7 +814,7 @@ func confirm_board_position_skill(board_position: Vector2) -> void:
 	if online_mode and not online_is_host:
 		var target_ids: Array[int] = []
 		_skill_debug("board target submitted: augment=%s position=%s" % [active_skill.definition.id, board_position])
-		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position)
+		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position, active_skill.targeting_option())
 		active_skill.cancel_active()
 		network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
 	else:
@@ -1220,7 +1224,20 @@ func can_place_wall(position: Vector2, wall_rotation: float) -> bool:
 		var closest := Vector2(clampf(local_position.x, -half_size.x, half_size.x), clampf(local_position.y, -half_size.y, half_size.y))
 		if local_position.distance_to(closest) < piece.visual_radius + 4.0:
 			return false
+	var candidate_extent := Vector2(half_size.x, half_size.y) if is_zero_approx(wall_rotation) else Vector2(half_size.y, half_size.x)
+	var candidate_rect := Rect2(position - candidate_extent, candidate_extent * 2.0).grow(4.0)
+	for wall: TemporaryWall in temporary_walls:
+		if not is_instance_valid(wall):
+			continue
+		var existing_extent := Vector2(half_size.x, half_size.y) if is_zero_approx(wall.rotation) else Vector2(half_size.y, half_size.x)
+		if candidate_rect.intersects(Rect2(wall.position - existing_extent, existing_extent * 2.0)):
+			return false
 	return true
+
+func create_wall_preview() -> WallMariaVisual:
+	var preview := preload("res://scenes/effects/wall_maria.tscn").instantiate() as WallMariaVisual
+	world.add_child(preview)
+	return preview
 
 func spawn_wall(position: Vector2, duration: int, wall_rotation: float = 0.0) -> bool:
 	if not can_place_wall(position, wall_rotation):

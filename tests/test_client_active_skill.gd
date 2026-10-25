@@ -82,6 +82,8 @@ func run_test() -> void:
 	press_active_button(game, wall)
 	check(game.state_machine.current == GameStateMachine.State.SKILL_TARGETING, "wall maria button enters targeting")
 	verify_snapshot_does_not_cancel_targeting(game, "wall maria")
+	wall.on_targeting_key(game, 2, KEY_R)
+	check(wall.targeting_option() == 1 and wall.preview != null, "wall maria client can rotate and preview before submitting")
 	game.confirm_board_position_skill(AlkkagiBoard.BOARD_RECT.get_center())
 	check(game.state_machine.current == GameStateMachine.State.SKILL_TARGETING, "wall maria board click follows the client RPC path")
 

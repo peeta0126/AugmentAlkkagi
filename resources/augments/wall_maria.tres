@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"wall_maria"
 display_name = "월마리아"
-description = "선택한 보드 위치에 3턴 동안 반사 벽을 설치합니다."
+description = "R로 가로·세로 방향을 고른 뒤 선택한 위치에 3턴 동안 반사 벽을 설치합니다."
 rarity = 2
 icon_text = "▥"
 kind = 2

@@ -299,6 +299,13 @@ func run_test() -> void:
 	await reset_game(game)
 	var wall_position := AlkkagiBoard.BOARD_RECT.get_center()
 	check(game.can_place_wall(wall_position, PI * 0.5), "wall test position is empty")
+	game.augment_manager.acquire(game, 1, &"wall_maria")
+	var wall_effect: WallMariaAugmentEffect = find_effect(game, 1, &"wall_maria")
+	wall_effect.update_target_preview(game, 1, wall_position)
+	check(wall_effect.preview != null and wall_effect.preview.modulate.is_equal_approx(wall_effect.preview.preview_valid_color), "wall maria shows a valid placement silhouette")
+	wall_effect.on_targeting_key(game, 1, KEY_R)
+	check(wall_effect.vertical and is_equal_approx(wall_effect.preview.rotation, PI * 0.5), "R toggles the wall preview between horizontal and vertical")
+	wall_effect.cancel_active()
 	check(game.spawn_wall(wall_position, 3, PI * 0.5), "valid wall placement succeeds")
 	var wall: TemporaryWall = game.temporary_walls[0]
 	var wall_collision := wall.get_node("WallCollision") as CollisionShape2D
@@ -306,6 +313,7 @@ func run_test() -> void:
 	check(wall.collision_layer == GameplayRules.WALL_COLLISION_LAYER, "wall uses the configured collision layer")
 	black = first_piece(game, 1)
 	check(not game.can_place_wall(black.position, 0.0), "wall placement rejects overlap with a stone")
+	check(not game.can_place_wall(wall_position, 0.0), "wall placement rejects overlap with an existing wall")
 	black.position = wall_position - Vector2(110, 0)
 	black.prepare_shot_speed_cap(GameplayRules.BALANCE.max_speed * 1.6)
 	black.sleeping = false

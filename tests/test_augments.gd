@@ -191,6 +191,12 @@ func run_test() -> void:
 	var no_targets: Array[int] = []
 	game.network_manager.submit_active_skill(&"wall_maria", no_targets, AlkkagiBoard.BOARD_RECT.get_center())
 	check(game.temporary_walls.size() == 1, "board-position active accepts typed empty targets")
+	check(is_zero_approx(game.temporary_walls[0].rotation), "wall maria defaults to horizontal placement")
+
+	game.start_game()
+	game.augment_manager.acquire(game, 1, &"wall_maria")
+	game.network_manager.submit_active_skill(&"wall_maria", no_targets, AlkkagiBoard.BOARD_RECT.get_center(), 1)
+	check(game.temporary_walls.size() == 1 and is_equal_approx(game.temporary_walls[0].rotation, PI * 0.5), "host validates and applies the client's vertical wall option")
 
 	game.start_game()
 	game.augment_manager.acquire(game, 1, &"coup")

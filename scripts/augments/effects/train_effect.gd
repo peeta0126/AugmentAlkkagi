@@ -9,7 +9,8 @@ var warned_path: Dictionary = {}
 func on_acquired(game: Node, _player_id: int) -> void:
 	phase = Phase.FIRST_PASS
 	warned_path.clear()
-	game.board.remove_field_visual(_warning_key())
+	if game.board != null:
+		game.board.remove_field_visual(_warning_key())
 
 func on_global_turn_ended(game: Node, _completed_player: int) -> void:
 	match phase:

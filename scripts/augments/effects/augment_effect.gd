@@ -62,6 +62,15 @@ func on_position_target(_game: Node, _player_id: int, _position: Vector2) -> boo
 func update_target_preview(_game: Node, _player_id: int, _position: Vector2) -> void:
 	pass
 
+func on_targeting_key(_game: Node, _player_id: int, _keycode: Key) -> bool:
+	return false
+
+func targeting_option() -> int:
+	return 0
+
+func apply_targeting_option(_option: int) -> void:
+	pass
+
 func targeting_hint() -> String:
 	return "%s: 대상을 선택하세요. 우클릭/Esc 취소" % definition.display_name
 
