@@ -103,6 +103,10 @@ func notify_opponent_shot(game: Node, shooter_id: int, piece: AlkkagiPiece, impu
 	for effect: AugmentEffect in effects[opponent]:
 		effect.on_opponent_shot(game, opponent, piece, impulse)
 
+func notify_piece_collision(game: Node, piece: AlkkagiPiece, other: AlkkagiPiece) -> void:
+	for effect: AugmentEffect in effects[piece.owner_id]:
+		effect.on_piece_collision(game, piece.owner_id, piece, other)
+
 func after_shot(game: Node, player_id: int, piece: AlkkagiPiece) -> void:
 	for effect: AugmentEffect in effects[player_id]:
 		effect.after_shot(game, player_id, piece)

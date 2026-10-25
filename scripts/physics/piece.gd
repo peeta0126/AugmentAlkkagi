@@ -7,8 +7,10 @@ const TankScene := preload("res://scenes/effects/tank.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
 const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 const StealthScene := preload("res://scenes/effects/stealth.tscn")
+const KingScene := preload("res://scenes/effects/king.tscn")
 
 signal selected(piece: AlkkagiPiece)
+signal piece_collision(piece: AlkkagiPiece, other: AlkkagiPiece)
 
 # 1mm = 1.2px. 흑돌 22.2mm, 백돌 21.9mm의 실제 지름을 그대로 환산한다.
 const BLACK_DIAMETER := 26.64
@@ -19,7 +21,7 @@ const RADIUS := BLACK_RADIUS # 이전 테스트/확장 코드와의 호환용 �
 const OWNER_COLORS := {1: Color("d2a85f"), 2: Color("eee9dc")}
 const STONE_NAMES := {1: "흑돌", 2: "백돌"}
 const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
-const TRANSFORM_SIZES := {"SOLDIER": 0.90, "CHARIOT": 1.15, "CANNON": 1.08, "HORSE": 0.96, "ELEPHANT": 1.20, "GUARD": 1.05, "KING": 1.18, "WIZARD": 1.0}
+const TRANSFORM_SIZES := {"SOLDIER": 0.90, "CHARIOT": 1.15, "CANNON": 1.08, "HORSE": 0.96, "ELEPHANT": 1.20, "GUARD": 1.05, "KING": 1.0, "WIZARD": 1.0}
 const NETWORK_SNAP_DISTANCE := 100.0
 
 var owner_id := 1
@@ -48,6 +50,9 @@ var merge_size_step := 0.22
 var merge_size_cap := 1.8
 var merge_mass_step := 0.9
 var reached_enemy_end := false
+var king_size_multiplier := 1.5
+var king_mass_multiplier := 2.0
+var king_shockwave_available := false
 var field_damp_bonus := 0.0
 var field_speed_multiplier := 1.0
 var hidden_from_player := 0
@@ -64,6 +69,7 @@ var tank_visual: Node2D
 var merge_visual: MergeVisual
 var janggi_visual: JanggiVisual
 var stealth_visual: StealthVisual
+var king_visual: KingVisual
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -85,6 +91,7 @@ func setup(new_owner_id: int, new_piece_id: int) -> void:
 	physics_material_override = material
 	contact_monitor = true
 	max_contacts_reported = 8
+	body_entered.connect(_on_body_entered)
 	collision_layer = 1
 	# Layer 1 contains stones; layer 2 contains host-authoritative temporary walls.
 	collision_mask = 1 | GameplayRules.WALL_COLLISION_LAYER
@@ -107,7 +114,8 @@ func apply_tank(size_multiplier: float, mass_multiplier: float) -> void:
 func refresh_physics() -> void:
 	var merge_size := minf(1.0 + sqrt(float(carried_count)) * merge_size_step, merge_size_cap)
 	var merge_mass := 1.0 + float(carried_count) * merge_mass_step
-	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * merge_size
+	var king_size := king_size_multiplier if transformation == "KING" else 1.0
+	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * merge_size * king_size
 	mass = mass_factor * status_mass_factor * merge_mass
 	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
 	if collision_shape:
@@ -128,7 +136,7 @@ func _sync_transformation_visuals() -> void:
 	elif carried_count <= 0 and is_instance_valid(merge_visual):
 		merge_visual.queue_free()
 		merge_visual = null
-	if transformation != "" and transformation != "WIZARD":
+	if transformation != "" and transformation not in ["WIZARD", "KING"]:
 		if not is_instance_valid(janggi_visual):
 			janggi_visual = JanggiScene.instantiate() as JanggiVisual
 			add_child(janggi_visual)
@@ -136,6 +144,14 @@ func _sync_transformation_visuals() -> void:
 	elif is_instance_valid(janggi_visual):
 		janggi_visual.queue_free()
 		janggi_visual = null
+	if transformation == "KING":
+		if not is_instance_valid(king_visual):
+			king_visual = KingScene.instantiate() as KingVisual
+			add_child(king_visual)
+		king_visual.set_shockwave_available(king_shockwave_available)
+	elif is_instance_valid(king_visual):
+		king_visual.queue_free()
+		king_visual = null
 
 func set_fragment() -> void:
 	fragment_factor = 0.62
@@ -236,8 +252,14 @@ func transform_as(kind: String, apply_physics_bonus: bool = true) -> void:
 			"HORSE": speed_cap = maxf(speed_cap, 1100.0)
 			"ELEPHANT": mass_factor *= 1.25
 			"GUARD": status_damp_bonus += 0.7
-			"KING": mass_factor *= 1.50
+			"KING":
+				mass_factor *= king_mass_multiplier
+				king_shockwave_available = true
 	refresh_physics()
+
+func _on_body_entered(body: Node) -> void:
+	if body is AlkkagiPiece:
+		piece_collision.emit(self, body as AlkkagiPiece)
 
 func activate_sonic_trail(new_speed_cap: float) -> void:
 	sonic_trail = true
@@ -284,12 +306,13 @@ func network_state() -> Dictionary:
 		"carried": carried_count,
 		"enemy_end": reached_enemy_end,
 		"sonic": sonic_trail,
+		"king_shockwave": king_shockwave_available,
 		"speed_cap": speed_cap
 	}
 
 # 20Hz UDP 스냅샷은 MTU를 넘지 않도록 필드명을 제외한 고정 배열로 전송한다.
 func compact_network_state() -> PackedFloat32Array:
-	var flags := (1 if is_tank else 0) | (2 if invulnerable else 0) | (4 if sonic_trail else 0) | (8 if reached_enemy_end else 0)
+	var flags := (1 if is_tank else 0) | (2 if invulnerable else 0) | (4 if sonic_trail else 0) | (8 if reached_enemy_end else 0) | (16 if king_shockwave_available else 0)
 	var transform_code := maxi(TRANSFORM_NAMES.find(transformation), 0)
 	return PackedFloat32Array([piece_id, owner_id, position.x, position.y, linear_velocity.x, linear_velocity.y,
 		tank_factor, fragment_factor, mass_factor, status_mass_factor, status_damp_bonus, flags,
@@ -306,6 +329,7 @@ func apply_compact_network_state(data: PackedFloat32Array, offset: int, interpol
 		"status_mass": data[offset + 9], "status_damp": data[offset + 10],
 		"invulnerable": (int(data[offset + 11]) & 2) != 0, "sonic": (int(data[offset + 11]) & 4) != 0,
 		"enemy_end": (int(data[offset + 11]) & 8) != 0, "stasis": int(data[offset + 12]), "snow": int(data[offset + 13]),
+		"king_shockwave": (int(data[offset + 11]) & 16) != 0,
 		"transformation": TRANSFORM_NAMES[clampi(int(data[offset + 14]), 0, TRANSFORM_NAMES.size() - 1)],
 		"carried": int(data[offset + 15]), "speed_cap": data[offset + 16],
 		"hidden_from": int(data[offset + 17]), "stealth_turns": int(data[offset + 18])
@@ -340,6 +364,7 @@ func apply_network_state(data: Dictionary, interpolate: bool, interpolation_dura
 	transformation = str(data.get("transformation", ""))
 	carried_count = int(data.get("carried", 0))
 	reached_enemy_end = bool(data.get("enemy_end", false))
+	king_shockwave_available = bool(data.get("king_shockwave", false))
 	sonic_trail = bool(data.get("sonic", false))
 	_sync_sonic_visual()
 	speed_cap = float(data.get("speed_cap", GameplayRules.BALANCE.max_speed))

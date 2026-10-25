@@ -220,7 +220,15 @@ func run_test() -> void:
 	find_effect(game, 1, &"king").on_physics_tick(game, 1, 0.016)
 	black.position.y = AlkkagiBoard.BOARD_RECT.position.y + 30
 	find_effect(game, 1, &"king").on_physics_tick(game, 1, 0.016)
-	check(black.transformation == "KING" and black.mass > 1.0, "king journey transforms the returning stone")
+	check(black.transformation == "KING" and black.mass >= 2.0 and black.visual_radius >= black.base_radius * 1.49, "king journey creates a visibly larger, doubled-mass king")
+	white = first_piece(game, 2)
+	white.position = black.position + Vector2(35, 0)
+	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
+	await physics_frame
+	check(not black.king_shockwave_available and white.linear_velocity.length() > 0.0, "king consumes one synchronized shockwave on its first enemy collision")
+	var velocity_after_first := white.linear_velocity
+	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
+	check(white.linear_velocity.is_equal_approx(velocity_after_first), "king shockwave cannot trigger twice")
 
 	# 13 대검: 범위 내 적에게만 넉백을 준다.
 	await reset_game(game)

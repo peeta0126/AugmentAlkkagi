@@ -88,6 +88,9 @@ func transform_shot(_game: Node, _player_id: int, _piece: AlkkagiPiece, _impulse
 func on_opponent_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece, _impulse: Vector2) -> void:
 	pass
 
+func on_piece_collision(_game: Node, _player_id: int, _piece: AlkkagiPiece, _other: AlkkagiPiece) -> void:
+	pass
+
 func after_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece) -> void:
 	pass
 

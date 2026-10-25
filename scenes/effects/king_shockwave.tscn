@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/king_shockwave.gd" id="1"]
+
+[node name="KingShockwave" type="Node2D"]
+script = ExtResource("1")
+
+[node name="ShockwaveRing" type="Line2D" parent="."]
+unique_name_in_owner = true
+points = PackedVector2Array(78, 0, 55.15, 55.15, 0, 78, -55.15, 55.15, -78, 0, -55.15, -55.15, 0, -78, 55.15, -55.15, 78, 0)
+width = 7.0
+default_color = Color(1, 0.72, 0.2, 0.78)

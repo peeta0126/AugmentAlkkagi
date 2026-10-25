@@ -13,6 +13,7 @@ const DodgeScene := preload("res://scenes/effects/dodge.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
 const TrainScene := preload("res://scenes/effects/train.tscn")
 const BloodFestivalScene := preload("res://scenes/effects/blood_festival.tscn")
+const KingShockwaveScene := preload("res://scenes/effects/king_shockwave.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -568,6 +569,7 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 	piece.setup(owner_id, piece_id)
 	piece.position = spawn_position
 	piece.selected.connect(_on_piece_pressed)
+	piece.piece_collision.connect(_on_piece_collision)
 	world.add_child(piece)
 	if online_mode and not online_is_host:
 		piece.freeze = true
@@ -576,6 +578,11 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 		piece.field_damp_bonus = blizzard_damp_bonus
 		piece.field_speed_multiplier = blizzard_speed_multiplier
 		piece.refresh_physics()
+
+func _on_piece_collision(piece: AlkkagiPiece, other: AlkkagiPiece) -> void:
+	if online_mode and not online_is_host:
+		return
+	augment_manager.notify_piece_collision(self, piece, other)
 
 func build_hud() -> void:
 	update_piece_visibility()
@@ -1014,6 +1021,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var blood_festival := BloodFestivalScene.instantiate() as BloodFestivalVisual
 		world.add_child(blood_festival)
 		blood_festival.play(from, to)
+	elif color in [Color("ffd45e"), Color("ffbf3f")] and size >= 12.0:
+		var king_shockwave := KingShockwaveScene.instantiate() as KingShockwaveVisual
+		world.add_child(king_shockwave)
+		king_shockwave.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)
