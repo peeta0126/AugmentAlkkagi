@@ -278,6 +278,9 @@ func _sync_sonic_visual() -> void:
 func prepare_shot_speed_cap(new_speed_cap: float) -> void:
 	speed_cap = maxf(GameplayRules.BALANCE.max_speed, new_speed_cap)
 
+func apply_launch_impulse(reference_impulse: Vector2) -> void:
+	apply_central_impulse(GameplayRules.mass_compensated_launch_impulse(reference_impulse, mass))
+
 func set_selected(value: bool) -> void:
 	is_selected = value
 	queue_redraw()

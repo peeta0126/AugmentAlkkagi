@@ -28,12 +28,29 @@ func run_test() -> void:
 	close_enough(half.length(), balance.max_launch_impulse * 0.5, 0.01, "half drag gives half power")
 	close_enough(maximum.length(), balance.max_launch_impulse, 0.01, "full drag reaches maximum power")
 	check(quarter.length() < half.length() and half.length() < maximum.length(), "drag power is monotonic")
+	for test_mass: float in [1.0, 1.8, 2.0, 4.6]:
+		close_enough(GameplayRules.mass_compensated_launch_impulse(half, test_mass).length() / test_mass, half.length(), 0.01, "half-charge target speed is mass independent at mass %.1f" % test_mass)
+		close_enough(GameplayRules.mass_compensated_launch_impulse(maximum, test_mass).length() / test_mass, maximum.length(), 0.01, "full-charge target speed is mass independent at mass %.1f" % test_mass)
 
 	var small_result: Dictionary = await measure_shot(quarter)
 	var max_result: Dictionary = await measure_shot(maximum)
 	check(float(small_result.distance) > 40.0, "small shot produces visible movement")
 	check(float(max_result.distance) > float(small_result.distance) * 2.8, "maximum shot travels substantially farther")
 	check(float(max_result.stop_time) < 4.0, "maximum shot still settles in finite time")
+
+	# 발사 전용 질량 보정은 강화 돌의 초기 속도와 자유 이동 거리만 정규화한다.
+	var variant_results: Dictionary = {}
+	for variant in ["normal", "tank", "king", "merge"]:
+		variant_results[variant] = await measure_variant_shot(variant, maximum)
+	var normal_speed := float(variant_results.normal.initial_speed)
+	var normal_distance := float(variant_results.normal.distance)
+	for variant in ["tank", "king", "merge"]:
+		close_enough(float(variant_results[variant].initial_speed), normal_speed, 0.5, "%s launch speed matches normal stone" % variant)
+		close_enough(float(variant_results[variant].distance), normal_distance, maxf(normal_distance * 0.03, 3.0), "%s unobstructed distance matches normal stone" % variant)
+		check(float(variant_results[variant].mass) > 1.0, "%s keeps its increased collision mass" % variant)
+	var normal_collision: Dictionary = await measure_variant_collision("normal", maximum)
+	var tank_collision: Dictionary = await measure_variant_collision("tank", maximum)
+	check(float(tank_collision.target_speed) > float(normal_collision.target_speed) * 1.08, "tank keeps stronger momentum transfer at equal launch speed")
 
 	var legacy_estimated_distance := estimate_slide_distance(LEGACY_MAX_IMPULSE, LEGACY_LINEAR_DAMP)
 	var improved_estimated_distance := estimate_slide_distance(balance.max_launch_impulse, balance.linear_damp)
@@ -76,7 +93,9 @@ func run_test() -> void:
 	close_enough(float(profile.speed_multiplier), 2.08, 0.001, "combined speed cap follows final 2.08 multiplier")
 	var enhanced_max := GameplayRules.shot_impulse(origin, origin - Vector2(balance.drag_distance * 1.3, 0), balance.drag_distance * 1.3, 1.6)
 	close_enough(enhanced_max.length(), balance.max_launch_impulse * 2.08, 0.1, "scope and sonic maximum impulse is 2.08x base")
+	close_enough(GameplayRules.mass_compensated_launch_impulse(enhanced_max, 4.6).length() / 4.6, enhanced_max.length(), 0.1, "scope and sonic target speed remains mass independent")
 
+	print("MASS_LAUNCH_COMPARE normal=(m=%.2f v=%.2f d=%.2f) tank=(m=%.2f v=%.2f d=%.2f) king=(m=%.2f v=%.2f d=%.2f) merge=(m=%.2f v=%.2f d=%.2f) collision_normal=%.2f collision_tank=%.2f" % [variant_results.normal.mass, variant_results.normal.initial_speed, variant_results.normal.distance, variant_results.tank.mass, variant_results.tank.initial_speed, variant_results.tank.distance, variant_results.king.mass, variant_results.king.initial_speed, variant_results.king.distance, variant_results.merge.mass, variant_results.merge.initial_speed, variant_results.merge.distance, normal_collision.target_speed, tank_collision.target_speed])
 	print("BALANCE_MEASURE legacy_estimated_distance=%.2f improved_estimated_distance=%.2f small_actual_distance=%.2f max_actual_distance=%.2f max_stop_time=%.2f collision_target_speed=%.2f" % [legacy_estimated_distance, improved_estimated_distance, small_result.distance, max_result.distance, max_result.stop_time, collision_result.target_speed])
 	if failures == 0:
 		print("PASS: launch power and physics balance tests")
@@ -101,6 +120,66 @@ func measure_shot(impulse: Vector2) -> Dictionary:
 	piece.queue_free()
 	await process_frame
 	return result
+
+func measure_variant_shot(variant: String, reference_impulse: Vector2) -> Dictionary:
+	var piece := AlkkagiPiece.new()
+	piece.setup(1, randi())
+	piece.position = Vector2(100, 680)
+	root.add_child(piece)
+	await physics_frame
+	_configure_variant(piece, variant)
+	await physics_frame
+	var start := piece.position
+	piece.sleeping = false
+	piece.apply_launch_impulse(reference_impulse)
+	var measured_mass := piece.mass
+	await physics_frame
+	var initial_speed := piece.linear_velocity.length()
+	var frames := 0
+	while frames < 360:
+		await physics_frame
+		frames += 1
+		if piece.linear_velocity.is_zero_approx() and frames > 2:
+			break
+	var result := {"mass": measured_mass, "initial_speed": initial_speed, "distance": piece.position.distance_to(start), "stop_time": frames / 60.0}
+	piece.queue_free()
+	await process_frame
+	return result
+
+func measure_variant_collision(variant: String, reference_impulse: Vector2) -> Dictionary:
+	var projectile := AlkkagiPiece.new()
+	projectile.setup(1, randi())
+	projectile.position = Vector2(100, 680)
+	root.add_child(projectile)
+	var target := AlkkagiPiece.new()
+	target.setup(2, randi())
+	target.position = Vector2(250, 680)
+	root.add_child(target)
+	await physics_frame
+	_configure_variant(projectile, variant)
+	await physics_frame
+	projectile.sleeping = false
+	projectile.apply_launch_impulse(reference_impulse)
+	var peak_target_speed := 0.0
+	for frame in 30:
+		await physics_frame
+		peak_target_speed = maxf(peak_target_speed, target.linear_velocity.length())
+	projectile.queue_free()
+	target.queue_free()
+	await process_frame
+	return {"target_speed": peak_target_speed}
+
+func _configure_variant(piece: AlkkagiPiece, variant: String) -> void:
+	match variant:
+		"tank":
+			piece.apply_tank(1.25, 1.8)
+		"king":
+			piece.king_size_multiplier = 1.5
+			piece.king_mass_multiplier = 2.0
+			piece.transform_as("KING")
+		"merge":
+			piece.carried_count = 4
+			piece.refresh_physics()
 
 func measure_collision(impulse: Vector2) -> Dictionary:
 	var projectile := AlkkagiPiece.new()

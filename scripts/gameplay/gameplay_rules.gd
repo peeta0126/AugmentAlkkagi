@@ -23,7 +23,8 @@ static func is_network_pull_vector_valid(pull_vector: Vector2, max_drag: float) 
 	return pull_vector.length() >= MIN_SHOT_DRAG_DISTANCE and pull_vector.length() <= max_drag * 1.05
 
 static func shot_impulse(origin: Vector2, pointer: Vector2, max_drag: float = -1.0, impulse_multiplier: float = 1.0) -> Vector2:
-	# 드래그 비례 힘을 만든 뒤 최대 충격량과 증강 배율을 최종 단계에서 한 번만 적용한다.
+	# 질량 1인 일반 돌의 현재 발사 감각을 기준으로 한 속도 충격량입니다.
+	# 실제 RigidBody2D 충격량은 발사 시 돌 질량을 곱해 같은 초기 속도를 만듭니다.
 	var resolved_drag := BALANCE.drag_distance if max_drag <= 0.0 else max_drag
 	var pull := (origin - pointer).limit_length(resolved_drag)
 	if pull.is_zero_approx():
@@ -31,6 +32,10 @@ static func shot_impulse(origin: Vector2, pointer: Vector2, max_drag: float = -1
 	var range_multiplier := resolved_drag / BALANCE.drag_distance
 	var capped_strength := minf(pull.length() * BALANCE.base_launch_impulse, BALANCE.max_launch_impulse * range_multiplier)
 	return pull.normalized() * capped_strength * impulse_multiplier
+
+static func mass_compensated_launch_impulse(reference_impulse: Vector2, body_mass: float) -> Vector2:
+	# J = m * target_delta_velocity. 충돌 이후에는 실제 body_mass가 그대로 사용됩니다.
+	return reference_impulse * maxf(body_mass, 0.0)
 
 static func starting_positions(board_rect: Rect2, owner_id: int, count: int) -> Array[Vector2]:
 	var result: Array[Vector2] = []

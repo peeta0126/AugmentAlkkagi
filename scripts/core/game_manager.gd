@@ -849,7 +849,7 @@ func fire_selected(pointer: Vector2) -> void:
 	selected_piece.sleeping = false
 	var transformed := augment_manager.transform_shot(self, current_player, selected_piece, impulse)
 	if not transformed:
-		selected_piece.apply_central_impulse(impulse)
+		selected_piece.apply_launch_impulse(impulse)
 	augment_manager.after_shot(self, current_player, selected_piece)
 	selected_piece = null
 	dragging = false
@@ -1063,7 +1063,7 @@ func split_piece_and_launch(original: AlkkagiPiece, player_id: int, impulse: Vec
 		fragment.prepare_shot_speed_cap(original.speed_cap)
 		augment_manager.before_shot(player_id, fragment)
 		fragment.sleeping = false
-		fragment.apply_central_impulse(direction * impulse.length() * 0.70)
+		fragment.apply_launch_impulse(direction * impulse.length() * 0.70)
 	board.add_effect_line(origin - Vector2(24, 0), origin + Vector2(24, 0), Color("fff1ad"), 0.5, 5.0)
 
 func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: float, distance: float) -> bool:
