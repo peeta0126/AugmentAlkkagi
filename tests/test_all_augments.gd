@@ -273,11 +273,12 @@ func run_test() -> void:
 	# 16 눈보라: 전역 감속을 적용하고 정확히 복원한다.
 	await reset_game(game)
 	black = first_piece(game, 1)
-	game.start_blizzard(2, 2.0, 0.75)
-	check(game.board.blizzard_active and black.field_speed_multiplier == 0.75 and black.linear_damp > GameplayRules.BALANCE.linear_damp, "blizzard changes field physics")
+	var original_damp := black.linear_damp
+	game.start_blizzard(2, 0.28, 1.15)
+	check(game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.linear_damp < original_damp, "blizzard creates low-friction ice physics")
 	game.tick_field_effects()
 	game.tick_field_effects()
-	check(not game.board.blizzard_active and black.field_speed_multiplier == 1.0, "blizzard expiration restores field physics")
+	check(not game.board.blizzard_active and black.field_speed_multiplier == 1.0 and is_equal_approx(black.linear_damp, original_damp), "blizzard expiration restores exact field physics")
 
 	# 17 실명: 상대에게만 턴 단위 시야 상태를 부여한다.
 	await reset_game(game)
@@ -329,7 +330,7 @@ func run_test() -> void:
 	var corrected_angle := absf((black.position - corrected).angle_to(white.position - black.position))
 	check(corrected_angle < raw_angle and corrected_angle > 0.0, "marksman reduces aim error without guaranteeing a hit")
 	check(float(game.augment_manager.shot_profile(1).guide_multiplier) > 1.5, "scope and marksman combine their guide multipliers")
-	game.start_blizzard(2, 2.0, 0.75)
+	game.start_blizzard(2, 0.28, 1.15)
 	var corrected_in_snow := find_effect(game, 1, &"marksman").adjust_pointer(game, 1, black, raw_pointer)
 	check(corrected_in_snow.is_equal_approx(corrected), "blizzard does not corrupt marksman aim calculation")
 

@@ -53,7 +53,7 @@ var reached_enemy_end := false
 var king_size_multiplier := 1.5
 var king_mass_multiplier := 2.0
 var king_shockwave_available := false
-var field_damp_bonus := 0.0
+var field_damp_multiplier := 1.0
 var field_speed_multiplier := 1.0
 var hidden_from_player := 0
 var stealth_turns := 0
@@ -117,7 +117,7 @@ func refresh_physics() -> void:
 	var king_size := king_size_multiplier if transformation == "KING" else 1.0
 	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * merge_size * king_size
 	mass = mass_factor * status_mass_factor * merge_mass
-	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
+	linear_damp = (GameplayRules.BALANCE.linear_damp + status_damp_bonus) * field_damp_multiplier
 	if collision_shape:
 		(collision_shape.shape as CircleShape2D).radius = visual_radius
 	_sync_transformation_visuals()

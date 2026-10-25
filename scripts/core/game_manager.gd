@@ -50,7 +50,7 @@ var current_choices: Array[AugmentDefinition] = []
 var active_skill: AugmentEffect
 var active_skill_player := 0
 var blizzard_turns := 0
-var blizzard_damp_bonus := 0.0
+var blizzard_damp_multiplier := 1.0
 var blizzard_speed_multiplier := 1.0
 var blind_turns: Dictionary = {1: 0, 2: 0}
 var temporary_walls: Array[TemporaryWall] = []
@@ -576,7 +576,7 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 		piece.freeze = true
 	augment_manager.apply_owned_to_piece(owner_id, piece)
 	if blizzard_turns > 0:
-		piece.field_damp_bonus = blizzard_damp_bonus
+		piece.field_damp_multiplier = blizzard_damp_multiplier
 		piece.field_speed_multiplier = blizzard_speed_multiplier
 		piece.refresh_physics()
 
@@ -966,7 +966,7 @@ func reset_runtime_effects() -> void:
 	active_skill = null
 	active_skill_player = 0
 	blizzard_turns = 0
-	blizzard_damp_bonus = 0.0
+	blizzard_damp_multiplier = 1.0
 	blizzard_speed_multiplier = 1.0
 	blind_turns = {1: 0, 2: 0}
 	blind_material = null
@@ -1171,13 +1171,13 @@ func begin_train_movement() -> void:
 	state_machine.transition(GameStateMachine.State.PIECES_MOVING)
 	update_hud("기차가 지나가는 중입니다")
 
-func start_blizzard(turns: int, damp_bonus: float, speed_multiplier: float) -> void:
+func start_blizzard(turns: int, friction_multiplier: float, speed_multiplier: float) -> void:
 	blizzard_turns = maxi(blizzard_turns, turns)
-	blizzard_damp_bonus = damp_bonus
+	blizzard_damp_multiplier = clampf(friction_multiplier, 0.05, 1.0)
 	blizzard_speed_multiplier = speed_multiplier
 	board.set_blizzard(true)
 	for piece in get_pieces():
-		piece.field_damp_bonus = damp_bonus
+		piece.field_damp_multiplier = blizzard_damp_multiplier
 		piece.field_speed_multiplier = speed_multiplier
 		piece.refresh_physics()
 
@@ -1190,7 +1190,7 @@ func tick_field_effects() -> void:
 		if blizzard_turns == 0:
 			board.set_blizzard(false)
 			for piece in get_pieces():
-				piece.field_damp_bonus = 0.0
+				piece.field_damp_multiplier = 1.0
 				piece.field_speed_multiplier = 1.0
 				piece.refresh_physics()
 	if int(blind_turns[current_player]) > 0:
