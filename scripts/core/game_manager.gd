@@ -1310,7 +1310,7 @@ func _network_collect_skill_target(piece: AlkkagiPiece) -> void:
 	if target_mode == AugmentDefinition.TargetMode.ENEMY_PIECE and piece.owner_id == local_player_id:
 		return
 	network_skill_targets.append(piece.piece_id)
-	var required := 2 if active_skill.definition.id in [&"piggyback", &"wizard"] else 1
+	var required := 2 if active_skill.definition.id == &"wizard" else 1
 	if network_skill_targets.size() >= required:
 		network_manager.submit_active_skill(active_skill.definition.id, network_skill_targets)
 		network_show_waiting("스킬 요청을 호스트가 검증하는 중…")

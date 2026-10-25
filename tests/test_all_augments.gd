@@ -107,12 +107,11 @@ func run_test() -> void:
 		if piece.owner_id == 1:
 			own.append(piece)
 	var piggy := find_effect(game, 1, &"piggyback")
-	piggy.on_piece_target(game, 1, own[0])
-	piggy.on_piece_target(game, 1, own[1])
+	check(piggy.on_piece_target(game, 1, own[0]), "merge accepts one allied anchor")
 	await process_frame
-	check(own[0].carried_count == 1 and own[0].mass > 1.0, "merge creates a heavier visible stack")
+	check(own[0].carried_count == GameplayRules.DEFAULT_PIECES - 1 and own[0].mass > 4.0, "merge absorbs every allied stone into a much heavier stack")
 	check(find_effect(game, 1, &"piggyback").definition.display_name == "합체", "merge keeps the compatible piggyback id with the new name")
-	check(game.count_owner(1) == GameplayRules.DEFAULT_PIECES - 1, "piggyback merges the carried stone")
+	check(game.count_owner(1) == 1, "piggyback leaves exactly one allied stone")
 
 	# 06 랜턴: 두 아군 사이 연결선과 실제 견인 속도를 만든다.
 	await reset_game(game)

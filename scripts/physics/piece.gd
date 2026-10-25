@@ -44,6 +44,9 @@ var stasis_turns := 0
 var snow_turns := 0
 var transformation := ""
 var carried_count := 0
+var merge_size_step := 0.22
+var merge_size_cap := 1.8
+var merge_mass_step := 0.9
 var reached_enemy_end := false
 var field_damp_bonus := 0.0
 var field_speed_multiplier := 1.0
@@ -102,8 +105,10 @@ func apply_tank(size_multiplier: float, mass_multiplier: float) -> void:
 	refresh_physics()
 
 func refresh_physics() -> void:
-	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * (1.12 if carried_count > 0 else 1.0)
-	mass = mass_factor * status_mass_factor * (1.65 if carried_count > 0 else 1.0)
+	var merge_size := minf(1.0 + sqrt(float(carried_count)) * merge_size_step, merge_size_cap)
+	var merge_mass := 1.0 + float(carried_count) * merge_mass_step
+	visual_radius = base_radius * tank_factor * fragment_factor * float(TRANSFORM_SIZES.get(transformation, 1.0)) * merge_size
+	mass = mass_factor * status_mass_factor * merge_mass
 	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
 	if collision_shape:
 		(collision_shape.shape as CircleShape2D).radius = visual_radius

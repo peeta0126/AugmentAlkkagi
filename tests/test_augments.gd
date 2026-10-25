@@ -212,12 +212,12 @@ func run_test() -> void:
 	game.augment_manager.acquire(game, 1, &"piggyback")
 	var own_targets: Array[int] = []
 	for piece in game.get_pieces():
-		if piece.owner_id == 1 and own_targets.size() < 2:
+		if piece.owner_id == 1 and own_targets.is_empty():
 			own_targets.append(piece.piece_id)
 	var before_merge: int = game.count_owner(1)
 	game.network_manager.submit_active_skill(&"piggyback", own_targets)
 	await process_frame
-	check(game.count_owner(1) == before_merge - 1, "multi-piece active accepts Array[int]")
+	check(game.count_owner(1) == 1 and before_merge > 1, "merge request absorbs every allied stone from one anchor id")
 	game.network_manager.mode = NETWORK_MODE_OFFLINE
 	if failures == 0:
 		print("PASS: augment system and effects tests")
