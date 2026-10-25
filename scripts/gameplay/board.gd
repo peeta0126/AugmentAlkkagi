@@ -6,6 +6,7 @@ const LanternScene := preload("res://scenes/effects/lantern.tscn")
 const EarthquakeScene := preload("res://scenes/effects/earthquake.tscn")
 const GravityFieldScene := preload("res://scenes/effects/gravity_field.tscn")
 const WishScene := preload("res://scenes/effects/wish.tscn")
+const ConnectFourScene := preload("res://scenes/effects/connect_four.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
@@ -85,6 +86,13 @@ func set_field_visual(key: String, data: Dictionary) -> void:
 			field_visual_nodes[key] = wish
 			add_child(wish)
 		wish.configure(data)
+	elif str(data.get("type", "")) == "connect_four":
+		var connect_four: ConnectFourVisual = field_visual_nodes.get(key) as ConnectFourVisual
+		if connect_four == null:
+			connect_four = ConnectFourScene.instantiate() as ConnectFourVisual
+			field_visual_nodes[key] = connect_four
+			add_child(connect_four)
+		connect_four.configure(data)
 	queue_redraw()
 
 func remove_field_visual(key: String) -> void:

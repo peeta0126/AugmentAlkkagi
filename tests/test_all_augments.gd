@@ -141,6 +141,13 @@ func run_test() -> void:
 	for index in 4:
 		own[index].position = game.board.grid_point(6 + index, 9)
 	check(find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four detects four consecutive grid points")
+	var flexible_origin := Vector2(500, 310)
+	for index in 4:
+		own[index].position = flexible_origin + Vector2(index * 45.0, [-7.0, 5.0, -4.0, 6.0][index])
+	check(find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four accepts near-linear stones with wider legal gaps")
+	check(game.board.field_visuals.has("connect_four_1"), "connect four exposes its winning line visual")
+	own[3].position.x += 80.0
+	check(not find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four rejects a sequence with an excessive gap")
 
 	# 08 눈덩이: 적에게 2턴 상태, 질량, 감속, 시각 상태를 적용하고 복원한다.
 	await reset_game(game)

@@ -16,5 +16,5 @@ max_uses = -1
 cooldown_turns = 0
 duration_turns = 0
 consumes_turn = true
-values = {"grid_tolerance": 14.0}
+values = {"alignment_tolerance": 14.0, "gap_multiplier": 2.0, "minimum_gap_multiplier": 0.65}
 effect_script = ExtResource("2")

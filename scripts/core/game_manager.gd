@@ -1054,27 +1054,41 @@ func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: 
 	return true
 
 func check_connect_four(player_id: int, tolerance: float) -> bool:
-	var occupied := {}
-	var spacing := AlkkagiBoard.GRID_RECT.size / float(AlkkagiBoard.GRID_COUNT - 1)
-	for piece in get_pieces():
-		if piece.owner_id != player_id:
-			continue
-		var local := piece.position - AlkkagiBoard.GRID_RECT.position
-		var cell := Vector2i(roundi(local.x / spacing.x), roundi(local.y / spacing.y))
-		if cell.x < 0 or cell.x >= 19 or cell.y < 0 or cell.y >= 19:
-			continue
-		if piece.position.distance_to(board.grid_point(cell.x, cell.y)) <= tolerance:
-			occupied[cell] = true
-	for cell: Vector2i in occupied:
-		for direction in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]:
-			var complete := true
-			for step in 4:
-				if not occupied.has(cell + direction * step):
-					complete = false
+	return find_connect_four(player_id, 2.0, tolerance, 0.65).size() == 2
+
+func find_connect_four(player_id: int, gap_multiplier: float, alignment_tolerance: float, minimum_gap_multiplier: float) -> PackedVector2Array:
+	var owned_pieces: Array[AlkkagiPiece] = []
+	for piece: AlkkagiPiece in get_pieces():
+		if piece.owner_id == player_id:
+			owned_pieces.append(piece)
+	if owned_pieces.size() < 4:
+		return PackedVector2Array()
+	var directions := [Vector2.RIGHT, Vector2.DOWN, Vector2(1, 1).normalized(), Vector2(1, -1).normalized()]
+	for direction: Vector2 in directions:
+		var normal := direction.orthogonal()
+		var sorted := owned_pieces.duplicate()
+		sorted.sort_custom(func(a: AlkkagiPiece, b: AlkkagiPiece): return a.position.dot(direction) < b.position.dot(direction))
+		for start in range(sorted.size() - 3):
+			var sequence: Array[AlkkagiPiece] = [sorted[start], sorted[start + 1], sorted[start + 2], sorted[start + 3]]
+			var normal_mean := 0.0
+			for candidate: AlkkagiPiece in sequence:
+				normal_mean += candidate.position.dot(normal) / 4.0
+			var aligned := true
+			for candidate: AlkkagiPiece in sequence:
+				if absf(candidate.position.dot(normal) - normal_mean) > alignment_tolerance:
+					aligned = false
 					break
-			if complete:
-				return true
-	return false
+			if not aligned:
+				continue
+			for index in 3:
+				var gap := sequence[index + 1].position.dot(direction) - sequence[index].position.dot(direction)
+				var combined_radius := sequence[index].visual_radius + sequence[index + 1].visual_radius
+				if gap < combined_radius * minimum_gap_multiplier or gap > combined_radius * gap_multiplier:
+					aligned = false
+					break
+			if aligned:
+				return PackedVector2Array([sequence[0].position, sequence[3].position])
+	return PackedVector2Array()
 
 func swap_all_owners() -> void:
 	for piece in get_pieces():
