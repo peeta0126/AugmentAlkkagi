@@ -7,6 +7,7 @@ const AugmentManagerScript := preload("res://scripts/augments/augment_manager.gd
 const TemporaryWallScript := preload("res://scripts/gameplay/temporary_wall.gd")
 const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.gd")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
+const AugmentCardScene := preload("res://scenes/ui/augment_card.tscn")
 
 var state_machine: GameStateMachine
 var augment_manager: AugmentManager
@@ -541,27 +542,11 @@ func show_augment_selection(player_id: int, initial: bool, resume_player: int) -
 	screen_root.modulate.a = 0.0
 	create_tween().tween_property(screen_root, "modulate:a", 1.0, 0.22)
 
-func _augment_card(definition: AugmentDefinition) -> Button:
-	var card := Button.new()
-	card.custom_minimum_size = Vector2(316, 360)
-	card.text = "%s\n\n%s\n[%s]\n\n%s\n\n%s" % [definition.icon_text, definition.display_name, definition.rarity_name(), definition.description, definition.trigger_description]
-	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card.add_theme_font_size_override("font_size", 19)
-	card.add_theme_color_override("font_color", Color("f6ead5"))
-	card.add_theme_color_override("font_hover_color", Color.WHITE)
-	var rarity_color := definition.rarity_color()
-	card.add_theme_stylebox_override("normal", _style(Color("39271e"), 15, rarity_color.darkened(0.28), 3))
-	card.add_theme_stylebox_override("hover", _style(Color("59402e"), 15, rarity_color, 5))
-	card.add_theme_stylebox_override("pressed", _style(Color("6b4b30"), 15, Color("ffe39a"), 5))
-	card.tooltip_text = definition.description
-	card.pressed.connect(_choose_augment.bind(definition.id))
-	card.mouse_entered.connect(_animate_card.bind(card, Vector2(1.035, 1.035)))
-	card.mouse_exited.connect(_animate_card.bind(card, Vector2.ONE))
+func _augment_card(definition: AugmentDefinition) -> AugmentCard:
+	var card := AugmentCardScene.instantiate() as AugmentCard
+	card.setup(definition)
+	card.augment_selected.connect(_choose_augment)
 	return card
-
-func _animate_card(card: Control, target_scale: Vector2) -> void:
-	card.pivot_offset = card.size * 0.5
-	create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT).tween_property(card, "scale", target_scale, 0.12)
 
 func _choose_augment(augment_id: StringName) -> void:
 	if state_machine.current not in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
