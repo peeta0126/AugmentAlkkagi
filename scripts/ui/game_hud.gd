@@ -1,0 +1,110 @@
+class_name GameHud
+extends Control
+
+signal menu_requested
+signal active_skill_requested(augment_id: StringName)
+
+@onready var turn_label: Label = %TurnLabel
+@onready var count_label: Label = %CountLabel
+@onready var hint_label: Label = %HintLabel
+@onready var power_bar: ProgressBar = %PowerBar
+@onready var black_augment_title: Label = %BlackAugmentTitle
+@onready var black_augment_items: VBoxContainer = %BlackAugmentItems
+@onready var black_augment_progress: Label = %BlackAugmentProgress
+@onready var white_augment_title: Label = %WhiteAugmentTitle
+@onready var white_augment_items: VBoxContainer = %WhiteAugmentItems
+@onready var white_augment_progress: Label = %WhiteAugmentProgress
+@onready var active_skills_panel: PanelContainer = %ActiveSkillsPanel
+@onready var active_skill_items: VBoxContainer = %ActiveSkillItems
+
+var _black_item_template: Label
+var _white_item_template: Label
+var _active_button_template: Button
+
+
+func _ready() -> void:
+	%MenuButton.pressed.connect(func(): menu_requested.emit())
+	_black_item_template = %BlackAugmentItemTemplate
+	_white_item_template = %WhiteAugmentItemTemplate
+	_active_button_template = %ActiveSkillButtonTemplate
+
+
+func update_status(turn_text: String, turn_color: Color, count_text: String, hint_text: String) -> void:
+	turn_label.text = turn_text
+	turn_label.modulate = turn_color
+	count_label.text = count_text
+	hint_label.text = hint_text
+
+
+func set_hint(text: String) -> void:
+	hint_label.text = text
+
+
+func set_power_percent(value: float) -> void:
+	power_bar.value = clampf(value, 0.0, 100.0)
+
+
+func set_player_augments(
+	player_id: int,
+	player_name: String,
+	player_color: Color,
+	definitions: Array[AugmentDefinition],
+	max_augments: int
+) -> void:
+	var title := black_augment_title if player_id == 1 else white_augment_title
+	var items := black_augment_items if player_id == 1 else white_augment_items
+	var progress := black_augment_progress if player_id == 1 else white_augment_progress
+	var template := _black_item_template if player_id == 1 else _white_item_template
+
+	title.text = "%s 플레이어 증강" % player_name
+	title.add_theme_color_override("font_color", player_color.lightened(0.24))
+	template.visible = false
+	_clear_children(items, template)
+	if definitions.is_empty():
+		var empty_item := template.duplicate() as Label
+		empty_item.visible = true
+		empty_item.text = "보유 증강 없음"
+		empty_item.add_theme_color_override("font_color", Color("9a8b79"))
+		items.add_child(empty_item)
+	else:
+		for definition in definitions:
+			var item := template.duplicate() as Label
+			item.visible = true
+			item.text = "%s  %s" % [definition.icon_text, definition.display_name]
+			item.add_theme_color_override("font_color", definition.rarity_color())
+			item.tooltip_text = definition.description
+			items.add_child(item)
+
+	var owned_count := definitions.size()
+	progress.text = (
+		"증강 획득 완료"
+		if owned_count >= max_augments
+		else "증강 %d / %d" % [owned_count, max_augments]
+	)
+
+
+func set_active_skills(entries: Array[Dictionary]) -> void:
+	_active_button_template.visible = false
+	_clear_children(active_skill_items, _active_button_template)
+	active_skills_panel.visible = not entries.is_empty()
+	for entry in entries:
+		var button := _active_button_template.duplicate() as Button
+		button.visible = true
+		var augment_id := StringName(str(entry.get("id", "")))
+		button.text = str(entry.get("text", ""))
+		button.disabled = bool(entry.get("disabled", false))
+		button.tooltip_text = str(entry.get("tooltip", ""))
+		button.pressed.connect(_on_active_skill_pressed.bind(augment_id))
+		active_skill_items.add_child(button)
+
+
+func _on_active_skill_pressed(augment_id: StringName) -> void:
+	active_skill_requested.emit(augment_id)
+
+
+func _clear_children(container: Container, preserved_child: Node = null) -> void:
+	for child in container.get_children():
+		if child == preserved_child:
+			continue
+		container.remove_child(child)
+		child.queue_free()

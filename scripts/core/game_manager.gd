@@ -11,6 +11,7 @@ const NetworkManagerScript := preload("res://scripts/network/network_manager.gd"
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
 const OnlineLobbyScene := preload("res://scenes/ui/online_lobby.tscn")
+const GameHudScene := preload("res://scenes/ui/game_hud.tscn")
 
 var state_machine: GameStateMachine
 var augment_manager: AugmentManager
@@ -572,93 +573,59 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 
 func build_hud() -> void:
 	update_piece_visibility()
-	set_screen(_panel_root())
-	hud = screen_root
-	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var top := ColorRect.new()
-	top.color = Color(0.08, 0.045, 0.025, 0.91)
-	top.position = Vector2.ZERO
-	top.size = Vector2(1280, 84)
-	hud.add_child(top)
-	turn_label = _label("", 28, Color.WHITE)
-	turn_label.position = Vector2(420, 12)
-	turn_label.size = Vector2(440, 36)
-	turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hud.add_child(turn_label)
-	count_label = _label("", 17, Color("e6d4ba"))
-	count_label.position = Vector2(420, 49)
-	count_label.size = Vector2(440, 28)
-	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hud.add_child(count_label)
-	_add_augment_hud(1, Vector2(18, 110))
-	_add_augment_hud(2, Vector2(950, 110))
-	hint_label = _label("", 16, Color("fff0c2"))
-	hint_label.position = Vector2(20, 610)
-	hint_label.size = Vector2(310, 72)
-	hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hud.add_child(hint_label)
-	power_bar = ProgressBar.new()
-	power_bar.position = Vector2(32, 570)
-	power_bar.size = Vector2(270, 24)
-	power_bar.max_value = 100
-	power_bar.show_percentage = false
-	hud.add_child(power_bar)
-	var power_text := _label("POWER", 14, Color("dec8a6"))
-	power_text.position = Vector2(32, 545)
-	power_text.size = Vector2(100, 25)
-	hud.add_child(power_text)
-	var menu := _button("메뉴", show_main_menu)
-	menu.position = Vector2(1090, 18)
-	menu.size = Vector2(150, 48)
-	menu.mouse_filter = Control.MOUSE_FILTER_STOP
-	hud.add_child(menu)
+	var game_hud := GameHudScene.instantiate() as GameHud
+	game_hud.menu_requested.connect(show_main_menu)
+	game_hud.active_skill_requested.connect(_on_hud_active_skill_requested)
+	set_screen(game_hud)
+	hud = game_hud
+	turn_label = game_hud.turn_label
+	count_label = game_hud.count_label
+	hint_label = game_hud.hint_label
+	power_bar = game_hud.power_bar
+	_add_augment_hud(1)
+	_add_augment_hud(2)
 	_add_active_skill_hud()
 	if int(blind_turns[current_player]) > 0 and (not online_mode or current_player == local_player_id):
 		_add_blind_overlay()
 
-func _add_augment_hud(player_id: int, hud_position: Vector2) -> void:
-	var panel := PanelContainer.new()
-	panel.position = hud_position
-	panel.size = Vector2(312, 190)
-	panel.add_theme_stylebox_override("panel", _style(Color(0.12, 0.07, 0.045, 0.84), 10, AlkkagiPiece.OWNER_COLORS[player_id].darkened(0.12), 2))
-	hud.add_child(panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 5)
-	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 12)
-	panel.add_child(box)
+func _add_augment_hud(player_id: int) -> void:
 	var player_name: String = str(AlkkagiPiece.STONE_NAMES[player_id])
-	box.add_child(_label("%s 플레이어 증강" % player_name, 18, AlkkagiPiece.OWNER_COLORS[player_id].lightened(0.24)))
-	for definition: AugmentDefinition in augment_manager.owned[player_id]:
-		var item := _label("%s  %s" % [definition.icon_text, definition.display_name], 16, definition.rarity_color())
-		item.tooltip_text = definition.description
-		item.mouse_filter = Control.MOUSE_FILTER_STOP
-		box.add_child(item)
-	if augment_manager.owned[player_id].is_empty():
-		box.add_child(_label("보유 증강 없음", 15, Color("9a8b79")))
-	var owned_count: int = augment_manager.owned[player_id].size()
-	var progress_text := "증강 획득 완료" if owned_count >= GameplayRules.MAX_AUGMENTS_PER_PLAYER else "증강 %d / %d" % [owned_count, GameplayRules.MAX_AUGMENTS_PER_PLAYER]
-	box.add_child(_label(progress_text, 15, Color("d9c59f")))
+	var definitions: Array[AugmentDefinition] = []
+	definitions.assign(augment_manager.owned[player_id])
+	(hud as GameHud).set_player_augments(
+		player_id,
+		player_name,
+		AlkkagiPiece.OWNER_COLORS[player_id],
+		definitions,
+		GameplayRules.MAX_AUGMENTS_PER_PLAYER
+	)
 
 func _add_active_skill_hud() -> void:
+	var game_hud := hud as GameHud
+	var entries: Array[Dictionary] = []
 	if online_mode and current_player != local_player_id:
 		_skill_debug("HUD skipped: current_player=%d local_player=%d state=%s" % [current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current]])
+		game_hud.set_active_skills(entries)
 		return
 	var actives := augment_manager.active_effects(current_player)
 	if actives.is_empty():
+		game_hud.set_active_skills(entries)
 		return
 	_skill_debug("HUD built: current_player=%d local_player=%d state=%s active_count=%d" % [current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current], actives.size()])
-	var box := VBoxContainer.new()
-	box.position = Vector2(950, 330)
-	box.size = Vector2(300, 220)
-	box.add_theme_constant_override("separation", 6)
-	hud.add_child(box)
-	box.add_child(_label("액티브 스킬", 17, Color("f1d49a")))
 	for effect in actives:
-		var button := _button("%s · %s" % [effect.definition.display_name, effect.status_text()], _activate_skill.bind(effect))
-		button.custom_minimum_size = Vector2(290, 42)
-		button.disabled = not effect.can_activate(self, current_player)
-		button.tooltip_text = effect.definition.description
-		box.add_child(button)
+		entries.append({
+			"id": effect.definition.id,
+			"text": "%s · %s" % [effect.definition.display_name, effect.status_text()],
+			"disabled": not effect.can_activate(self, current_player),
+			"tooltip": effect.definition.description,
+		})
+	game_hud.set_active_skills(entries)
+
+func _on_hud_active_skill_requested(augment_id: StringName) -> void:
+	for effect in augment_manager.active_effects(current_player):
+		if effect.definition.id == augment_id:
+			_activate_skill(effect)
+			return
 
 func _add_blind_overlay() -> void:
 	var veil := ColorRect.new()
@@ -737,8 +704,14 @@ func finish_active_skill(player_id: int, consumes_turn: bool) -> void:
 		update_hud("자신의 돌을 잡아당겨 발사하세요")
 
 func set_skill_hint(text: String) -> void:
-	if hint_label:
-		hint_label.text = text
+	var game_hud := _get_game_hud()
+	if game_hud:
+		game_hud.set_hint(text)
+
+func _get_game_hud() -> GameHud:
+	if hud == null or not is_instance_valid(hud):
+		return null
+	return hud as GameHud
 
 func _current_shot_profile() -> Dictionary:
 	return augment_manager.shot_profile(current_player)
@@ -771,8 +744,9 @@ func update_aim(pointer: Vector2) -> void:
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
 	var empowered := not is_equal_approx(float(profile.max_drag_multiplier), 1.0) or not is_equal_approx(float(profile.impulse_multiplier), 1.0)
 	board.set_aim(selected_piece.global_position, pointer, AlkkagiPiece.OWNER_COLORS[current_player], max_drag, float(profile.guide_multiplier), empowered)
-	if power_bar:
-		power_bar.value = minf(100.0, selected_piece.global_position.distance_to(pointer) / max_drag * 100.0)
+	var game_hud := _get_game_hud()
+	if game_hud:
+		game_hud.set_power_percent(selected_piece.global_position.distance_to(pointer) / max_drag * 100.0)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if state_machine != null and state_machine.current == GameStateMachine.State.SKILL_TARGETING:
@@ -853,7 +827,9 @@ func fire_selected(pointer: Vector2) -> void:
 	selected_piece = null
 	dragging = false
 	board.clear_aim()
-	power_bar.value = 0
+	var game_hud := _get_game_hud()
+	if game_hud:
+		game_hud.set_power_percent(0.0)
 	settle_time = 0.0
 	shot_elapsed = 0.0
 	state_machine.transition(GameStateMachine.State.PIECES_MOVING)
@@ -866,8 +842,9 @@ func cancel_aim() -> void:
 	dragging = false
 	if board:
 		board.clear_aim()
-	if power_bar:
-		power_bar.value = 0
+	var game_hud := _get_game_hud()
+	if game_hud:
+		game_hud.set_power_percent(0.0)
 
 func _physics_process(delta: float) -> void:
 	_update_blind_centers()
@@ -1446,17 +1423,21 @@ func _sync_network_walls(states: PackedFloat32Array) -> void:
 		temporary_walls.append(wall)
 
 func update_hud(hint: String) -> void:
-	if turn_label == null:
+	var game_hud := _get_game_hud()
+	if game_hud == null:
 		return
 	var player_name: String = AlkkagiPiece.STONE_NAMES[current_player]
-	turn_label.text = "%s 차례" % player_name
-	turn_label.modulate = AlkkagiPiece.OWNER_COLORS[current_player]
-	count_label.text = "라운드 %d  ·  흑돌 %d  ·  백돌 %d" % [round_count, count_owner(1), count_owner(2)]
+	var count_text := "라운드 %d  ·  흑돌 %d  ·  백돌 %d" % [round_count, count_owner(1), count_owner(2)]
 	for player_id in [1, 2]:
 		for effect: AugmentEffect in augment_manager.effects[player_id]:
 			if effect.definition.id == &"wish":
-				count_label.text += "  ·  P%d 소원 %s" % [player_id, effect.status_text()]
-	hint_label.text = hint
+				count_text += "  ·  P%d 소원 %s" % [player_id, effect.status_text()]
+	game_hud.update_status(
+		"%s 차례" % player_name,
+		AlkkagiPiece.OWNER_COLORS[current_player],
+		count_text,
+		hint
+	)
 
 func clear_world() -> void:
 	cancel_aim()

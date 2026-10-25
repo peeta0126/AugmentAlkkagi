@@ -1,0 +1,393 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" uid="uid://c0486u13r7efg" path="res://scripts/ui/game_hud.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_black_panel"]
+bg_color = Color(0.12, 0.07, 0.045, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.72549, 0.580392, 0.32549, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_white_panel"]
+bg_color = Color(0.12, 0.07, 0.045, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.819608, 0.8, 0.752941, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_active_panel"]
+bg_color = Color(0.12, 0.07, 0.045, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.647059, 0.470588, 0.282353, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.439216, 0.27451, 0.180392, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.611765, 0.419608, 0.262745, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.584314, 0.380392, 0.235294, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.878431, 0.678431, 0.407843, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.337255, 0.203922, 0.129412, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.945098, 0.772549, 0.498039, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+bg_color = Color(0.231373, 0.188235, 0.168627, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.341176, 0.294118, 0.270588, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_power_background"]
+bg_color = Color(0.0823529, 0.0509804, 0.0352941, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.384314, 0.290196, 0.207843, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_power_fill"]
+bg_color = Color(0.956863, 0.541176, 0.231373, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[node name="GameHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="TopBar" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 84.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.08, 0.045, 0.025, 0.91)
+
+[node name="TurnInfo" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -220.0
+offset_top = 8.0
+offset_right = 220.0
+offset_bottom = 79.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="TurnLabel" type="Label" parent="TurnInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.823529, 0.658824, 0.372549, 1)
+theme_override_font_sizes/font_size = 28
+text = "흑돌 차례"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CountLabel" type="Label" parent="TurnInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.901961, 0.831373, 0.729412, 1)
+theme_override_font_sizes/font_size = 17
+text = "라운드 3  ·  흑돌 5  ·  백돌 4"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MenuButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 48)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -190.0
+offset_top = 18.0
+offset_right = -40.0
+offset_bottom = 66.0
+grow_horizontal = 0
+mouse_filter = 0
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "메뉴"
+
+[node name="BlackAugmentPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 18.0
+offset_top = 110.0
+offset_right = 330.0
+offset_bottom = 300.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_black_panel")
+
+[node name="Margin" type="MarginContainer" parent="BlackAugmentPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="BlackAugmentPanel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 5
+
+[node name="BlackAugmentTitle" type="Label" parent="BlackAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.858824, 0.737255, 0.517647, 1)
+theme_override_font_sizes/font_size = 18
+text = "흑돌 플레이어 증강"
+
+[node name="BlackAugmentItems" type="VBoxContainer" parent="BlackAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="BlackAugmentItemTemplate" type="Label" parent="BlackAugmentPanel/Margin/Content/BlackAugmentItems"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 0
+theme_override_colors/font_color = Color(0.772549, 0.478431, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "✦  마법사"
+
+[node name="BlackAugmentProgress" type="Label" parent="BlackAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.85098, 0.772549, 0.623529, 1)
+theme_override_font_sizes/font_size = 15
+text = "증강 1 / 3"
+
+[node name="WhiteAugmentPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 110.0
+offset_right = -18.0
+offset_bottom = 300.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_white_panel")
+
+[node name="Margin" type="MarginContainer" parent="WhiteAugmentPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Content" type="VBoxContainer" parent="WhiteAugmentPanel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 5
+
+[node name="WhiteAugmentTitle" type="Label" parent="WhiteAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "백돌 플레이어 증강"
+
+[node name="WhiteAugmentItems" type="VBoxContainer" parent="WhiteAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 3
+
+[node name="WhiteAugmentItemTemplate" type="Label" parent="WhiteAugmentPanel/Margin/Content/WhiteAugmentItems"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 0
+theme_override_colors/font_color = Color(0.4, 0.72549, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "◆  눈덩이"
+
+[node name="WhiteAugmentProgress" type="Label" parent="WhiteAugmentPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.85098, 0.772549, 0.623529, 1)
+theme_override_font_sizes/font_size = 15
+text = "증강 1 / 3"
+
+[node name="ActiveSkillsPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 330.0
+offset_right = -30.0
+offset_bottom = 550.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_active_panel")
+
+[node name="Margin" type="MarginContainer" parent="ActiveSkillsPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Content" type="VBoxContainer" parent="ActiveSkillsPanel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="ActiveSkillTitle" type="Label" parent="ActiveSkillsPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.945098, 0.831373, 0.603922, 1)
+theme_override_font_sizes/font_size = 17
+text = "액티브 스킬"
+
+[node name="ActiveSkillItems" type="VBoxContainer" parent="ActiveSkillsPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="ActiveSkillButtonTemplate" type="Button" parent="ActiveSkillsPanel/Margin/Content/ActiveSkillItems"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(270, 42)
+layout_mode = 2
+mouse_filter = 0
+theme_override_font_sizes/font_size = 19
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "마법사 · 사용 가능"
+
+[node name="BottomInfo" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -177.0
+offset_right = 330.0
+offset_bottom = -38.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="PowerLabel" type="Label" parent="BottomInfo"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.870588, 0.784314, 0.65098, 1)
+theme_override_font_sizes/font_size = 14
+text = "POWER"
+
+[node name="PowerBar" type="ProgressBar" parent="BottomInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(282, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_power_background")
+theme_override_styles/fill = SubResource("StyleBoxFlat_power_fill")
+value = 62.0
+show_percentage = false
+
+[node name="HintLabel" type="Label" parent="BottomInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.941176, 0.760784, 1)
+theme_override_font_sizes/font_size = 16
+text = "자신의 알을 잡아당겨 발사하세요\nESC / 우클릭: 발사 취소"
+vertical_alignment = 1
+autowrap_mode = 2
