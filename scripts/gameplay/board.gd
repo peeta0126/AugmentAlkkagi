@@ -4,6 +4,7 @@ extends Node2D
 const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
 const LanternScene := preload("res://scenes/effects/lantern.tscn")
 const EarthquakeScene := preload("res://scenes/effects/earthquake.tscn")
+const GravityFieldScene := preload("res://scenes/effects/gravity_field.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
@@ -69,6 +70,13 @@ func set_field_visual(key: String, data: Dictionary) -> void:
 			field_visual_nodes[key] = earthquake
 			add_child(earthquake)
 		earthquake.configure(data)
+	elif str(data.get("type", "")) == "gravity":
+		var gravity: GravityFieldVisual = field_visual_nodes.get(key) as GravityFieldVisual
+		if gravity == null:
+			gravity = GravityFieldScene.instantiate() as GravityFieldVisual
+			field_visual_nodes[key] = gravity
+			add_child(gravity)
+		gravity.configure(data)
 	queue_redraw()
 
 func remove_field_visual(key: String) -> void:
@@ -142,13 +150,7 @@ func _draw() -> void:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	for data: Dictionary in field_visuals.values():
 		var visual_type := str(data.get("type", ""))
-		if visual_type == "gravity":
-			var gravity_position: Vector2 = data.get("position", Vector2.ZERO)
-			var gravity_radius := float(data.get("radius", 125.0))
-			draw_circle(gravity_position, gravity_radius, Color(0.25, 0.28, 0.95, 0.07))
-			for ring_ratio in [0.35, 0.65, 1.0]:
-				draw_arc(gravity_position, gravity_radius * ring_ratio, 0.0, TAU, 48, Color(0.47, 0.42, 1.0, 0.58), 2.0)
-		elif visual_type == "dragon_balls":
+		if visual_type == "dragon_balls":
 			for ball: Dictionary in data.get("balls", []):
 				var ball_position: Vector2 = ball.position
 				var number := int(ball.number)

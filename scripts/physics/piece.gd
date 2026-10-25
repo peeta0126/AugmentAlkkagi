@@ -6,6 +6,7 @@ const StasisScene := preload("res://scenes/effects/stasis.tscn")
 const TankScene := preload("res://scenes/effects/tank.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
 const JanggiScene := preload("res://scenes/effects/janggi.tscn")
+const StealthScene := preload("res://scenes/effects/stealth.tscn")
 
 signal selected(piece: AlkkagiPiece)
 
@@ -59,6 +60,7 @@ var stasis_visual: StasisVisual
 var tank_visual: Node2D
 var merge_visual: MergeVisual
 var janggi_visual: JanggiVisual
+var stealth_visual: StealthVisual
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -153,6 +155,7 @@ func set_stealth(player_id: int, turns: int) -> void:
 	hidden_from_player = player_id
 	stealth_turns = maxi(turns, 1)
 	stealth_effect_time = 0.8
+	_sync_stealth_visual()
 	queue_redraw()
 
 func tick_stealth(completed_player: int) -> void:
@@ -162,6 +165,7 @@ func tick_stealth(completed_player: int) -> void:
 	if stealth_turns <= 0:
 		hidden_from_player = 0
 		stealth_effect_time = 0.8
+	_sync_stealth_visual()
 	queue_redraw()
 
 func apply_snow(turns: int) -> void:
@@ -340,6 +344,7 @@ func apply_network_state(data: Dictionary, interpolate: bool, interpolation_dura
 	stealth_turns = int(data.get("stealth_turns", 0))
 	if previous_hidden_from != hidden_from_player:
 		stealth_effect_time = 0.8
+	_sync_stealth_visual()
 	_update_status_kind()
 	refresh_physics()
 	freeze = true
@@ -353,6 +358,7 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 
 func _physics_process(delta: float) -> void:
 	stealth_effect_time = maxf(stealth_effect_time - delta, 0.0)
+	_sync_stealth_visual()
 	if freeze and network_interpolation_active:
 		network_interpolation_elapsed = minf(network_interpolation_elapsed + delta, network_interpolation_duration)
 		position = network_interpolation_from.lerp(network_interpolation_to, network_interpolation_elapsed / network_interpolation_duration)
@@ -415,11 +421,15 @@ func _draw() -> void:
 			_draw_transformation_mark(mark_color)
 	if sonic_trail:
 		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
-	if hidden_from_player != 0 or stealth_effect_time > 0.0:
-		var smoke_alpha := 0.42 if hidden_from_player != 0 else 0.42 * stealth_effect_time / 0.8
-		for smoke_index in 3:
-			var smoke_offset := Vector2.from_angle(float(smoke_index) * TAU / 3.0 + Time.get_ticks_msec() * 0.001) * (visual_radius + 4.0)
-			draw_circle(smoke_offset, 4.5, Color(0.72, 0.78, 0.84, smoke_alpha))
+
+func _sync_stealth_visual() -> void:
+	var should_show := hidden_from_player != 0 or stealth_effect_time > 0.0
+	if should_show and not is_instance_valid(stealth_visual):
+		stealth_visual = StealthScene.instantiate() as StealthVisual
+		add_child(stealth_visual)
+	elif not should_show and is_instance_valid(stealth_visual):
+		stealth_visual.queue_free()
+		stealth_visual = null
 
 func _draw_transformation_mark(color: Color) -> void:
 	var size := visual_radius * 0.48
