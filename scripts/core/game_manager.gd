@@ -10,6 +10,7 @@ const FireballScene := preload("res://scenes/effects/fireball.tscn")
 const SnowballScene := preload("res://scenes/effects/snowball.tscn")
 const GreatswordScene := preload("res://scenes/effects/greatsword.tscn")
 const DodgeScene := preload("res://scenes/effects/dodge.tscn")
+const MergeScene := preload("res://scenes/effects/merge.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -990,6 +991,10 @@ func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 
 		var dodge := DodgeScene.instantiate() as DodgeVisual
 		world.add_child(dodge)
 		dodge.play(from, to)
+	elif color == Color("e5b56d") and is_equal_approx(size, 4.0):
+		var merge := MergeScene.instantiate() as MergeVisual
+		world.add_child(merge)
+		merge.play(from, to)
 	else:
 		var projectile: Area2D = SkillProjectileScript.new()
 		world.add_child(projectile)

@@ -14,7 +14,7 @@ func on_piece_target(game: Node, player_id: int, piece: AlkkagiPiece) -> bool:
 		return false
 	carrier.carried_count += 1
 	carrier.refresh_physics()
-	game.board.add_effect_line(piece.position, carrier.position, Color("e5b56d"), 0.7, 4.0)
+	game.animate_projectile(piece.position, carrier.position, Color("e5b56d"), 4.0)
 	piece.queue_free()
 	carrier = null
 	commit_use(game, player_id)

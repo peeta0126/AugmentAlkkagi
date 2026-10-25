@@ -3,6 +3,9 @@ extends RigidBody2D
 
 const SonicBoomScene := preload("res://scenes/effects/sonic_boom.tscn")
 const StasisScene := preload("res://scenes/effects/stasis.tscn")
+const TankScene := preload("res://scenes/effects/tank.tscn")
+const MergeScene := preload("res://scenes/effects/merge.tscn")
+const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 
 signal selected(piece: AlkkagiPiece)
 
@@ -53,6 +56,9 @@ var network_interpolation_duration := 0.05
 var network_interpolation_active := false
 var sonic_boom_visual: SonicBoomVisual
 var stasis_visual: StasisVisual
+var tank_visual: Node2D
+var merge_visual: MergeVisual
+var janggi_visual: JanggiVisual
 
 static func radius_for_owner(value: int) -> float:
 	return BLACK_RADIUS if value == 1 else WHITE_RADIUS
@@ -99,7 +105,30 @@ func refresh_physics() -> void:
 	linear_damp = GameplayRules.BALANCE.linear_damp + status_damp_bonus + field_damp_bonus
 	if collision_shape:
 		(collision_shape.shape as CircleShape2D).radius = visual_radius
+	_sync_transformation_visuals()
 	queue_redraw()
+
+func _sync_transformation_visuals() -> void:
+	if is_tank and not is_instance_valid(tank_visual):
+		tank_visual = TankScene.instantiate() as Node2D
+		add_child(tank_visual)
+	elif not is_tank and is_instance_valid(tank_visual):
+		tank_visual.queue_free()
+		tank_visual = null
+	if carried_count > 0 and not is_instance_valid(merge_visual):
+		merge_visual = MergeScene.instantiate() as MergeVisual
+		add_child(merge_visual)
+	elif carried_count <= 0 and is_instance_valid(merge_visual):
+		merge_visual.queue_free()
+		merge_visual = null
+	if transformation != "" and transformation != "WIZARD":
+		if not is_instance_valid(janggi_visual):
+			janggi_visual = JanggiScene.instantiate() as JanggiVisual
+			add_child(janggi_visual)
+		janggi_visual.configure(transformation)
+	elif is_instance_valid(janggi_visual):
+		janggi_visual.queue_free()
+		janggi_visual = null
 
 func set_fragment() -> void:
 	fragment_factor = 0.62
@@ -357,8 +386,6 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if is_selected:
 		draw_circle(Vector2.ZERO, visual_radius + 5.0, Color(1.0, 0.72, 0.22, 0.92))
-	if is_tank:
-		draw_circle(Vector2.ZERO, visual_radius + 2.2, Color("b88a3e"))
 	if "stasis" in status_kind:
 		draw_circle(Vector2.ZERO, visual_radius + 3.4, Color(0.95, 0.72, 0.22, 0.72))
 
@@ -381,12 +408,11 @@ func _draw() -> void:
 	if "snow" in status_kind:
 		for angle in [0.2, 2.25, 4.35]:
 			draw_circle(Vector2.from_angle(angle) * visual_radius * 0.72, visual_radius * 0.28, Color(0.88, 0.96, 1.0, 0.9))
-	if carried_count > 0:
-		draw_circle(Vector2(0, -visual_radius * 0.48), visual_radius * 0.42, outer.lerp(center, 0.6))
 	if transformation != "":
 		var mark_color := Color("ff784f") if transformation == "WIZARD" else Color("f4ce73")
 		draw_arc(Vector2.ZERO, visual_radius + 2.8, 0.0, TAU, 20, mark_color, 1.8)
-		_draw_transformation_mark(mark_color)
+		if transformation == "WIZARD":
+			_draw_transformation_mark(mark_color)
 	if sonic_trail:
 		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
 	if hidden_from_player != 0 or stealth_effect_time > 0.0:
