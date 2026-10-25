@@ -6,6 +6,7 @@ const StateMachineScript := preload("res://scripts/core/game_state_machine.gd")
 const AugmentManagerScript := preload("res://scripts/augments/augment_manager.gd")
 const TemporaryWallScript := preload("res://scripts/gameplay/temporary_wall.gd")
 const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.gd")
+const FireballScene := preload("res://scenes/effects/fireball.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
@@ -993,9 +994,14 @@ func player_center(player_id: int) -> Vector2:
 	return total / positions.size()
 
 func animate_projectile(from: Vector2, to: Vector2, color: Color, size: float = 6.0, broadcast: bool = true) -> void:
-	var projectile: Area2D = SkillProjectileScript.new()
-	world.add_child(projectile)
-	projectile.setup(from, to, color, 0.24, size)
+	if color == Color("ff642e") and is_equal_approx(size, 8.0):
+		var fireball := FireballScene.instantiate() as FireballVisual
+		world.add_child(fireball)
+		fireball.play(from, to)
+	else:
+		var projectile: Area2D = SkillProjectileScript.new()
+		world.add_child(projectile)
+		projectile.setup(from, to, color, 0.24, size)
 	if broadcast and online_mode and online_is_host:
 		network_manager.broadcast_projectile(from, to, color, size)
 
