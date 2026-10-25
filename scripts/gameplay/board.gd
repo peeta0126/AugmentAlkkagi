@@ -2,6 +2,7 @@ class_name AlkkagiBoard
 extends Node2D
 
 const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
+const LanternScene := preload("res://scenes/effects/lantern.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
@@ -22,6 +23,7 @@ var effect_lines: Array[Dictionary] = []
 var blizzard_active := false
 var blizzard_visual: BlizzardVisual
 var field_visuals: Dictionary = {}
+var field_visual_nodes: Dictionary = {}
 
 func _ready() -> void:
 	queue_redraw()
@@ -52,10 +54,21 @@ func set_blizzard(active: bool) -> void:
 
 func set_field_visual(key: String, data: Dictionary) -> void:
 	field_visuals[key] = data
+	if str(data.get("type", "")) == "lantern":
+		var visual: LanternVisual = field_visual_nodes.get(key) as LanternVisual
+		if visual == null:
+			visual = LanternScene.instantiate() as LanternVisual
+			field_visual_nodes[key] = visual
+			add_child(visual)
+		visual.configure(data)
 	queue_redraw()
 
 func remove_field_visual(key: String) -> void:
 	field_visuals.erase(key)
+	var visual: Node = field_visual_nodes.get(key) as Node
+	if is_instance_valid(visual):
+		visual.queue_free()
+	field_visual_nodes.erase(key)
 	queue_redraw()
 
 func set_aim(origin: Vector2, pointer: Vector2, color: Color, max_drag: float = -1.0, guide_scale: float = 1.0, empowered: bool = false) -> void:
@@ -121,14 +134,7 @@ func _draw() -> void:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	for data: Dictionary in field_visuals.values():
 		var visual_type := str(data.get("type", ""))
-		if visual_type == "lantern":
-			var field_position: Vector2 = data.get("position", Vector2.ZERO)
-			var radius := float(data.get("radius", 48.0))
-			draw_circle(field_position, radius, Color(1.0, 0.75, 0.22, 0.08))
-			draw_arc(field_position, radius, 0.0, TAU, 40, Color(1.0, 0.78, 0.25, 0.62), 2.0)
-			draw_circle(field_position, 11.0, Color("e5a62e"))
-			draw_circle(field_position + Vector2(0, -4), 6.0, Color("fff1a8"))
-		elif visual_type == "gravity":
+		if visual_type == "gravity":
 			var gravity_position: Vector2 = data.get("position", Vector2.ZERO)
 			var gravity_radius := float(data.get("radius", 125.0))
 			draw_circle(gravity_position, gravity_radius, Color(0.25, 0.28, 0.95, 0.07))
