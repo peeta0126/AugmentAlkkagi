@@ -1,0 +1,82 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://dyua56884ygjq" path="res://scripts/ui/augment_selection.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://w5y8c20221m7" path="res://scenes/ui/augment_card.tscn" id="2_card"]
+
+[node name="AugmentSelection" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.055, 0.035, 0.025, 0.96)
+
+[node name="TitleLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 250.0
+offset_top = 48.0
+offset_right = 1030.0
+offset_bottom = 106.0
+theme_override_colors/font_color = Color(1, 0.568627, 0.498039, 1)
+theme_override_font_sizes/font_size = 38
+text = "흑돌 플레이어 · 증강 선택"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="InstructionLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 300.0
+offset_top = 108.0
+offset_right = 980.0
+offset_bottom = 143.0
+theme_override_colors/font_color = Color(0.866667, 0.8, 0.690196, 1)
+theme_override_font_sizes/font_size = 18
+text = "게임 시작 증강을 하나 선택하세요"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CardArea" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 118.0
+offset_top = 180.0
+offset_right = 1162.0
+offset_bottom = 560.0
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="SampleCard1" parent="CardArea" instance=ExtResource("2_card")]
+layout_mode = 2
+
+[node name="SampleCard2" parent="CardArea" instance=ExtResource("2_card")]
+layout_mode = 2
+
+[node name="SampleCard3" parent="CardArea" instance=ExtResource("2_card")]
+layout_mode = 2
+
+[node name="FooterLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 340.0
+offset_top = 625.0
+offset_right = 940.0
+offset_bottom = 653.0
+theme_override_colors/font_color = Color(0.623529, 0.541176, 0.45098, 1)
+theme_override_font_sizes/font_size = 16
+text = "선택 중에는 발사와 물리 진행이 잠깁니다"
+horizontal_alignment = 1
+vertical_alignment = 1

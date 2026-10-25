@@ -7,7 +7,7 @@ const AugmentManagerScript := preload("res://scripts/augments/augment_manager.gd
 const TemporaryWallScript := preload("res://scripts/gameplay/temporary_wall.gd")
 const SkillProjectileScript := preload("res://scripts/gameplay/skill_projectile.gd")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
-const AugmentCardScene := preload("res://scenes/ui/augment_card.tscn")
+const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 
 var state_machine: GameStateMachine
 var augment_manager: AugmentManager
@@ -511,42 +511,15 @@ func show_augment_selection(player_id: int, initial: bool, resume_player: int) -
 	selection_resume_player = resume_player
 	current_choices = augment_manager.get_choices(player_id, 3)
 	state_machine.transition(GameStateMachine.State.INITIAL_AUGMENT_SELECTION if initial else GameStateMachine.State.AUGMENT_SELECTION)
-	set_screen(_panel_root())
-	_add_background(screen_root, Color(0.055, 0.035, 0.025, 0.96))
-	var color: Color = AlkkagiPiece.OWNER_COLORS[player_id]
-	var player_name: String = str(AlkkagiPiece.STONE_NAMES[player_id])
-	var title := _label("%s 플레이어 · 증강 선택" % player_name, 38, color.lightened(0.22))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(250, 48)
-	title.size = Vector2(780, 58)
-	screen_root.add_child(title)
-	var subtitle_text := "게임 시작 증강을 하나 선택하세요" if initial else "%d라운드 완료 보상 — 양쪽 모두 선택해야 재개됩니다" % round_count
-	var subtitle := _label(subtitle_text, 18, Color("ddccb0"))
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.position = Vector2(300, 108)
-	subtitle.size = Vector2(680, 35)
-	screen_root.add_child(subtitle)
-	var row := HBoxContainer.new()
-	row.position = Vector2(118, 180)
-	row.size = Vector2(1044, 380)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 24)
-	screen_root.add_child(row)
-	for definition in current_choices:
-		row.add_child(_augment_card(definition))
-	var footer := _label("선택 중에는 발사와 물리 진행이 잠깁니다", 16, Color("9f8a73"))
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.position = Vector2(340, 625)
-	footer.size = Vector2(600, 28)
-	screen_root.add_child(footer)
-	screen_root.modulate.a = 0.0
-	create_tween().tween_property(screen_root, "modulate:a", 1.0, 0.22)
+	_show_augment_selection_screen()
 
-func _augment_card(definition: AugmentDefinition) -> AugmentCard:
-	var card := AugmentCardScene.instantiate() as AugmentCard
-	card.setup(definition)
-	card.augment_selected.connect(_choose_augment)
-	return card
+func _show_augment_selection_screen() -> void:
+	var color: Color = AlkkagiPiece.OWNER_COLORS[selection_player]
+	var player_name: String = str(AlkkagiPiece.STONE_NAMES[selection_player])
+	var selection_screen := AugmentSelectionScene.instantiate() as AugmentSelection
+	selection_screen.setup(player_name, color, current_choices, selection_is_initial, round_count)
+	selection_screen.augment_selected.connect(_choose_augment)
+	set_screen(selection_screen)
 
 func _choose_augment(augment_id: StringName) -> void:
 	if state_machine.current not in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
@@ -1269,15 +1242,8 @@ func network_receive_offer(player_id: int, ids: Array[String], initial: bool, re
 	show_augment_selection_from_choices()
 
 func show_augment_selection_from_choices() -> void:
-	var preserved := current_choices.duplicate()
-	show_augment_selection(selection_player, selection_is_initial, selection_resume_player)
-	current_choices = preserved
-	var row := screen_root.get_child(screen_root.get_child_count() - 2) as HBoxContainer
-	if row:
-		for child in row.get_children():
-			child.queue_free()
-		for definition in current_choices:
-			row.add_child(_augment_card(definition))
+	cancel_aim()
+	_show_augment_selection_screen()
 
 func network_show_waiting(message: String) -> void:
 	cancel_aim()
