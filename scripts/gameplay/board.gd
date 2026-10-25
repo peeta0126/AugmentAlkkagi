@@ -1,6 +1,8 @@
 class_name AlkkagiBoard
 extends Node2D
 
+const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
+
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
 const BOARD_SIZE := Vector2(504.0, 540.0)
 const BOARD_RECT := Rect2(Vector2(388.0, 96.0), BOARD_SIZE)
@@ -18,6 +20,7 @@ var guide_multiplier := 1.0
 var empowered_aim := false
 var effect_lines: Array[Dictionary] = []
 var blizzard_active := false
+var blizzard_visual: BlizzardVisual
 var field_visuals: Dictionary = {}
 
 func _ready() -> void:
@@ -37,8 +40,15 @@ func add_effect_line(from: Vector2, to: Vector2, color: Color, duration: float =
 	queue_redraw()
 
 func set_blizzard(active: bool) -> void:
+	if blizzard_active == active:
+		return
 	blizzard_active = active
-	queue_redraw()
+	if active:
+		blizzard_visual = BlizzardScene.instantiate() as BlizzardVisual
+		add_child(blizzard_visual)
+	elif is_instance_valid(blizzard_visual):
+		blizzard_visual.stop()
+		blizzard_visual = null
 
 func set_field_visual(key: String, data: Dictionary) -> void:
 	field_visuals[key] = data
@@ -107,13 +117,6 @@ func _draw() -> void:
 
 	# 위쪽 가장자리의 미세한 반사광으로 원목 코팅의 깊이를 더한다.
 	draw_line(BOARD_RECT.position + Vector2(8, 5), Vector2(BOARD_RECT.end.x - 8, BOARD_RECT.position.y + 5), Color(1, 0.88, 0.62, 0.20), 1.4)
-	if blizzard_active:
-		draw_rect(BOARD_RECT, Color(0.72, 0.88, 1.0, 0.12))
-		var phase := Time.get_ticks_msec() * 0.002
-		for snow_index in 42:
-			var x := BOARD_RECT.position.x + fmod(float(snow_index * 73) + phase * 38.0, BOARD_RECT.size.x)
-			var y := BOARD_RECT.position.y + fmod(float(snow_index * 47) + phase * 22.0, BOARD_RECT.size.y)
-			draw_line(Vector2(x, y), Vector2(x + 8, y + 3), Color(0.9, 0.97, 1.0, 0.55), 1.2)
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	for data: Dictionary in field_visuals.values():
