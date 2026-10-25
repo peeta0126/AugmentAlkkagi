@@ -309,6 +309,54 @@ grow_horizontal = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_active_panel")
 
+[node name="PassiveStatusPanel" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -330.0
+offset_top = 210.0
+offset_right = -30.0
+offset_bottom = 315.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_active_panel")
+
+[node name="Margin" type="MarginContainer" parent="PassiveStatusPanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="PassiveStatusPanel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 5
+
+[node name="PassiveStatusTitle" type="Label" parent="PassiveStatusPanel/Margin/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.945098, 0.831373, 0.603922, 1)
+theme_override_font_sizes/font_size = 16
+text = "패시브 이벤트"
+
+[node name="PassiveStatusItems" type="VBoxContainer" parent="PassiveStatusPanel/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PassiveStatusTemplate" type="Label" parent="PassiveStatusPanel/Margin/Content/PassiveStatusItems"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.807843, 0.333333, 1)
+theme_override_font_sizes/font_size = 15
+text = "칙칙폭폭 · 다음 턴 종료: 첫 기차 통과"
+autowrap_mode = 2
+
 [node name="Margin" type="MarginContainer" parent="ActiveSkillsPanel"]
 layout_mode = 2
 mouse_filter = 2

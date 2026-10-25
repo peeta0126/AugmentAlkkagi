@@ -154,6 +154,18 @@ func finish_turn(game: Node, player_id: int) -> void:
 	for effect: AugmentEffect in effects[player_id]:
 		effect.on_turn_ended(game, player_id)
 
+func finish_global_turn(game: Node, completed_player: int) -> void:
+	for player_id in [1, 2]:
+		for effect: AugmentEffect in effects[player_id]:
+			effect.on_global_turn_ended(game, completed_player)
+
+func passive_hud_effects(player_id: int) -> Array[AugmentEffect]:
+	var result: Array[AugmentEffect] = []
+	for effect: AugmentEffect in effects[player_id]:
+		if effect.show_in_passive_hud():
+			result.append(effect)
+	return result
+
 func can_acquire(player_id: int) -> bool:
 	return player_id in owned and owned[player_id].size() < GameplayRules.MAX_AUGMENTS_PER_PLAYER
 

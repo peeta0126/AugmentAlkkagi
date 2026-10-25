@@ -35,6 +35,9 @@ func on_turn_ended(_game: Node, _player_id: int) -> void:
 	if cooldown_left > 0:
 		cooldown_left -= 1
 
+func on_global_turn_ended(_game: Node, _completed_player: int) -> void:
+	pass
+
 func is_active() -> bool:
 	return definition.kind == AugmentDefinition.Kind.ACTIVE or definition.kind == AugmentDefinition.Kind.FIELD
 
@@ -83,6 +86,9 @@ func status_text() -> String:
 	return "사용 가능" if uses_left < 0 else "%d회" % uses_left
 
 func transform_shot(_game: Node, _player_id: int, _piece: AlkkagiPiece, _impulse: Vector2) -> bool:
+	return false
+
+func show_in_passive_hud() -> bool:
 	return false
 
 func on_opponent_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece, _impulse: Vector2) -> void:

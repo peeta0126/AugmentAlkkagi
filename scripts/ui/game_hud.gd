@@ -16,10 +16,13 @@ signal active_skill_requested(augment_id: StringName)
 @onready var white_augment_progress: Label = %WhiteAugmentProgress
 @onready var active_skills_panel: PanelContainer = %ActiveSkillsPanel
 @onready var active_skill_items: VBoxContainer = %ActiveSkillItems
+@onready var passive_status_panel: PanelContainer = %PassiveStatusPanel
+@onready var passive_status_items: VBoxContainer = %PassiveStatusItems
 
 var _black_item_template: Label
 var _white_item_template: Label
 var _active_button_template: Button
+var _passive_status_template: Label
 
 
 func _ready() -> void:
@@ -27,6 +30,7 @@ func _ready() -> void:
 	_black_item_template = %BlackAugmentItemTemplate
 	_white_item_template = %WhiteAugmentItemTemplate
 	_active_button_template = %ActiveSkillButtonTemplate
+	_passive_status_template = %PassiveStatusTemplate
 
 
 func update_status(turn_text: String, turn_color: Color, count_text: String, hint_text: String) -> void:
@@ -96,6 +100,17 @@ func set_active_skills(entries: Array[Dictionary]) -> void:
 		button.tooltip_text = str(entry.get("tooltip", ""))
 		button.pressed.connect(_on_active_skill_pressed.bind(augment_id))
 		active_skill_items.add_child(button)
+
+func set_passive_statuses(entries: Array[Dictionary]) -> void:
+	_passive_status_template.visible = false
+	_clear_children(passive_status_items, _passive_status_template)
+	passive_status_panel.visible = not entries.is_empty()
+	for entry in entries:
+		var item := _passive_status_template.duplicate() as Label
+		item.visible = true
+		item.text = str(entry.get("text", ""))
+		item.tooltip_text = str(entry.get("tooltip", ""))
+		passive_status_items.add_child(item)
 
 
 func _on_active_skill_pressed(augment_id: StringName) -> void:

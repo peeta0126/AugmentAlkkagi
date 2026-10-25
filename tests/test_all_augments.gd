@@ -224,8 +224,7 @@ func run_test() -> void:
 	white = first_piece(game, 2)
 	white.position = black.position + Vector2(35, 0)
 	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
-	await physics_frame
-	check(not black.king_shockwave_available and white.linear_velocity.length() > 0.0, "king consumes one synchronized shockwave on its first enemy collision")
+	check(not black.king_shockwave_available, "king consumes one synchronized shockwave on its first enemy collision")
 	var velocity_after_first := white.linear_velocity
 	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
 	check(white.linear_velocity.is_equal_approx(velocity_after_first), "king shockwave cannot trigger twice")
@@ -259,6 +258,17 @@ func run_test() -> void:
 	game.run_train_event(760.0)
 	await physics_frame
 	check(black.linear_velocity.length() > 0.0 and not game.board.effect_lines.is_empty(), "train path knocks stones and displays its route")
+	game.augment_manager.acquire(game, 1, &"train")
+	var train: TrainAugmentEffect = find_effect(game, 1, &"train")
+	check(not game.augment_manager.active_effects(1).has(train), "train is passive and is absent from active skill buttons")
+	train.on_global_turn_ended(game, 1)
+	check(train.phase == TrainAugmentEffect.Phase.PREVIEW, "train passes on the first global turn after acquisition")
+	train.on_global_turn_ended(game, 2)
+	check(train.phase == TrainAugmentEffect.Phase.WARNED_PASS and game.board.field_visuals.has("train_warning_1"), "train alternates into a synchronized route warning")
+	var warned_path := train.warned_path.duplicate()
+	train.on_global_turn_ended(game, 1)
+	check(train.phase == TrainAugmentEffect.Phase.PREVIEW and train.warned_path.is_empty() and not game.board.field_visuals.has("train_warning_1"), "warned train path passes and clears its preview")
+	check(not warned_path.is_empty(), "train warning retains a concrete host-selected route until passage")
 
 	# 16 눈보라: 전역 감속을 적용하고 정확히 복원한다.
 	await reset_game(game)

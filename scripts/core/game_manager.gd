@@ -67,6 +67,7 @@ var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
 var shot_opponent_count_before := -1
 var bonus_turn_active := false
+var train_followup_resolution := false
 
 func _skill_debug(message: String) -> void:
 	if OS.is_debug_build():
@@ -598,6 +599,7 @@ func build_hud() -> void:
 	_add_augment_hud(1)
 	_add_augment_hud(2)
 	_add_active_skill_hud()
+	_add_passive_status_hud()
 	if int(blind_turns[current_player]) > 0 and (not online_mode or current_player == local_player_id):
 		_add_blind_overlay()
 
@@ -639,6 +641,16 @@ func _on_hud_active_skill_requested(augment_id: StringName) -> void:
 		if effect.definition.id == augment_id:
 			_activate_skill(effect)
 			return
+
+func _add_passive_status_hud() -> void:
+	var entries: Array[Dictionary] = []
+	for player_id in [1, 2]:
+		for effect: AugmentEffect in augment_manager.passive_hud_effects(player_id):
+			entries.append({
+				"text": "%s · %s" % [effect.definition.display_name, effect.status_text()],
+				"tooltip": effect.definition.description,
+			})
+	(hud as GameHud).set_passive_statuses(entries)
 
 func _add_blind_overlay() -> void:
 	var veil := ColorRect.new()
@@ -899,11 +911,15 @@ func resolve_turn() -> void:
 	if state_machine.current != GameStateMachine.State.PIECES_MOVING:
 		return
 	state_machine.transition(GameStateMachine.State.TURN_RESOLUTION)
+	var resuming_train_event := train_followup_resolution
+	train_followup_resolution = false
 	for piece in get_pieces():
 		piece.stop_motion()
-		piece.tick_status(current_player)
-		piece.tick_stealth(current_player)
-	tick_field_effects()
+		if not resuming_train_event:
+			piece.tick_status(current_player)
+			piece.tick_stealth(current_player)
+	if not resuming_train_event:
+		tick_field_effects()
 	var special_winner := augment_manager.check_special_victory(self)
 	if special_winner != 0:
 		show_game_over(special_winner)
@@ -917,6 +933,10 @@ func resolve_turn() -> void:
 	var opponent_count := blue_count if completed_player == 1 else red_count
 	var opponent_eliminated := maxi(shot_opponent_count_before - opponent_count, 0) if shot_opponent_count_before >= 0 else 0
 	shot_opponent_count_before = -1
+	if not resuming_train_event:
+		augment_manager.finish_global_turn(self, completed_player)
+		if train_followup_resolution:
+			return
 	if not bonus_turn_active and augment_manager.grants_bonus_turn(self, completed_player, opponent_eliminated):
 		bonus_turn_active = true
 		build_hud()
@@ -959,6 +979,7 @@ func reset_runtime_effects() -> void:
 	selection_pending_players.clear()
 	aim_cancelled_until_left_release = false
 	next_wall_id = 1
+	train_followup_resolution = false
 
 func _both_players_can_acquire() -> bool:
 	return augment_manager.can_acquire(1) and augment_manager.can_acquire(2)
@@ -1115,7 +1136,7 @@ func swap_all_owners() -> void:
 		piece.change_player_owner(2 if piece.owner_id == 1 else 1)
 	board.add_effect_line(AlkkagiBoard.BOARD_RECT.position, AlkkagiBoard.BOARD_RECT.end, Color("d48cff"), 0.9, 7.0)
 
-func run_train_event(knockback: float) -> void:
+func choose_train_path() -> Dictionary:
 	var horizontal := augment_manager.rng.randi() % 2 == 0
 	var ratio := augment_manager.rng.randf_range(0.25, 0.75)
 	var from := Vector2(AlkkagiBoard.BOARD_RECT.position.x, AlkkagiBoard.BOARD_RECT.position.y + AlkkagiBoard.BOARD_RECT.size.y * ratio)
@@ -1125,6 +1146,16 @@ func run_train_event(knockback: float) -> void:
 		from = Vector2(AlkkagiBoard.BOARD_RECT.position.x + AlkkagiBoard.BOARD_RECT.size.x * ratio, AlkkagiBoard.BOARD_RECT.position.y)
 		to = Vector2(from.x, AlkkagiBoard.BOARD_RECT.end.y)
 		direction = Vector2.DOWN
+	return {"from": from, "to": to, "direction": direction, "horizontal": horizontal}
+
+func run_train_event(knockback: float) -> void:
+	run_train_event_path(choose_train_path(), knockback)
+
+func run_train_event_path(path: Dictionary, knockback: float) -> void:
+	var from: Vector2 = path.get("from", AlkkagiBoard.BOARD_RECT.position)
+	var to: Vector2 = path.get("to", AlkkagiBoard.BOARD_RECT.end)
+	var direction: Vector2 = path.get("direction", (to - from).normalized())
+	var horizontal := bool(path.get("horizontal", absf(to.x - from.x) >= absf(to.y - from.y)))
 	board.add_effect_line(from, to, Color(1.0, 0.81, 0.33, 0.18), 1.25, 18.0)
 	animate_projectile(from, to, Color("ffcf55"), 18.0)
 	for piece in get_pieces():
@@ -1132,6 +1163,13 @@ func run_train_event(knockback: float) -> void:
 		if distance_to_path < 35.0:
 			piece.sleeping = false
 			piece.apply_central_impulse(direction * knockback)
+
+func begin_train_movement() -> void:
+	train_followup_resolution = true
+	settle_time = 0.0
+	shot_elapsed = 0.0
+	state_machine.transition(GameStateMachine.State.PIECES_MOVING)
+	update_hud("기차가 지나가는 중입니다")
 
 func start_blizzard(turns: int, damp_bonus: float, speed_multiplier: float) -> void:
 	blizzard_turns = maxi(blizzard_turns, turns)

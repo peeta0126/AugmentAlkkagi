@@ -87,6 +87,17 @@ func run_test() -> void:
 	check(guest_wish != null and guest_wish.balls == wish.balls and guest_wish.collected == 0, "dragon ball positions and collection count reach guest")
 	check(guest.board.field_visuals.has("wish_1"), "dragon ball visuals reach guest")
 
+	# Passive train phase and its host-selected warning path share the effect runtime snapshot.
+	await reset_pair(host, guest)
+	host.augment_manager.acquire(host, 1, &"train")
+	var host_train: TrainAugmentEffect = find_effect(host, 1, &"train")
+	host_train.on_global_turn_ended(host, 1)
+	host_train.on_global_turn_ended(host, 2)
+	await sync_snapshot(host, guest)
+	var guest_train: TrainAugmentEffect = find_effect(guest, 1, &"train")
+	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNED_PASS, "train passive phase reaches guest")
+	check(guest_train.warned_path == host_train.warned_path and guest.board.field_visuals.has("train_warning_1"), "host-selected train warning path reaches guest")
+
 	host.queue_free()
 	guest.queue_free()
 	await process_frame

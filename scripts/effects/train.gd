@@ -7,6 +7,7 @@ extends Node2D
 
 
 func play(from: Vector2, to: Vector2) -> void:
+	train_body.visible = true
 	position = from
 	rotation = (to - from).angle()
 	var distance := from.distance_to(to)
@@ -15,3 +16,9 @@ func play(from: Vector2, to: Vector2) -> void:
 	var tween := create_tween().set_trans(Tween.TRANS_LINEAR)
 	tween.tween_property(train_body, "position:x", distance + 70.0, travel_duration)
 	tween.tween_callback(queue_free)
+
+func show_warning(from: Vector2, to: Vector2) -> void:
+	position = from
+	rotation = (to - from).angle()
+	train_body.visible = false
+	route.points = PackedVector2Array([Vector2.ZERO, Vector2(from.distance_to(to), 0.0)])
