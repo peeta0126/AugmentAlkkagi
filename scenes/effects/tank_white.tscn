@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/tank_visual.gd" id="1"]
+[ext_resource type="Texture2D" path="res://assets/tank/tank_white.png" id="2"]
+
+[node name="TankWhite" type="Node2D"]
+script = ExtResource("1")
+preview_owner_id = 2
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(0, -4)
+scale = Vector2(0.0446571, 0.0446571)
+texture = ExtResource("2")

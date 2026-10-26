@@ -19,6 +19,7 @@ const BloodFestivalScene := preload("res://scenes/effects/blood_festival.tscn")
 const KingShockwaveScene := preload("res://scenes/effects/king_shockwave.tscn")
 const BlindScene := preload("res://scenes/effects/blind.tscn")
 const NetworkManagerScript := preload("res://scripts/network/network_manager.gd")
+const DeveloperAugmentSelectionScene := preload("res://scenes/ui/developer_augment_selection.tscn")
 const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
 const OnlineLobbyScene := preload("res://scenes/ui/online_lobby.tscn")
@@ -59,6 +60,7 @@ var blizzard_speed_multiplier := 1.0
 var blind_turns: Dictionary = {1: 0, 2: 0}
 var temporary_walls: Array[TemporaryWall] = []
 var network_manager: Node
+var developer_mode_active := false
 var online_mode := false
 var online_is_host := false
 var local_player_id := 0
@@ -124,6 +126,7 @@ func _on_gdsync_disconnected() -> void:
 func show_main_menu() -> void:
 	if network_manager and network_manager.is_online():
 		network_manager.shutdown(false)
+	developer_mode_active = false
 	online_mode = false
 	online_is_host = false
 	local_player_id = 0
@@ -132,6 +135,7 @@ func show_main_menu() -> void:
 	reset_runtime_effects()
 	state_machine.transition(GameStateMachine.State.MAIN_MENU)
 	var main_menu := MainMenuScene.instantiate() as MainMenu
+	main_menu.developer_mode_requested.connect(_start_developer_mode)
 	main_menu.local_setup_requested.connect(_start_local_setup)
 	main_menu.online_room_create_requested.connect(_create_online_room)
 	main_menu.online_room_join_requested.connect(_show_online_join_room)
@@ -139,6 +143,36 @@ func show_main_menu() -> void:
 	main_menu.settings_requested.connect(_show_settings)
 	main_menu.quit_requested.connect(get_tree().quit)
 	set_screen(main_menu)
+
+func _start_developer_mode() -> void:
+	developer_mode_active = true
+	online_mode = false
+	online_is_host = false
+	local_player_id = 0
+	network_winner = 0
+	clear_world()
+	augment_manager.reset_match()
+	reset_runtime_effects()
+	selection_player = 1
+	selection_is_initial = true
+	selection_pending_players.clear()
+	state_machine.transition(GameStateMachine.State.INITIAL_AUGMENT_SELECTION)
+	var selection := DeveloperAugmentSelectionScene.instantiate() as DeveloperAugmentSelection
+	selection.augment_selected.connect(_on_developer_augment_selected)
+	selection.back_requested.connect(show_main_menu)
+	set_screen(selection)
+	selection.setup(augment_manager.CATALOG)
+
+func _on_developer_augment_selected(augment_id: StringName) -> void:
+	if not developer_mode_active or state_machine.current != GameStateMachine.State.INITIAL_AUGMENT_SELECTION:
+		return
+	# Developer matches are local two-player tests: mirror the selected augment
+	# so both black and white can exercise its effects on their own turns.
+	for player_id in [1, 2]:
+		if not augment_manager.acquire(self, player_id, augment_id):
+			augment_manager.reset_match()
+			return
+	start_game_world()
 
 func _start_local_setup() -> void:
 	state_machine.transition(GameStateMachine.State.LOCAL_SETUP)
@@ -492,6 +526,7 @@ func _on_network_session_ended(reason: String) -> void:
 	screen_root.add_child(notice)
 
 func begin_match() -> void:
+	developer_mode_active = false
 	clear_world()
 	augment_manager.reset_match()
 	reset_runtime_effects()
@@ -561,6 +596,7 @@ func start_game_world() -> void:
 	board = BoardScript.new()
 	board.name = "Board"
 	world.add_child(board)
+	board.set_blizzard(blizzard_turns != 0)
 	for owner_id in [1, 2]:
 		var positions := GameplayRules.starting_positions(AlkkagiBoard.BOARD_RECT, owner_id, starting_piece_count)
 		for index in positions.size():
@@ -581,7 +617,7 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 	if online_mode and not online_is_host:
 		piece.freeze = true
 	augment_manager.apply_owned_to_piece(owner_id, piece)
-	if blizzard_turns > 0:
+	if blizzard_turns != 0:
 		piece.field_damp_multiplier = blizzard_damp_multiplier
 		piece.field_speed_multiplier = blizzard_speed_multiplier
 		piece.refresh_physics()
@@ -965,7 +1001,7 @@ func resolve_turn() -> void:
 	if bool(round_actions[1]) and bool(round_actions[2]):
 		round_count += 1
 		round_actions = {1: false, 2: false}
-		if round_count % GameplayRules.AUGMENT_ROUND_INTERVAL == 0 and _both_players_can_acquire():
+		if not developer_mode_active and round_count % GameplayRules.AUGMENT_ROUND_INTERVAL == 0 and _both_players_can_acquire():
 			current_player = next_player
 			if online_mode and online_is_host:
 				network_manager.host_begin_round_selection(next_player, round_count)
@@ -1188,10 +1224,12 @@ func begin_train_movement() -> void:
 	update_hud("기차가 지나가는 중입니다")
 
 func start_blizzard(turns: int, friction_multiplier: float, speed_multiplier: float) -> void:
-	blizzard_turns = maxi(blizzard_turns, turns)
+	# -1 is permanent for this match; finite effects cannot shorten it.
+	blizzard_turns = -1 if turns < 0 or blizzard_turns < 0 else maxi(blizzard_turns, turns)
 	blizzard_damp_multiplier = clampf(friction_multiplier, 0.05, 1.0)
 	blizzard_speed_multiplier = speed_multiplier
-	board.set_blizzard(true)
+	if is_instance_valid(board):
+		board.set_blizzard(true)
 	for piece in get_pieces():
 		piece.field_damp_multiplier = blizzard_damp_multiplier
 		piece.field_speed_multiplier = speed_multiplier
@@ -1285,7 +1323,7 @@ func show_game_over(winner: int) -> void:
 	label.position = Vector2(340, 220)
 	label.size = Vector2(600, 80)
 	overlay.add_child(label)
-	var replay_callback := begin_match
+	var replay_callback := _start_developer_mode if developer_mode_active else begin_match
 	var replay_text := "다시 하기"
 	if online_mode:
 		replay_text = "로비로" if online_is_host else "호스트를 기다리는 중"
@@ -1435,6 +1473,8 @@ func create_network_snapshot() -> Dictionary:
 		"pieces": piece_states,
 		"walls": wall_states,
 		"blizzard": blizzard_turns,
+		"blizzard_damp": blizzard_damp_multiplier,
+		"blizzard_speed": blizzard_speed_multiplier,
 		"blind": blind_turns.duplicate(),
 		"bonus_turn": bonus_turn_active,
 		"round": round_count,
@@ -1469,7 +1509,13 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 	blind_turns = snapshot.get("blind", blind_turns)
 	bonus_turn_active = bool(snapshot.get("bonus_turn", false))
 	blizzard_turns = int(snapshot.get("blizzard", 0))
-	board.set_blizzard(blizzard_turns > 0)
+	blizzard_damp_multiplier = float(snapshot.get("blizzard_damp", 1.0))
+	blizzard_speed_multiplier = float(snapshot.get("blizzard_speed", 1.0))
+	board.set_blizzard(blizzard_turns != 0)
+	for piece in get_pieces():
+		piece.field_damp_multiplier = blizzard_damp_multiplier if blizzard_turns != 0 else 1.0
+		piece.field_speed_multiplier = blizzard_speed_multiplier if blizzard_turns != 0 else 1.0
+		piece.refresh_physics()
 	_apply_network_effect_runtime(snapshot.get("effects", {}))
 	_sync_network_walls(snapshot.get("walls", PackedFloat32Array()))
 	var winner := int(snapshot.get("winner", 0))

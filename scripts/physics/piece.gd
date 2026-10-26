@@ -3,7 +3,8 @@ extends RigidBody2D
 
 const SonicBoomScene := preload("res://scenes/effects/sonic_boom.tscn")
 const StasisScene := preload("res://scenes/effects/stasis.tscn")
-const TankScene := preload("res://scenes/effects/tank.tscn")
+const TankBlackScene := preload("res://scenes/effects/tank.tscn")
+const TankWhiteScene := preload("res://scenes/effects/tank_white.tscn")
 const MergeScene := preload("res://scenes/effects/merge.tscn")
 const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 const StealthScene := preload("res://scenes/effects/stealth.tscn")
@@ -69,7 +70,7 @@ var network_interpolation_duration := 0.05
 var network_interpolation_active := false
 var sonic_boom_visual: SonicBoomVisual
 var stasis_visual: StasisVisual
-var tank_visual: Node2D
+var tank_visual: TankVisual
 var merge_visual: MergeVisual
 var janggi_visual: JanggiVisual
 var stealth_visual: StealthVisual
@@ -128,12 +129,17 @@ func refresh_physics() -> void:
 	queue_redraw()
 
 func _sync_transformation_visuals() -> void:
-	if is_tank and not is_instance_valid(tank_visual):
-		tank_visual = TankScene.instantiate() as Node2D
+	if is_tank and (not is_instance_valid(tank_visual) or tank_visual.visual_owner_id != owner_id):
+		if is_instance_valid(tank_visual):
+			remove_child(tank_visual)
+			tank_visual.queue_free()
+		tank_visual = (TankBlackScene if owner_id == 1 else TankWhiteScene).instantiate() as TankVisual
 		add_child(tank_visual)
 	elif not is_tank and is_instance_valid(tank_visual):
 		tank_visual.queue_free()
 		tank_visual = null
+	if is_tank and is_instance_valid(tank_visual):
+		tank_visual.configure(owner_id, visual_radius)
 	if carried_count > 0 and not is_instance_valid(merge_visual):
 		merge_visual = MergeScene.instantiate() as MergeVisual
 		add_child(merge_visual)

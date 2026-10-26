@@ -201,6 +201,32 @@ func run_test() -> void:
 	black = first_piece(game, 1)
 	var tank := find_effect(game, 1, &"tank")
 	tank.on_piece_target(game, 1, black)
+	await process_frame
+	check(is_instance_valid(black.tank_visual) and black.tank_visual.sprite.texture.resource_path.ends_with("tank_black.png"), "black stone uses black tank sprite")
+	var original_tank_width := black.tank_visual.sprite.scale.x
+	black.tank_visual.size_multiplier = 1.5
+	check(is_equal_approx(black.tank_visual.sprite.scale.x, original_tank_width * 1.5), "Inspector size multiplier resizes tank image")
+	black.tank_visual.size_multiplier = 1.0
+	black.linear_velocity = Vector2(150, 0)
+	black.tank_visual._physics_process(1.0)
+	check(is_equal_approx(black.tank_visual.rotation, PI * 0.5), "tank barrel faces right when stone flies right")
+	black.linear_velocity = Vector2.ZERO
+	black.tank_visual._physics_process(1.0)
+	check(is_equal_approx(black.tank_visual.rotation, PI * 0.5), "stopped tank keeps its last facing direction")
+	black.linear_velocity = Vector2(0, -150)
+	black.tank_visual._physics_process(1.0)
+	check(is_zero_approx(black.tank_visual.rotation), "tank barrel faces up when stone flies up")
+	black.linear_velocity = Vector2.ZERO
+	black.change_player_owner(2)
+	check(black.tank_visual.sprite.texture.resource_path.ends_with("tank_white.png"), "owner change updates tank to white sprite")
+	check(black.tank_visual.scene_file_path.ends_with("tank_white.tscn"), "white tank has its own scene in Effects")
+	var visible_white_width := black.tank_visual.sprite.scale.x * 1077.0
+	var visible_white_height := black.tank_visual.sprite.scale.y * 1151.0
+	check(is_equal_approx(visible_white_width, 56.0 * 982.0 / 1312.0), "white visible width matches black visible artwork")
+	check(is_equal_approx(visible_white_height, 56.0 * 1071.0 / 1199.0), "white visible height matches black visible artwork")
+	black.change_player_owner(1)
+	check(black.tank_visual.sprite.texture.resource_path.ends_with("tank_black.png"), "owner restoration updates tank to black sprite")
+	check(black.tank_visual.scene_file_path.ends_with("tank.tscn"), "black tank returns to its scene")
 	var profile: Dictionary = game.augment_manager.shot_profile(1)
 	check(is_equal_approx(black.mass, 1.8) and is_equal_approx(float(profile.impulse_multiplier), 1.6) and is_equal_approx(float(profile.max_drag_multiplier), 1.3), "tank, sonic and scope combine (mass=%s profile=%s)" % [black.mass, profile])
 	check(not tank.on_piece_target(game, 1, black), "tank cannot be applied twice to the same stone")
@@ -270,15 +296,31 @@ func run_test() -> void:
 	check(train.phase == TrainAugmentEffect.Phase.PREVIEW and train.warned_path.is_empty() and not game.board.field_visuals.has("train_warning_1"), "warned train path passes and clears its preview")
 	check(not warned_path.is_empty(), "train warning retains a concrete host-selected route until passage")
 
-	# 16 눈보라: 전역 감속을 적용하고 정확히 복원한다.
+	# 16 눈보라: 획득 즉시 적용하고 게임이 끝날 때까지 유지한다.
 	await reset_game(game)
 	black = first_piece(game, 1)
 	var original_damp := black.linear_damp
-	game.start_blizzard(2, 0.28, 1.15)
-	check(game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.linear_damp < original_damp, "blizzard creates low-friction ice physics")
-	game.tick_field_effects()
-	game.tick_field_effects()
-	check(not game.board.blizzard_active and black.field_speed_multiplier == 1.0 and is_equal_approx(black.linear_damp, original_damp), "blizzard expiration restores exact field physics")
+	check(game.augment_manager.acquire(game, 1, &"blizzard"), "blizzard acquisition succeeds")
+	check(game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.linear_damp < original_damp, "blizzard activates immediately on acquisition")
+	check(game.augment_manager.active_effects(1).is_empty(), "blizzard has no manual activation button")
+	for turn in 100:
+		game.tick_field_effects()
+	check(game.blizzard_turns == -1 and game.board.blizzard_active and black.field_damp_multiplier == 0.28, "blizzard never expires on turn completion")
+	game.spawn_piece(1, 999, Vector2(600, 400))
+	check(game.find_piece(999).field_damp_multiplier == 0.28, "new stones inherit permanent blizzard")
+	var blizzard_snapshot: Dictionary = game.create_network_snapshot()
+	game.reset_runtime_effects()
+	game.apply_network_snapshot(blizzard_snapshot)
+	check(game.blizzard_turns == -1 and game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.field_damp_multiplier == 0.28, "snapshot restores permanent blizzard visuals and physics")
+	await reset_game(game)
+	check(game.blizzard_turns == 0 and not game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 1.0, "new match clears permanent blizzard")
+	game.clear_world()
+	game.augment_manager.reset_match()
+	game.reset_runtime_effects()
+	game.board = null
+	check(game.augment_manager.acquire(game, 1, &"blizzard"), "initial selection can acquire blizzard before board creation")
+	game.start_game_world()
+	check(game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 0.28, "initial board starts with permanent blizzard")
 
 	# 17 실명: 상대에게만 턴 단위 시야 상태를 부여한다.
 	await reset_game(game)

@@ -1,13 +1,13 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://booosffthon7d"]
 
-[node name="Tank" type="Node2D"]
+[ext_resource type="Script" uid="uid://damgidh8h1d3v" path="res://scripts/effects/tank_visual.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://bbjvs6t3gsqp0" path="res://assets/tank/tank_black.png" id="2"]
 
-[node name="ArmorOuter" type="Line2D" parent="."]
-points = PackedVector2Array(18, 0, 12.73, 12.73, 0, 18, -12.73, 12.73, -18, 0, -12.73, -12.73, 0, -18, 12.73, -12.73, 18, 0)
-width = 3.5
-default_color = Color(0.47, 0.66, 0.42, 0.95)
+[node name="Tank" type="Node2D" unique_id=641885008]
+script = ExtResource("1")
 
-[node name="ArmorPlates" type="Line2D" parent="."]
-points = PackedVector2Array(-13, -9, 0, -17, 13, -9, 17, 0, 13, 9, 0, 17, -13, 9, -17, 0, -13, -9)
-width = 2.0
-default_color = Color(0.72, 0.54, 0.24, 0.78)
+[node name="Sprite" type="Sprite2D" parent="." unique_id=2120805278]
+texture_filter = 1
+position = Vector2(1.1920929e-07, -4)
+scale = Vector2(0.042682927, 0.04670559)
+texture = ExtResource("2")
