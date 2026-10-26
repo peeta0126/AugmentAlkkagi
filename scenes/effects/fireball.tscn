@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=3 uid="uid://cbagtyxwlv37r"]
 
 [ext_resource type="Script" uid="uid://4vbl1uwi2g0c" path="res://scripts/effects/fireball.gd" id="1_script"]
 
@@ -8,8 +8,6 @@ colors = PackedColorArray(1, 1, 0.82, 1, 1, 0.72, 0.16, 1, 1, 0.2, 0.035, 0.92, 
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_fireball"]
 gradient = SubResource("Gradient_fireball")
-width = 64
-height = 64
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
@@ -25,16 +23,16 @@ gradient = SubResource("Gradient_trail")
 particle_flag_disable_z = true
 direction = Vector3(-1, 0, 0)
 spread = 24.0
-gravity = Vector3(0, 0, 0)
 initial_velocity_min = 38.0
 initial_velocity_max = 72.0
+gravity = Vector3(0, 0, 0)
 scale_min = 0.06
 scale_max = 0.16
 color_ramp = SubResource("GradientTexture1D_trail")
 
 [sub_resource type="Animation" id="Animation_reset"]
 resource_name = "RESET"
-length = 0.0
+length = 0.001
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -95,38 +93,38 @@ _data = {
 &"pulse": SubResource("Animation_pulse")
 }
 
-[node name="Fireball" type="Node2D"]
+[node name="Fireball" type="Node2D" unique_id=282386898]
+scale = Vector2(5, 5)
 script = ExtResource("1_script")
 
-[node name="VisualRoot" type="Node2D" parent="."]
+[node name="VisualRoot" type="Node2D" parent="." unique_id=660836638]
 unique_name_in_owner = true
 
-[node name="GlowSprite" type="Sprite2D" parent="VisualRoot"]
+[node name="GlowSprite" type="Sprite2D" parent="VisualRoot" unique_id=1792761706]
 modulate = Color(1, 0.258824, 0.0509804, 0.48)
 scale = Vector2(0.72, 0.72)
 texture = SubResource("GradientTexture2D_fireball")
 
-[node name="CoreSprite" type="Sprite2D" parent="VisualRoot"]
+[node name="CoreSprite" type="Sprite2D" parent="VisualRoot" unique_id=317998055]
 scale = Vector2(0.34, 0.34)
 texture = SubResource("GradientTexture2D_fireball")
 
-[node name="TrailParticles" type="GPUParticles2D" parent="VisualRoot"]
+[node name="TrailParticles" type="GPUParticles2D" parent="VisualRoot" unique_id=438424345]
 unique_name_in_owner = true
 position = Vector2(-7, 0)
-local_coords = false
 amount = 42
+texture = SubResource("GradientTexture2D_fireball")
 lifetime = 0.42
 preprocess = 0.2
 visibility_rect = Rect2(-90, -48, 112, 96)
 process_material = SubResource("ParticleProcessMaterial_trail")
-texture = SubResource("GradientTexture2D_fireball")
 
-[node name="FireLight" type="PointLight2D" parent="VisualRoot"]
+[node name="FireLight" type="PointLight2D" parent="VisualRoot" unique_id=1274439576]
+color = Color(1, 0.258824, 0.0588235, 1)
 energy = 1.35
 texture = SubResource("GradientTexture2D_fireball")
 texture_scale = 0.9
-color = Color(1, 0.258824, 0.0588235, 1)
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=517026882]
 unique_name_in_owner = true
 libraries/ = SubResource("AnimationLibrary_fireball")
