@@ -60,6 +60,7 @@ func _ready() -> void:
 	GDSync.expose_func(receive_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_return_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_projectile, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_piece_sound, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_augment_offer, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_augment_granted, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_world_start, ENUMS.EXPOSE_PERMISSION.HOST)
@@ -561,6 +562,21 @@ func _reject_active_skill(player_id: int, reason: String) -> void:
 				GDSync.call_func_on(peer_id, receive_active_skill_rejected, reason)
 			else:
 				receive_active_skill_rejected.rpc_id(peer_id, reason)
+
+func broadcast_piece_sound(kind: String, volume_db: float) -> void:
+	if not is_host():
+		return
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_piece_sound, kind, volume_db)
+	else:
+		receive_piece_sound.rpc(kind, volume_db)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_piece_sound(kind: String, volume_db: float) -> void:
+	if is_gdsync_mode() and GDSync.get_sender_id() != gdsync_host_id:
+		return
+	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT] and match_active:
+		game().play_piece_sound(kind, volume_db)
 
 func broadcast_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
 	if is_host():

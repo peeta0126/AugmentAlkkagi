@@ -9,6 +9,7 @@ const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 const StealthScene := preload("res://scenes/effects/stealth.tscn")
 const KingScene := preload("res://scenes/effects/king.tscn")
 
+signal sound_requested(kind: String, volume_db: float)
 signal selected(piece: AlkkagiPiece)
 signal piece_collision(piece: AlkkagiPiece, other: AlkkagiPiece)
 
@@ -23,6 +24,9 @@ const STONE_NAMES := {1: "흑돌", 2: "백돌"}
 const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
 const TRANSFORM_SIZES := {"SOLDIER": 0.90, "CHARIOT": 1.15, "CANNON": 1.08, "HORSE": 0.96, "ELEPHANT": 1.20, "GUARD": 1.05, "KING": 1.0, "WIZARD": 1.0}
 const NETWORK_SNAP_DISTANCE := 100.0
+
+var sound_was_moving := false
+var collision_sound_cooldown := 0.0
 
 var owner_id := 1
 var piece_id := 0
@@ -258,6 +262,11 @@ func transform_as(kind: String, apply_physics_bonus: bool = true) -> void:
 	refresh_physics()
 
 func _on_body_entered(body: Node) -> void:
+	# Both stones report the same contact; only one emits its sound.
+	if not freeze and collision_sound_cooldown <= 0.0:
+		if not body is AlkkagiPiece or piece_id < (body as AlkkagiPiece).piece_id:
+			collision_sound_cooldown = 0.06
+			sound_requested.emit("collision", -6.0)
 	if body is AlkkagiPiece:
 		piece_collision.emit(self, body as AlkkagiPiece)
 
@@ -388,6 +397,16 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 		state.linear_velocity = state.linear_velocity.limit_length(speed_cap * field_speed_multiplier)
 
 func _physics_process(delta: float) -> void:
+	collision_sound_cooldown = maxf(collision_sound_cooldown - delta, 0.0)
+	# Clients render frozen snapshot bodies; the host sends their sound events.
+	if not freeze:
+		var moving := linear_velocity.length() > 38.0
+		if moving and not sound_was_moving:
+			sound_requested.emit("move", -10.0)
+		if linear_velocity.length() < GameplayRules.BALANCE.stop_threshold:
+			sound_was_moving = false
+		elif moving:
+			sound_was_moving = true
 	stealth_effect_time = maxf(stealth_effect_time - delta, 0.0)
 	_sync_stealth_visual()
 	if freeze and network_interpolation_active:

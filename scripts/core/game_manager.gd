@@ -1,5 +1,8 @@
 extends Node2D
 
+const CollisionSound := preload("res://assets/audio/baduk_collision_v2.mp3")
+const MoveSound := preload("res://assets/audio/baduk_move_v2.mp3")
+
 const PieceSceneScript := preload("res://scripts/physics/piece.gd")
 const BoardScript := preload("res://scripts/gameplay/board.gd")
 const StateMachineScript := preload("res://scripts/core/game_state_machine.gd")
@@ -573,6 +576,7 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 	piece.position = spawn_position
 	piece.selected.connect(_on_piece_pressed)
 	piece.piece_collision.connect(_on_piece_collision)
+	piece.sound_requested.connect(_on_piece_sound_requested)
 	world.add_child(piece)
 	if online_mode and not online_is_host:
 		piece.freeze = true
@@ -581,6 +585,24 @@ func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 		piece.field_damp_multiplier = blizzard_damp_multiplier
 		piece.field_speed_multiplier = blizzard_speed_multiplier
 		piece.refresh_physics()
+
+func _on_piece_sound_requested(kind: String, volume_db: float) -> void:
+	if online_mode and not online_is_host:
+		return
+	play_piece_sound(kind, volume_db)
+	if online_mode:
+		network_manager.broadcast_piece_sound(kind, volume_db)
+
+func play_piece_sound(kind: String, volume_db: float) -> void:
+	if kind not in ["collision", "move"]:
+		return
+	# Keep audio alive when a stone leaves the board.
+	var player := AudioStreamPlayer.new()
+	player.stream = CollisionSound if kind == "collision" else MoveSound
+	player.volume_db = clampf(volume_db, -24.0, 0.0)
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
 
 func _on_piece_collision(piece: AlkkagiPiece, other: AlkkagiPiece) -> void:
 	if online_mode and not online_is_host:
