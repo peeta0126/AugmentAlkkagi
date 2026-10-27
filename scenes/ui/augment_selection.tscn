@@ -59,6 +59,18 @@ offset_bottom = 560.0
 theme_override_constants/separation = 24
 alignment = 1
 
+[node name="ProgressLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 1070.0
+offset_top = 54.0
+offset_right = 1190.0
+offset_bottom = 100.0
+theme_override_colors/font_color = Color(1, 0.78, 0.42, 1)
+theme_override_font_sizes/font_size = 28
+text = "1/2"
+horizontal_alignment = 1
+
 [node name="SampleCard1" parent="CardArea" unique_id=1121428965 instance=ExtResource("2_card")]
 layout_mode = 2
 
@@ -80,3 +92,24 @@ theme_override_font_sizes/font_size = 16
 text = "선택 중에는 발사와 물리 진행이 잠깁니다"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="RefreshButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 488.0
+offset_top = 570.0
+offset_right = 792.0
+offset_bottom = 618.0
+theme_override_font_sizes/font_size = 19
+text = "후보 새로고침"
+
+[node name="RefreshStatusLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 820.0
+offset_top = 579.0
+offset_right = 1050.0
+offset_bottom = 611.0
+theme_override_colors/font_color = Color(0.82, 0.72, 0.56, 1)
+theme_override_font_sizes/font_size = 15
+text = "새로고침 1회 남음"

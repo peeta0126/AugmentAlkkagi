@@ -29,6 +29,11 @@ var blizzard_active := false
 var blizzard_visual: BlizzardVisual
 var field_visuals: Dictionary = {}
 var field_visual_nodes: Dictionary = {}
+var placement_active := false
+var placement_preview_position := Vector2.ZERO
+var placement_preview_radius := 0.0
+var placement_preview_valid := false
+var placement_preview_visible := false
 
 func _ready() -> void:
 	queue_redraw()
@@ -125,6 +130,23 @@ func clear_aim() -> void:
 	show_aim = false
 	queue_redraw()
 
+func set_placement_active(value: bool) -> void:
+	placement_active = value
+	if not value:
+		placement_preview_visible = false
+	queue_redraw()
+
+func set_placement_preview(position: Vector2, radius: float, valid: bool) -> void:
+	placement_preview_position = position
+	placement_preview_radius = radius
+	placement_preview_valid = valid
+	placement_preview_visible = true
+	queue_redraw()
+
+func clear_placement_preview() -> void:
+	placement_preview_visible = false
+	queue_redraw()
+
 func grid_point(column: int, row: int) -> Vector2:
 	var spacing := GRID_RECT.size / float(GRID_COUNT - 1)
 	return GRID_RECT.position + Vector2(spacing.x * column, spacing.y * row)
@@ -136,6 +158,12 @@ func _draw() -> void:
 	draw_style_box(_box(Color(0.06, 0.035, 0.018, 0.42), 13, Color.TRANSPARENT, 0), Rect2(BOARD_RECT.position + Vector2(9, 13), BOARD_RECT.size).grow(11))
 	draw_style_box(_box(Color("5a3419"), 10, Color("351d0f"), 4), Rect2(BOARD_RECT.position + Vector2(0, 7), BOARD_RECT.size).grow(9))
 	draw_style_box(_box(Color("d1a15f"), 7, Color("70431f"), 3), BOARD_RECT)
+	if placement_active:
+		var upper := Rect2(BOARD_RECT.position, Vector2(BOARD_RECT.size.x, BOARD_RECT.size.y * 0.5))
+		var lower := Rect2(Vector2(BOARD_RECT.position.x, BOARD_RECT.get_center().y), Vector2(BOARD_RECT.size.x, BOARD_RECT.size.y * 0.5))
+		draw_rect(upper, Color(0.18, 0.72, 0.38, 0.12))
+		draw_rect(lower, Color(0.35, 0.55, 1.0, 0.12))
+		draw_line(Vector2(BOARD_RECT.position.x, BOARD_RECT.get_center().y), Vector2(BOARD_RECT.end.x, BOARD_RECT.get_center().y), Color(1, 1, 1, 0.38), 2.0)
 
 	# 폭이 다른 옅은 판재 밴드와 비주기 곡선으로 절차적 원목을 표현한다.
 	for band in 14:
@@ -182,6 +210,10 @@ func _draw() -> void:
 		draw_dashed_line(aim_origin, aim_origin + direction * (62.0 + power * 82.0) * guide_multiplier, guide_color, 3.0 if not empowered_aim else 4.0, 8.0)
 		draw_line(aim_origin, pull_end, Color(1, 1, 1, 0.60), 2.0)
 		draw_arc(aim_origin, 22.0 + power * 6.0, 0.0, TAU * power, 28, guide_color, 3.0)
+	if placement_preview_visible:
+		var preview_color := Color(0.25, 1.0, 0.42, 0.75) if placement_preview_valid else Color(1.0, 0.22, 0.18, 0.78)
+		draw_circle(placement_preview_position, placement_preview_radius + 5.0, Color(preview_color, 0.18))
+		draw_arc(placement_preview_position, placement_preview_radius + 5.0, 0.0, TAU, 48, preview_color, 3.0)
 
 func _box(fill: Color, radius: int, border: Color, width: int) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()

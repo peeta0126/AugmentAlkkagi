@@ -322,6 +322,34 @@ theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "▶"
 
+[node name="ModeSettings" type="HBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 24
+
+[node name="RefreshModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "새로고침 모드"
+
+[node name="ChaosModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "혼돈 모드"
+
+[node name="ModeDescriptionLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.945, 0.772, 0.498, 1)
+theme_override_font_sizes/font_size = 16
+text = "증강 1개 선택"
+horizontal_alignment = 1
+
 [node name="LobbyActions" type="HBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=452327282]
 layout_mode = 2
 theme_override_constants/separation = 20

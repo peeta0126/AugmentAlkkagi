@@ -6,6 +6,7 @@ const MAX_PIECES := 5
 const DEFAULT_PIECES := 5
 const AUGMENT_ROUND_INTERVAL := 3
 const MAX_AUGMENTS_PER_PLAYER := 3
+const AUGMENT_CHOICES := 3
 const MIN_SHOT_DRAG_DISTANCE := 8.0
 const WALL_SIZE := Vector2(150.0, 20.0)
 const WALL_BOUNCE := 0.88
@@ -47,3 +48,17 @@ static func starting_positions(board_rect: Rect2, owner_id: int, count: int) -> 
 	for index in safe_count:
 		result.append(Vector2(first_x + spacing * index, board_rect.position.y + board_rect.size.y * y_ratio))
 	return result
+
+static func placement_zone(board_rect: Rect2, owner_id: int, radius: float = AlkkagiPiece.RADIUS) -> Rect2:
+	var inset := maxf(radius, 0.0)
+	var half_height := board_rect.size.y * 0.5
+	var zone := Rect2(
+		board_rect.position + Vector2(inset, inset),
+		Vector2(board_rect.size.x - inset * 2.0, half_height - inset * 2.0)
+	)
+	if owner_id == 2:
+		zone.position.y += half_height
+	return zone
+
+static func is_valid_placement_position(board_rect: Rect2, owner_id: int, position: Vector2, radius: float) -> bool:
+	return placement_zone(board_rect, owner_id, radius).has_point(position)

@@ -24,6 +24,7 @@ const AugmentSelectionScene := preload("res://scenes/ui/augment_selection.tscn")
 const MainMenuScene := preload("res://scenes/ui/main_menu.tscn")
 const OnlineLobbyScene := preload("res://scenes/ui/online_lobby.tscn")
 const GameHudScene := preload("res://scenes/ui/game_hud.tscn")
+const PiecePlacementScene := preload("res://scenes/ui/piece_placement.tscn")
 
 var state_machine: GameStateMachine
 var augment_manager: AugmentManager
@@ -52,6 +53,16 @@ var selection_resume_player := 1
 var selection_stage_id := 0
 var selection_pending_players: Array[int] = []
 var current_choices: Array[AugmentDefinition] = []
+var refresh_mode := false
+var chaos_mode := false
+var selection_pick_index := 1
+var selection_pick_target := 1
+var selection_refresh_used := false
+var placement_completed: Dictionary = {1: false, 2: false}
+var placement_player := 1
+var placement_drag_piece: AlkkagiPiece
+var placement_drag_origin := Vector2.ZERO
+var placement_drag_valid := false
 var active_skill: AugmentEffect
 var active_skill_player := 0
 var blizzard_turns := 0
@@ -128,6 +139,8 @@ func show_main_menu() -> void:
 		network_manager.shutdown(false)
 	developer_mode_active = false
 	online_mode = false
+	refresh_mode = false
+	chaos_mode = false
 	online_is_host = false
 	local_player_id = 0
 	clear_world()
@@ -210,6 +223,22 @@ func _start_local_setup() -> void:
 	back.position = Vector2(540, 492)
 	back.size = Vector2(200, 54)
 	screen_root.add_child(back)
+	var mode_row := HBoxContainer.new()
+	mode_row.position = Vector2(420, 350)
+	mode_row.size = Vector2(440, 45)
+	mode_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	mode_row.add_theme_constant_override("separation", 28)
+	screen_root.add_child(mode_row)
+	var refresh_toggle := CheckButton.new()
+	refresh_toggle.text = "새로고침 모드"
+	refresh_toggle.button_pressed = refresh_mode
+	refresh_toggle.toggled.connect(func(value: bool): refresh_mode = value)
+	mode_row.add_child(refresh_toggle)
+	var chaos_toggle := CheckButton.new()
+	chaos_toggle.text = "혼돈 모드"
+	chaos_toggle.button_pressed = chaos_mode
+	chaos_toggle.toggled.connect(func(value: bool): chaos_mode = value)
+	mode_row.add_child(chaos_toggle)
 
 func _change_piece_count(delta: int) -> void:
 	starting_piece_count = GameplayRules.clamp_piece_count(starting_piece_count + delta)
@@ -386,6 +415,7 @@ func _create_online_lobby_scene() -> OnlineLobby:
 	lobby.ready_changed.connect(func(value: bool): network_manager.set_ready(value))
 	lobby.game_start_requested.connect(func(): network_manager.start_match())
 	lobby.piece_count_change_requested.connect(func(delta: int): network_manager.set_piece_count(int(network_manager.get("piece_count")) + delta))
+	lobby.mode_change_requested.connect(func(refresh_enabled: bool, chaos_enabled: bool): network_manager.set_modes(refresh_enabled, chaos_enabled))
 	lobby.leave_requested.connect(show_main_menu)
 	return lobby
 
@@ -438,6 +468,22 @@ func _show_lan_network_lobby() -> void:
 	right.custom_minimum_size = Vector2(62, 48)
 	right.disabled = not online_is_host
 	settings.add_child(right)
+	var refresh_toggle := CheckButton.new()
+	refresh_toggle.name = "RefreshModeToggle"
+	refresh_toggle.text = "새로고침 모드"
+	refresh_toggle.position = Vector2(420, 372)
+	refresh_toggle.size = Vector2(220, 42)
+	refresh_toggle.disabled = not online_is_host
+	refresh_toggle.toggled.connect(func(value: bool): network_manager.set_modes(value, bool(network_manager.get("chaos_mode"))))
+	screen_root.add_child(refresh_toggle)
+	var chaos_toggle := CheckButton.new()
+	chaos_toggle.name = "ChaosModeToggle"
+	chaos_toggle.text = "혼돈 모드"
+	chaos_toggle.position = Vector2(660, 372)
+	chaos_toggle.size = Vector2(180, 42)
+	chaos_toggle.disabled = not online_is_host
+	chaos_toggle.toggled.connect(func(value: bool): network_manager.set_modes(bool(network_manager.get("refresh_mode")), value))
+	screen_root.add_child(chaos_toggle)
 	var ready_button := CheckButton.new()
 	ready_button.name = "ReadyButton"
 	ready_button.text = "준비"
@@ -473,7 +519,9 @@ func _refresh_network_lobby() -> void:
 			network_manager.get("connected_players"),
 			int(network_manager.get("piece_count")),
 			local_player_id,
-			network_manager.can_start()
+			network_manager.can_start(),
+			bool(network_manager.get("refresh_mode")),
+			bool(network_manager.get("chaos_mode"))
 		)
 		return
 	var players := screen_root.find_child("LobbyPlayers", true, false) as Label
@@ -491,6 +539,12 @@ func _refresh_network_lobby() -> void:
 	if ready_button:
 		var ready_state: Dictionary = network_manager.get("ready_state")
 		ready_button.set_pressed_no_signal(bool(ready_state.get(local_player_id, false)))
+	var refresh_toggle := screen_root.find_child("RefreshModeToggle", true, false) as CheckButton
+	if refresh_toggle:
+		refresh_toggle.set_pressed_no_signal(bool(network_manager.get("refresh_mode")))
+	var chaos_toggle := screen_root.find_child("ChaosModeToggle", true, false) as CheckButton
+	if chaos_toggle:
+		chaos_toggle.set_pressed_no_signal(bool(network_manager.get("chaos_mode")))
 	var start := screen_root.find_child("LobbyStart", true, false) as Button
 	if start:
 		start.disabled = not network_manager.can_start()
@@ -531,9 +585,7 @@ func begin_match() -> void:
 	augment_manager.reset_match()
 	reset_runtime_effects()
 	current_player = 1
-	selection_stage_id += 1
-	selection_pending_players = [1, 2]
-	show_augment_selection(1, true, 1)
+	start_placement_world()
 
 # 테스트 도구가 증강 선택 단계를 건너뛰어 물리 보드를 직접 만들 때 사용한다.
 func start_game() -> void:
@@ -547,7 +599,10 @@ func show_augment_selection(player_id: int, initial: bool, resume_player: int) -
 	selection_player = player_id
 	selection_is_initial = initial
 	selection_resume_player = resume_player
-	current_choices = augment_manager.get_choices(player_id, 3)
+	selection_pick_target = mini(2 if chaos_mode else 1, GameplayRules.MAX_AUGMENTS_PER_PLAYER - augment_manager.owned[player_id].size())
+	selection_pick_index = 1
+	selection_refresh_used = false
+	current_choices = augment_manager.get_choices(player_id, GameplayRules.AUGMENT_CHOICES)
 	state_machine.transition(GameStateMachine.State.INITIAL_AUGMENT_SELECTION if initial else GameStateMachine.State.AUGMENT_SELECTION)
 	_show_augment_selection_screen()
 
@@ -555,8 +610,9 @@ func _show_augment_selection_screen() -> void:
 	var color: Color = AlkkagiPiece.OWNER_COLORS[selection_player]
 	var player_name: String = str(AlkkagiPiece.STONE_NAMES[selection_player])
 	var selection_screen := AugmentSelectionScene.instantiate() as AugmentSelection
-	selection_screen.setup(player_name, color, current_choices, selection_is_initial, round_count)
+	selection_screen.setup(player_name, color, current_choices, selection_is_initial, round_count, selection_pick_index, selection_pick_target, refresh_mode, refresh_mode and not selection_refresh_used)
 	selection_screen.augment_selected.connect(_choose_augment)
+	selection_screen.refresh_requested.connect(_refresh_augment_choices)
 	set_screen(selection_screen)
 
 func _choose_augment(augment_id: StringName) -> void:
@@ -571,6 +627,8 @@ func _choose_augment(augment_id: StringName) -> void:
 		return
 	if online_mode:
 		network_manager.submit_augment_choice(augment_id)
+		if online_is_host:
+			return
 		# Host submissions are processed synchronously. If this was the second
 		# choice, the handler already started/resumed the game and must not be
 		# covered by a stale waiting screen.
@@ -579,15 +637,41 @@ func _choose_augment(augment_id: StringName) -> void:
 		return
 	if not augment_manager.acquire(self, selection_player, augment_id):
 		return
+	selection_pick_index += 1
+	if selection_pick_index <= selection_pick_target and augment_manager.can_acquire(selection_player):
+		current_choices = augment_manager.get_choices(selection_player, GameplayRules.AUGMENT_CHOICES)
+		_show_augment_selection_screen()
+		return
 	selection_pending_players.erase(selection_player)
 	if not selection_pending_players.is_empty():
 		show_augment_selection(selection_pending_players[0], selection_is_initial, selection_resume_player)
 	elif selection_is_initial:
-		start_game_world()
+		activate_gameplay_after_placement()
 	else:
 		resume_after_augment_selection(selection_resume_player)
 
-func start_game_world() -> void:
+func _refresh_augment_choices() -> void:
+	if not refresh_mode or selection_refresh_used:
+		return
+	if state_machine.current not in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
+		return
+	if online_mode:
+		network_manager.submit_augment_refresh()
+		return
+	var previous_ids: Array[StringName] = []
+	for definition in current_choices:
+		previous_ids.append(definition.id)
+	selection_refresh_used = true
+	for attempt in 4:
+		current_choices = augment_manager.get_choices(selection_player, GameplayRules.AUGMENT_CHOICES)
+		var next_ids: Array[StringName] = []
+		for definition in current_choices:
+			next_ids.append(definition.id)
+		if next_ids != previous_ids or attempt == 3:
+			break
+	_show_augment_selection_screen()
+
+func start_game_world(placement_only: bool = false) -> void:
 	clear_world()
 	game_serial += 1
 	current_player = 1
@@ -601,9 +685,101 @@ func start_game_world() -> void:
 		var positions := GameplayRules.starting_positions(AlkkagiBoard.BOARD_RECT, owner_id, starting_piece_count)
 		for index in positions.size():
 			spawn_piece(owner_id, owner_id * 100 + index, positions[index])
+	if placement_only:
+		return
 	build_hud()
 	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
 	update_hud("자신의 알을 잡아당겨 발사하세요")
+
+func start_placement_world() -> void:
+	start_game_world(true)
+	placement_completed = {1: false, 2: false}
+	placement_player = local_player_id if online_mode else 1
+	for piece in get_pieces():
+		piece.freeze = true
+	board.set_placement_active(true)
+	state_machine.transition(GameStateMachine.State.PIECE_PLACEMENT)
+	_show_placement_ui()
+
+func activate_gameplay_after_placement() -> void:
+	if board == null:
+		return
+	board.set_placement_active(false)
+	board.clear_placement_preview()
+	placement_drag_piece = null
+	for piece in get_pieces():
+		piece.modulate = Color.WHITE
+		piece.freeze = online_mode and not online_is_host
+	build_hud()
+	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
+	update_hud("증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
+
+func _show_placement_ui() -> void:
+	var placement_ui := PiecePlacementScene.instantiate()
+	set_screen(placement_ui)
+	placement_ui.configure(str(AlkkagiPiece.STONE_NAMES[placement_player]), AlkkagiPiece.OWNER_COLORS[placement_player], _mode_status_text())
+	placement_ui.placement_confirmed.connect(_confirm_placement)
+	placement_ui.menu_requested.connect(show_main_menu)
+	_update_placement_ui()
+
+func _update_placement_ui() -> void:
+	if screen_root == null or not screen_root.has_method("update_state"):
+		return
+	var player := local_player_id if online_mode else placement_player
+	var opponent := 2 if player == 1 else 1
+	screen_root.call("update_state", bool(placement_completed.get(player, false)), bool(placement_completed.get(opponent, false)), not bool(placement_completed.get(player, false)))
+
+func _confirm_placement() -> void:
+	var player := local_player_id if online_mode else placement_player
+	if bool(placement_completed.get(player, false)) or not validate_player_placement(player):
+		return
+	if online_mode:
+		network_manager.submit_placement_complete()
+		return
+	placement_completed[player] = true
+	if player == 1:
+		placement_player = 2
+		_show_placement_ui()
+		return
+	begin_initial_augment_selection()
+
+func begin_initial_augment_selection() -> void:
+	selection_stage_id += 1
+	selection_pending_players = [1, 2]
+	show_augment_selection(1, true, 1)
+
+func validate_player_placement(player_id: int) -> bool:
+	for piece in get_pieces():
+		if piece.owner_id == player_id and not is_valid_piece_placement(piece, piece.position):
+			return false
+	return count_owner(player_id) == starting_piece_count
+
+func is_valid_piece_placement(piece: AlkkagiPiece, position: Vector2) -> bool:
+	if not GameplayRules.is_valid_placement_position(AlkkagiBoard.BOARD_RECT, piece.owner_id, position, piece.visual_radius):
+		return false
+	for other in get_pieces():
+		if other != piece and other.position.distance_to(position) < other.visual_radius + piece.visual_radius + 2.0:
+			return false
+	return true
+
+func network_validate_and_place_piece(player_id: int, piece_id: int, position: Vector2) -> bool:
+	if state_machine.current != GameStateMachine.State.PIECE_PLACEMENT:
+		return false
+	var piece := find_piece(piece_id)
+	if piece == null or piece.owner_id != player_id or not is_valid_piece_placement(piece, position):
+		return false
+	piece.position = position
+	piece.stop_motion()
+	return true
+
+func network_receive_placement_state(piece_id: int, position: Vector2, completed: Dictionary) -> void:
+	placement_completed = completed
+	if piece_id >= 0:
+		var piece := find_piece(piece_id)
+		if piece:
+			piece.position = position
+			piece.stop_motion()
+	_update_placement_ui()
 
 func spawn_piece(owner_id: int, piece_id: int, spawn_position: Vector2) -> void:
 	var piece := PieceSceneScript.new() as AlkkagiPiece
@@ -656,6 +832,7 @@ func build_hud() -> void:
 	count_label = game_hud.count_label
 	hint_label = game_hud.hint_label
 	power_bar = game_hud.power_bar
+	game_hud.set_mode_status(_mode_status_text())
 	_add_augment_hud(1)
 	_add_augment_hud(2)
 	_add_active_skill_hud()
@@ -789,6 +966,16 @@ func _current_shot_profile() -> Dictionary:
 	return augment_manager.shot_profile(current_player)
 
 func _on_piece_pressed(piece: AlkkagiPiece) -> void:
+	if state_machine.current == GameStateMachine.State.PIECE_PLACEMENT:
+		var editable_player := local_player_id if online_mode else placement_player
+		if piece.owner_id != editable_player or bool(placement_completed.get(editable_player, false)):
+			return
+		placement_drag_piece = piece
+		placement_drag_origin = piece.position
+		placement_drag_valid = true
+		piece.modulate = Color("73f58c")
+		board.set_placement_preview(piece.position, piece.visual_radius, true)
+		return
 	if state_machine.current == GameStateMachine.State.SKILL_TARGETING and active_skill:
 		_skill_debug("piece target clicked: augment=%s piece=%d owner=%d" % [active_skill.definition.id, piece.piece_id, piece.owner_id])
 		if online_mode and not online_is_host:
@@ -821,6 +1008,19 @@ func update_aim(pointer: Vector2) -> void:
 		game_hud.set_power_percent(selected_piece.global_position.distance_to(pointer) / max_drag * 100.0)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if state_machine != null and state_machine.current == GameStateMachine.State.PIECE_PLACEMENT:
+		if placement_drag_piece == null or not is_instance_valid(placement_drag_piece):
+			return
+		if event is InputEventMouseMotion:
+			var candidate := get_global_mouse_position()
+			placement_drag_valid = is_valid_piece_placement(placement_drag_piece, candidate)
+			placement_drag_piece.position = candidate
+			placement_drag_piece.modulate = Color("73f58c") if placement_drag_valid else Color("ff5d54")
+			board.set_placement_preview(candidate, placement_drag_piece.visual_radius, placement_drag_valid)
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_finish_placement_drag()
+			get_viewport().set_input_as_handled()
+		return
 	if state_machine != null and state_machine.current == GameStateMachine.State.SKILL_TARGETING:
 		if event is InputEventKey:
 			var skill_key := event as InputEventKey
@@ -865,6 +1065,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		update_aim(get_global_mouse_position())
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		fire_selected(get_global_mouse_position())
+
+func _finish_placement_drag() -> void:
+	if placement_drag_piece == null:
+		return
+	var piece := placement_drag_piece
+	if not placement_drag_valid:
+		piece.position = placement_drag_origin
+	elif online_mode:
+		network_manager.submit_piece_placement(piece.piece_id, piece.position)
+	piece.modulate = Color.WHITE
+	piece.stop_motion()
+	placement_drag_piece = null
+	board.clear_placement_preview()
 
 func confirm_board_position_skill(board_position: Vector2) -> void:
 	if state_machine.current != GameStateMachine.State.SKILL_TARGETING or active_skill == null or active_skill.definition.target_mode != AugmentDefinition.TargetMode.BOARD_POSITION:
@@ -964,6 +1177,11 @@ func resolve_turn() -> void:
 	state_machine.transition(GameStateMachine.State.TURN_RESOLUTION)
 	var resuming_train_event := train_followup_resolution
 	train_followup_resolution = false
+	placement_completed = {1: false, 2: false}
+	placement_drag_piece = null
+	selection_pick_index = 1
+	selection_pick_target = 1
+	selection_refresh_used = false
 	for piece in get_pieces():
 		piece.stop_motion()
 		if not resuming_train_event:
@@ -1353,25 +1571,27 @@ func count_owner(owner_id: int) -> int:
 	return count
 
 # 온라인 대전에서는 호스트만 아래 명령을 실행하고 클라이언트는 결과 스냅샷만 표시한다.
-func network_prepare_match(is_host_value: bool, player_id: int, count: int) -> void:
+func network_prepare_match(is_host_value: bool, player_id: int, count: int, refresh_enabled: bool = false, chaos_enabled: bool = false) -> void:
 	online_mode = true
 	online_is_host = is_host_value
 	local_player_id = player_id
 	starting_piece_count = GameplayRules.clamp_piece_count(count)
+	refresh_mode = refresh_enabled
+	chaos_mode = chaos_enabled
 	network_winner = 0
 	clear_world()
 	augment_manager.reset_match()
 	reset_runtime_effects()
 	current_player = 1
 
-func network_receive_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int) -> void:
-	# A new initial selection stage is also the network rematch reset boundary.
-	if initial and selection_stage_id != stage:
-		network_prepare_match(network_manager.is_host(), int(network_manager.get("local_player_id")), int(network_manager.get("piece_count")))
+func network_receive_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int, pick_index: int = 1, pick_total: int = 1, refresh_available: bool = false) -> void:
 	selection_player = player_id
 	selection_is_initial = initial
 	selection_resume_player = resume_player
 	selection_stage_id = stage
+	selection_pick_index = pick_index
+	selection_pick_target = pick_total
+	selection_refresh_used = refresh_mode and not refresh_available
 	if not initial:
 		round_count = completed_round
 	current_choices.clear()
@@ -1404,16 +1624,16 @@ func network_augment_granted(player_id: int, _augment_id: StringName) -> void:
 func network_start_world(count: int) -> void:
 	starting_piece_count = GameplayRules.clamp_piece_count(count)
 	network_winner = 0
-	start_game_world()
-	if not online_is_host:
-		for piece in get_pieces():
-			piece.freeze = true
+	start_placement_world()
 
-func network_selection_complete(stage: int, resume_player: int, completed_round: int) -> void:
-	if stage != selection_stage_id or state_machine.current != GameStateMachine.State.AUGMENT_SELECTION:
+func network_selection_complete(stage: int, resume_player: int, completed_round: int, initial: bool = false) -> void:
+	if stage != selection_stage_id or state_machine.current not in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
 		return
 	round_count = completed_round
-	resume_after_augment_selection(resume_player)
+	if initial:
+		activate_gameplay_after_placement()
+	else:
+		resume_after_augment_selection(resume_player)
 
 func find_piece(piece_id: int) -> AlkkagiPiece:
 	for piece in get_pieces():
@@ -1479,6 +1699,7 @@ func create_network_snapshot() -> Dictionary:
 		"bonus_turn": bonus_turn_active,
 		"round": round_count,
 		"round_flags": (1 if bool(round_actions[1]) else 0) | (2 if bool(round_actions[2]) else 0),
+		"placement_completed": placement_completed.duplicate(),
 		"effects": effect_states
 	}
 
@@ -1502,6 +1723,7 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		if not seen.has(piece.piece_id):
 			piece.queue_free()
 	var previous_player := current_player
+	placement_completed = snapshot.get("placement_completed", placement_completed)
 	current_player = int(snapshot.get("current_player", current_player))
 	round_count = int(snapshot.get("round", round_count))
 	var round_flags := int(snapshot.get("round_flags", 0))
@@ -1534,8 +1756,11 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 			skill_targeting_snapshot_logged = true
 		return
 	skill_targeting_snapshot_logged = false
-	if remote_state in [GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
+	if remote_state in [GameStateMachine.State.PIECE_PLACEMENT, GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
 		state_machine.transition(remote_state as GameStateMachine.State)
+	if remote_state == GameStateMachine.State.PIECE_PLACEMENT:
+		_update_placement_ui()
+		return
 	if previous_player != current_player or turn_label == null:
 		build_hud()
 	if bonus_turn_active:
@@ -1597,6 +1822,15 @@ func _sync_network_walls(states: PackedFloat32Array) -> void:
 		world.add_child(wall)
 		wall.setup(Vector2(states[offset + 1], states[offset + 2]), states[offset + 3], int(states[offset + 4]), int(states[offset]))
 		temporary_walls.append(wall)
+
+func _mode_status_text() -> String:
+	if refresh_mode and chaos_mode:
+		return "새로고침 ON · 혼돈 ON"
+	if refresh_mode:
+		return "새로고침 ON · 혼돈 OFF"
+	if chaos_mode:
+		return "새로고침 OFF · 혼돈 ON"
+	return "새로고침 OFF · 혼돈 OFF"
 
 func update_hud(hint: String) -> void:
 	var game_hud := _get_game_hud()

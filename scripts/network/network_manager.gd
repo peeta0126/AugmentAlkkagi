@@ -8,7 +8,7 @@ signal session_ended(reason: String)
 const DEFAULT_PORT := 7777
 const MAX_CLIENTS := 1
 const SNAPSHOT_INTERVAL := 0.05
-const PROTOCOL_VERSION := 2
+const PROTOCOL_VERSION := 3
 const ROOM_PREFIX := "AA-"
 const ROOM_CODE_LENGTH := 6
 const ROOM_CREATE_ATTEMPTS := 5
@@ -21,12 +21,18 @@ var peer_to_player: Dictionary = {1: 1}
 var ready_state: Dictionary = {1: false, 2: false}
 var connected_players: Dictionary = {1: true, 2: false}
 var piece_count := GameplayRules.DEFAULT_PIECES
+var refresh_mode := false
+var chaos_mode := false
 var match_active := false
 var offers: Dictionary = {}
 var selection_context: Dictionary = {}
 var active_selection_stage := 0
 var selection_completed: Dictionary = {1: false, 2: false}
+var selection_pick_counts: Dictionary = {1: 0, 2: 0}
+var selection_pick_targets: Dictionary = {1: 1, 2: 1}
+var selection_refresh_used: Dictionary = {1: false, 2: false}
 var pending_choices: Dictionary = {}
+var placement_completed: Dictionary = {1: false, 2: false}
 var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
@@ -56,6 +62,9 @@ func _ready() -> void:
 	GDSync.expose_func(request_lobby_ready, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_shot, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_augment_choice, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_augment_refresh, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_piece_placement, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_placement_complete, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_active_skill, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(receive_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_return_lobby, ENUMS.EXPOSE_PERMISSION.HOST)
@@ -63,6 +72,7 @@ func _ready() -> void:
 	GDSync.expose_func(receive_piece_sound, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_augment_offer, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_augment_granted, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_placement_state, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_world_start, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_selection_complete, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_active_skill_rejected, ENUMS.EXPOSE_PERMISSION.HOST)
@@ -161,6 +171,9 @@ func _reset_lobby_state() -> void:
 	ready_state = {1: false, 2: false}
 	connected_players = {1: true, 2: false}
 	match_active = false
+	refresh_mode = false
+	chaos_mode = false
+	placement_completed = {1: false, 2: false}
 	gdsync_host_id = -1
 
 func shutdown(notify: bool = true) -> void:
@@ -180,6 +193,11 @@ func shutdown(notify: bool = true) -> void:
 	selection_context.clear()
 	pending_choices.clear()
 	selection_completed = {1: false, 2: false}
+	selection_pick_counts = {1: 0, 2: 0}
+	selection_refresh_used = {1: false, 2: false}
+	placement_completed = {1: false, 2: false}
+	refresh_mode = false
+	chaos_mode = false
 	room_code = ""
 	gdsync_host_id = -1
 	shutting_down = false
@@ -213,6 +231,15 @@ func set_piece_count(value: int) -> void:
 	piece_count = GameplayRules.clamp_piece_count(value)
 	_broadcast_lobby()
 
+func set_modes(refresh_enabled: bool, chaos_enabled: bool) -> void:
+	if not is_host() or match_active:
+		return
+	refresh_mode = refresh_enabled
+	chaos_mode = chaos_enabled
+	# Any host-side rules change invalidates the guest's previous acknowledgement.
+	ready_state[2] = false
+	_broadcast_lobby()
+
 func can_start() -> bool:
 	return is_host() and bool(connected_players[1]) and bool(connected_players[2]) and bool(ready_state[1]) and bool(ready_state[2])
 
@@ -221,14 +248,20 @@ func start_match() -> bool:
 		connection_message.emit("두 플레이어가 접속하고 모두 준비해야 합니다.", true)
 		return false
 	match_active = true
-	game().network_prepare_match(true, 1, piece_count)
-	_start_selection(true, 1, 0)
+	placement_completed = {1: false, 2: false}
+	game().network_prepare_match(true, 1, piece_count, refresh_mode, chaos_mode)
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_world_start, piece_count, refresh_mode, chaos_mode)
+	else:
+		receive_world_start.rpc(piece_count, refresh_mode, chaos_mode)
+	game().network_start_world(piece_count)
 	return true
 
 func return_to_lobby() -> void:
 	if not is_host():
 		return
 	match_active = false
+	placement_completed = {1: false, 2: false}
 	ready_state = {1: false, 2: false}
 	if mode == Mode.GDSYNC_HOST:
 		GDSync.call_func(receive_return_lobby)
@@ -240,6 +273,7 @@ func return_to_lobby() -> void:
 @rpc("authority", "call_remote", "reliable")
 func receive_return_lobby() -> void:
 	match_active = false
+	placement_completed = {1: false, 2: false}
 	game()._show_network_lobby()
 
 func _start_selection(initial: bool, resume_player: int, completed_round: int) -> void:
@@ -250,6 +284,13 @@ func _start_selection(initial: bool, resume_player: int, completed_round: int) -
 	offers.clear()
 	pending_choices.clear()
 	selection_completed = {1: false, 2: false}
+	selection_pick_counts = {1: 0, 2: 0}
+	selection_refresh_used = {1: false, 2: false}
+	var requested_picks := 2 if chaos_mode else 1
+	for player_id in [1, 2]:
+		var available_slots: int = GameplayRules.MAX_AUGMENTS_PER_PLAYER - game().augment_manager.owned[player_id].size()
+		selection_pick_targets[player_id] = mini(requested_picks, available_slots)
+		selection_completed[player_id] = available_slots <= 0
 	selection_context = {"initial": initial, "resume": resume_player, "round": completed_round}
 	_selection_debug("stage %d started (initial=%s round=%d resume=%d)" % [active_selection_stage, initial, completed_round, resume_player])
 	_begin_selection(2, initial, resume_player)
@@ -259,21 +300,22 @@ func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void
 	if not is_host():
 		_selection_reject("offer generation requested by non-host", player_id, active_selection_stage)
 		return
-	var definitions: Array[AugmentDefinition] = game().augment_manager.get_choices(player_id, 3)
+	if bool(selection_completed.get(player_id, false)):
+		return
+	var definitions: Array[AugmentDefinition] = game().augment_manager.get_choices(player_id, GameplayRules.AUGMENT_CHOICES)
 	var ids: Array[String] = []
 	for definition in definitions:
 		ids.append(str(definition.id))
-	offers[player_id] = {"stage": active_selection_stage, "ids": ids}
+	offers[player_id] = {"stage": active_selection_stage, "ids": ids, "pick": int(selection_pick_counts[player_id]) + 1}
 	_selection_debug("stage %d offer for player %d: %s" % [active_selection_stage, player_id, ids])
 	var completed_round := int(selection_context.get("round", 0))
 	if player_id == 1:
-		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round)
+		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
 	else:
 		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume_player, active_selection_stage, completed_round)
+			GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
 		else:
-			receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round)
-		game().network_show_waiting("백돌 플레이어가 증강을 선택하는 중…")
+			receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
 
 func host_begin_round_selection(resume_player: int, completed_round: int) -> void:
 	_start_selection(false, resume_player, completed_round)
@@ -288,6 +330,34 @@ func submit_augment_choice(augment_id: StringName) -> void:
 		request_augment_choice.rpc_id(1, stage, str(augment_id), local_sequence)
 	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_augment_choice, stage, str(augment_id), local_sequence)
+
+func submit_augment_refresh() -> void:
+	local_sequence += 1
+	var stage: int = game().selection_stage_id
+	if is_host():
+		_host_process_augment_refresh(1, stage)
+	elif mode == Mode.CLIENT:
+		request_augment_refresh.rpc_id(1, stage, local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_augment_refresh, stage, local_sequence)
+
+func submit_piece_placement(piece_id: int, position: Vector2) -> void:
+	local_sequence += 1
+	if is_host():
+		_host_process_piece_placement(1, piece_id, position)
+	elif mode == Mode.CLIENT:
+		request_piece_placement.rpc_id(1, piece_id, position, local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_piece_placement, piece_id, position, local_sequence)
+
+func submit_placement_complete() -> void:
+	local_sequence += 1
+	if is_host():
+		_host_process_placement_complete(1)
+	elif mode == Mode.CLIENT:
+		request_placement_complete.rpc_id(1, local_sequence)
+	elif mode == Mode.GDSYNC_CLIENT:
+		GDSync.call_func_on(gdsync_host_id, request_placement_complete, local_sequence)
 
 func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 	local_sequence += 1
@@ -384,6 +454,83 @@ func request_augment_choice(stage: int, augment_id: String, sequence: int) -> vo
 		return
 	_host_process_augment_choice(player_id, stage, StringName(augment_id), sequence)
 
+@rpc("any_peer", "call_remote", "reliable")
+func request_augment_refresh(stage: int, sequence: int) -> void:
+	if not is_host():
+		return
+	var sender := _remote_sender_id()
+	if _valid_sequence(sender, sequence, "augment refresh"):
+		_host_process_augment_refresh(_player_for_peer(sender), stage)
+
+func _host_process_augment_refresh(player_id: int, stage: int) -> void:
+	if not is_host() or not match_active or not refresh_mode:
+		return
+	if player_id not in [1, 2] or stage != active_selection_stage or bool(selection_completed.get(player_id, false)):
+		return
+	if bool(selection_refresh_used.get(player_id, false)) or not offers.has(player_id):
+		return
+	selection_refresh_used[player_id] = true
+	var previous_ids: Array = (offers[player_id] as Dictionary).get("ids", [])
+	var initial := bool(selection_context.get("initial", false))
+	var resume := int(selection_context.get("resume", 1))
+	# Retry a few times to avoid presenting the exact same set when the pool allows it.
+	var ids: Array[String] = []
+	for attempt in 4:
+		ids.clear()
+		for definition in game().augment_manager.get_choices(player_id, GameplayRules.AUGMENT_CHOICES):
+			ids.append(str(definition.id))
+		if ids != previous_ids or attempt == 3:
+			break
+	offers[player_id] = {"stage": active_selection_stage, "ids": ids, "pick": int(selection_pick_counts[player_id]) + 1}
+	var completed_round := int(selection_context.get("round", 0))
+	if player_id == 1:
+		game().network_receive_offer(player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
+	elif mode == Mode.GDSYNC_HOST:
+		GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
+	else:
+		receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_piece_placement(piece_id: int, position: Vector2, sequence: int) -> void:
+	if not is_host():
+		return
+	var sender := _remote_sender_id()
+	if _valid_sequence(sender, sequence, "piece placement"):
+		_host_process_piece_placement(_player_for_peer(sender), piece_id, position)
+
+func _host_process_piece_placement(player_id: int, piece_id: int, position: Vector2) -> void:
+	if not is_host() or not match_active or bool(placement_completed.get(player_id, false)):
+		return
+	if not game().network_validate_and_place_piece(player_id, piece_id, position):
+		return
+	_broadcast_placement_state(piece_id, position)
+
+@rpc("any_peer", "call_remote", "reliable")
+func request_placement_complete(sequence: int) -> void:
+	if not is_host():
+		return
+	var sender := _remote_sender_id()
+	if _valid_sequence(sender, sequence, "placement complete"):
+		_host_process_placement_complete(_player_for_peer(sender))
+
+func _host_process_placement_complete(player_id: int) -> void:
+	if not is_host() or not match_active or player_id not in [1, 2]:
+		return
+	if bool(placement_completed.get(player_id, false)) or not game().validate_player_placement(player_id):
+		return
+	placement_completed[player_id] = true
+	_broadcast_placement_state(-1, Vector2.ZERO)
+	if bool(placement_completed[1]) and bool(placement_completed[2]):
+		_start_selection(true, 1, 0)
+
+func _broadcast_placement_state(piece_id: int, position: Vector2) -> void:
+	var completed := placement_completed.duplicate()
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_placement_state, piece_id, position, completed)
+	else:
+		receive_placement_state.rpc(piece_id, position, completed)
+	game().network_receive_placement_state(piece_id, position, completed)
+
 func _host_process_augment_choice(player_id: int, stage: int, augment_id: StringName, _sequence: int) -> void:
 	if not is_host():
 		_selection_reject("processor is not host", player_id, stage, augment_id)
@@ -413,47 +560,38 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 	if not str(augment_id) in offer.get("ids", []):
 		_selection_reject("augment was not offered", player_id, stage, augment_id)
 		return
-	pending_choices[player_id] = augment_id
-	selection_completed[player_id] = true
-	_selection_debug("stage %d accepted player %d augment=%s completed=%s" % [stage, player_id, augment_id, selection_completed])
-	if not (bool(selection_completed[1]) and bool(selection_completed[2])):
+	# Commit each pick once. Acquiring immediately makes the next offer naturally
+	# exclude the previous augment and keeps duplicate requests idempotent.
+	offers.erase(player_id)
+	if not game().augment_manager.acquire(game(), player_id, augment_id):
+		_selection_reject("augment_manager.acquire failed", player_id, stage, augment_id)
 		return
-	for selected_player in [1, 2]:
-		var selected_id: StringName = pending_choices.get(selected_player, StringName())
-		if selected_id == StringName():
-			_selection_reject("completed player has no pending choice", selected_player, stage)
-			return
-		if not game().augment_manager.can_acquire(selected_player):
-			_selection_reject("inventory became full before commit", selected_player, stage, selected_id)
-			return
-	for selected_player in [1, 2]:
-		var selected_id: StringName = pending_choices[selected_player]
-		if not game().augment_manager.acquire(game(), selected_player, selected_id):
-			_selection_reject("augment_manager.acquire failed", selected_player, stage, selected_id)
-			return
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func(receive_augment_granted, selected_player, str(selected_id))
-		else:
-			receive_augment_granted.rpc(selected_player, str(selected_id))
-		game().network_augment_granted(selected_player, selected_id)
+	selection_pick_counts[player_id] = int(selection_pick_counts[player_id]) + 1
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_augment_granted, player_id, str(augment_id))
+	else:
+		receive_augment_granted.rpc(player_id, str(augment_id))
+	game().network_augment_granted(player_id, augment_id)
+	selection_completed[player_id] = int(selection_pick_counts[player_id]) >= int(selection_pick_targets[player_id]) or not game().augment_manager.can_acquire(player_id)
+	_selection_debug("stage %d accepted player %d augment=%s picks=%d/%d" % [stage, player_id, augment_id, selection_pick_counts[player_id], selection_pick_targets[player_id]])
+	if not bool(selection_completed[player_id]):
+		_begin_selection(player_id, bool(selection_context.get("initial", false)), int(selection_context.get("resume", 1)))
+		return
+	if not (bool(selection_completed[1]) and bool(selection_completed[2])):
+		if player_id == 1:
+			game().network_show_waiting("상대 플레이어의 증강 선택을 기다리는 중…")
+		return
 	var initial := bool(selection_context.get("initial", false))
 	var resume := int(selection_context.get("resume", 1))
 	var completed_round := int(selection_context.get("round", 0))
 	offers.clear()
 	pending_choices.clear()
 	_selection_debug("stage %d committed for both players (initial=%s)" % [stage, initial])
-	if initial:
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func(receive_world_start, piece_count)
-		else:
-			receive_world_start.rpc(piece_count)
-		game().network_start_world(piece_count)
+	if mode == Mode.GDSYNC_HOST:
+		GDSync.call_func(receive_selection_complete, stage, resume, completed_round, initial)
 	else:
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func(receive_selection_complete, stage, resume, completed_round)
-		else:
-			receive_selection_complete.rpc(stage, resume, completed_round)
-		game().network_selection_complete(stage, resume, completed_round)
+		receive_selection_complete.rpc(stage, resume, completed_round, initial)
+	game().network_selection_complete(stage, resume, completed_round, initial)
 
 @rpc("any_peer", "call_remote", "reliable")
 func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int, targeting_option: int = 0) -> void:
@@ -597,11 +735,13 @@ func receive_lobby(data: Dictionary) -> void:
 	piece_count = int(data.get("piece_count", GameplayRules.DEFAULT_PIECES))
 	ready_state = data.get("ready", {1: false, 2: false})
 	connected_players = data.get("connected", {1: true, 2: true})
+	refresh_mode = bool(data.get("refresh_mode", false))
+	chaos_mode = bool(data.get("chaos_mode", false))
 	lobby_updated.emit(data)
 
 @rpc("authority", "call_remote", "reliable")
-func receive_augment_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int) -> void:
-	game().network_receive_offer(player_id, ids, initial, resume_player, stage, completed_round)
+func receive_augment_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int, pick_index: int = 1, pick_total: int = 1, refresh_available: bool = false) -> void:
+	game().network_receive_offer(player_id, ids, initial, resume_player, stage, completed_round, pick_index, pick_total, refresh_available)
 
 @rpc("authority", "call_remote", "reliable")
 func receive_augment_granted(player_id: int, augment_id: String) -> void:
@@ -610,14 +750,22 @@ func receive_augment_granted(player_id: int, augment_id: String) -> void:
 	game().network_augment_granted(player_id, StringName(augment_id))
 
 @rpc("authority", "call_remote", "reliable")
-func receive_world_start(count: int) -> void:
+func receive_world_start(count: int, refresh_enabled: bool = false, chaos_enabled: bool = false) -> void:
 	match_active = true
 	last_snapshot_received_usec = 0
+	refresh_mode = refresh_enabled
+	chaos_mode = chaos_enabled
+	game().network_prepare_match(false, local_player_id, count, refresh_mode, chaos_mode)
 	game().network_start_world(count)
 
 @rpc("authority", "call_remote", "reliable")
-func receive_selection_complete(stage: int, resume_player: int, completed_round: int) -> void:
-	game().network_selection_complete(stage, resume_player, completed_round)
+func receive_selection_complete(stage: int, resume_player: int, completed_round: int, initial: bool = false) -> void:
+	game().network_selection_complete(stage, resume_player, completed_round, initial)
+
+@rpc("authority", "call_remote", "reliable")
+func receive_placement_state(piece_id: int, position: Vector2, completed: Dictionary) -> void:
+	placement_completed = completed
+	game().network_receive_placement_state(piece_id, position, completed)
 
 @rpc("authority", "call_remote", "reliable")
 func receive_active_skill_rejected(reason: String) -> void:
@@ -655,6 +803,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 			connected_players[2] = false
 			ready_state[2] = false
 			match_active = false
+			placement_completed = {1: false, 2: false}
 			peer_to_player.erase(peer_id)
 			session_ended.emit("참가자의 연결이 끊겼습니다.")
 			_broadcast_lobby()
@@ -676,7 +825,14 @@ func _on_server_disconnected() -> void:
 		session_ended.emit("호스트와의 연결이 끊겼습니다.")
 
 func _lobby_data() -> Dictionary:
-	return {"piece_count": piece_count, "ready": ready_state.duplicate(), "connected": connected_players.duplicate(), "host": 1}
+	return {
+		"piece_count": piece_count,
+		"ready": ready_state.duplicate(),
+		"connected": connected_players.duplicate(),
+		"refresh_mode": refresh_mode,
+		"chaos_mode": chaos_mode,
+		"host": 1,
+	}
 
 func _emit_lobby() -> void:
 	lobby_updated.emit(_lobby_data())
@@ -760,11 +916,13 @@ func _on_gdsync_client_left(client_id: int) -> void:
 		connected_players[2] = false
 		ready_state[2] = false
 		match_active = false
+		placement_completed = {1: false, 2: false}
 		session_ended.emit("참가자의 연결이 끊겼습니다.")
 		_broadcast_lobby()
 	elif mode == Mode.GDSYNC_CLIENT and client_id == gdsync_host_id:
 		mode = Mode.OFFLINE
 		match_active = false
+		placement_completed = {1: false, 2: false}
 		session_ended.emit("방장이 방을 나갔거나 연결이 끊겼습니다.")
 
 func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:

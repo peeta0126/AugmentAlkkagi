@@ -18,6 +18,7 @@ signal active_skill_requested(augment_id: StringName)
 @onready var active_skill_items: VBoxContainer = %ActiveSkillItems
 @onready var passive_status_panel: PanelContainer = %PassiveStatusPanel
 @onready var passive_status_items: VBoxContainer = %PassiveStatusItems
+@onready var mode_status_label: Label = %ModeStatusLabel
 
 var _black_item_template: Label
 var _white_item_template: Label
@@ -46,6 +47,9 @@ func set_hint(text: String) -> void:
 
 func set_power_percent(value: float) -> void:
 	power_bar.value = clampf(value, 0.0, 100.0)
+
+func set_mode_status(text: String) -> void:
+	mode_status_label.text = text
 
 
 func set_player_augments(
