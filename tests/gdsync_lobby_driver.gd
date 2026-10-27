@@ -98,6 +98,13 @@ func run_host_gameplay() -> void:
 	if not game.network_manager.start_match():
 		fail("game start rejected")
 		return
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null, 10.0):
+		fail("host placement start timeout")
+		return
+	game._confirm_placement()
+	if not await wait_until(func(): return bool(game.network_manager.placement_completed[2]), 10.0):
+		fail("client placement completion timeout")
+		return
 	if not await wait_until(func(): return game.selection_player == 1 and not game.current_choices.is_empty(), 10.0):
 		fail("host augment offer timeout")
 		return
@@ -140,6 +147,10 @@ func run_host_gameplay() -> void:
 	get_tree().quit(0)
 
 func run_client_gameplay() -> void:
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null, 12.0):
+		fail("client placement start timeout")
+		return
+	game._confirm_placement()
 	if not await wait_until(func(): return game.selection_player == 2 and not game.current_choices.is_empty(), 12.0):
 		fail("client augment offer timeout")
 		return

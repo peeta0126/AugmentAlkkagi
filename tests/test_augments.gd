@@ -22,7 +22,12 @@ func run_test() -> void:
 
 	game.begin_match()
 	await process_frame
-	check(game.state_machine.current == GameStateMachine.State.INITIAL_AUGMENT_SELECTION, "match starts in augment selection")
+	check(game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT, "match starts in piece placement")
+	check(game.validate_player_placement(1) and game.validate_player_placement(2), "default placement is valid for both players")
+	game._confirm_placement()
+	game._confirm_placement()
+	await process_frame
+	check(game.state_machine.current == GameStateMachine.State.INITIAL_AUGMENT_SELECTION, "both placements advance to initial augment selection")
 	check(game.current_choices.size() == 3, "initial selection offers three cards")
 	var unique_ids := {}
 	for definition in game.current_choices:

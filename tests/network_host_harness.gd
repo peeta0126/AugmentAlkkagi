@@ -48,6 +48,13 @@ func run_test() -> void:
 	if not game.network_manager.start_match():
 		fail("match start rejected")
 		return
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null):
+		fail("host placement start")
+		return
+	game._confirm_placement()
+	if not await wait_until(func(): return bool(game.network_manager.placement_completed[2])):
+		fail("client placement completion")
+		return
 	if not await wait_until(func(): return game.selection_player == 1 and not game.current_choices.is_empty()):
 		fail("host augment offer")
 		return
@@ -99,15 +106,15 @@ func run_test() -> void:
 				fail("client reward choice was not received")
 				return
 			var stage: int = game.network_manager.active_selection_stage
-			var client_choice: StringName = game.network_manager.pending_choices[2]
-			var pending_count: int = game.network_manager.pending_choices.size()
+			var client_choice: StringName = game.augment_manager.owned[2][-1].id
+			var owned_count: int = game.augment_manager.owned[2].size()
 			var client_peer: int = game.network_manager._peer_for_player(2)
 			var last_sequence: int = int(game.network_manager.last_sequences.get(client_peer, 0))
 			if game.network_manager._valid_sequence(client_peer, last_sequence, "duplicate augment test"):
 				fail("duplicate sequence was accepted")
 				return
 			game.network_manager._host_process_augment_choice(2, stage, client_choice, 99999)
-			if game.network_manager.pending_choices.size() != pending_count:
+			if game.augment_manager.owned[2].size() != owned_count:
 				fail("duplicate reward choice changed pending state")
 				return
 			var bad_stage_choice := StringName(game.network_manager.offers[1].ids[0])

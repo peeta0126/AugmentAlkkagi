@@ -39,6 +39,10 @@ func run_test() -> void:
 		fail("connection timeout")
 		return
 	game.network_manager.set_ready(true)
+	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null, 10.0):
+		fail("client placement start")
+		return
+	game._confirm_placement()
 	if not await wait_until(func(): return game.selection_player == 2 and not game.current_choices.is_empty(), 10.0):
 		fail("client augment offer")
 		return
