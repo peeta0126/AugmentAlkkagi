@@ -1,0 +1,27 @@
+name: 버그
+description: 잘못 동작하는 것
+labels: ["버그"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 무슨 일이 생기나요?
+      placeholder: 예) 월마리아를 설치한 뒤 참가자 화면에서 벽이 안 보인다
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 어떻게 하면 생기나요?
+      placeholder: |
+        1. 온라인으로 방을 만든다
+        2. 3라운드에 월마리아를 고른다
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 어디서 생기나요?
+      options: [로컬 대전, 온라인 호스트, 온라인 참가자, 둘 다, 모르겠음]
+    validations:
+      required: true

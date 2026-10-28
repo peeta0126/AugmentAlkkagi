@@ -1,0 +1,37 @@
+name: 팀 현황판
+
+on:
+  push:
+    branches: [main]
+  issues:
+    types: [opened, closed, reopened, assigned, unassigned, labeled, unlabeled, deleted]
+  pull_request:
+    types: [opened, closed, reopened, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: team-board
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 라벨 준비
+        run: python .github/team/team.py setup
+      - name: main 에 올라온 기능 기록
+        if: github.event_name == 'push'
+        continue-on-error: true  # 강제 push 로 이전 커밋이 사라졌어도 현황판은 갱신한다
+        run: python .github/team/team.py changes "${{ github.event.before }}" "${{ github.sha }}" --publish
+      - name: 현황판 갱신
+        run: python .github/team/team.py board --publish

@@ -1,0 +1,26 @@
+name: 할 일
+description: 누군가 해야 하는 일 하나
+labels: ["기능"]
+body:
+  - type: input
+    id: what
+    attributes:
+      label: 무엇을 하나요? (한 줄)
+      placeholder: 예) 설정 화면에서 음량을 저장한다
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 이러면 끝입니다
+      description: 끝났는지 누가 봐도 알 수 있는 조건을 적어 주세요.
+      placeholder: |
+        - 껐다 켜도 음량이 그대로다
+        - 로컬 대전과 온라인 둘 다 된다
+    validations:
+      required: true
+  - type: textarea
+    id: ref
+    attributes:
+      label: 참고할 것 (없으면 비워 두세요)
+      description: 관련 파일, 문서, 다른 이슈 번호(#12)
