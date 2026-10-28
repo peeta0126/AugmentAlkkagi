@@ -9,3 +9,5 @@ addons/GD-Sync/keys.cfg
 /build/*.exe
 /build/*.zip
 /build/*.tmp
+
+node_modules/
