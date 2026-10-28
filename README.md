@@ -26,7 +26,7 @@ Godot 4.7.2에서 `project.godot`를 열고 F5를 누릅니다.
 - 시작 및 공동 3·6라운드 증강 선택, 플레이어별 최대 3개 제한
 - 25종 증강과 Ver.3 개편 기능
 - 증강 선택 후 턴 유지, 새로고침 모드, 혼돈 모드
-- GD-Sync 로비, 준비, 6자리 방 코드, 호스트 권위 입력 검증, 20Hz 스냅샷과 보간
+- GD-Sync 로비, 준비, 6자리 방 코드, 호스트 권위 입력 검증, 변화 기반 스냅샷과 보간
 - Windows Desktop x86_64 내보내기 프리셋
 
 ## 자동 테스트
@@ -40,7 +40,12 @@ Godot 4.7.2에서 `project.godot`를 열고 F5를 누릅니다.
 & 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_augments.gd
 & 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_all_augments.gd
 & 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_setup_modes.gd
+& 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_snapshot_throttle.gd
+& 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_network_disconnect.gd
+& 'C:\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script tests/test_guest_rng_isolation.gd
 ```
+
+온라인 동기화 구조와 프로토콜 변경 사항은 [네트워크 구조](docs/NETWORK_ARCHITECTURE.md)를 참고하세요.
 
 ## Windows 빌드
 

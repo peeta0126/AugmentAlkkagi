@@ -14,6 +14,9 @@ Godot 4.7.2 headless 환경에서 다음 테스트가 모두 종료 코드 0과 
 - `test_network_interpolation.gd`: 참가자 스냅샷 보간
 - `test_network_shot_clamp.gd`: 호스트 발사력 검증
 - `test_client_active_skill.gd`: 참가자 액티브 스킬 입력
+- `test_snapshot_throttle.gd`: 변화 기반 전송, heartbeat, reliable 부가 상태 분리
+- `test_network_disconnect.gd`: 방장·참가자 종료 뒤 세션 전체 초기화
+- `test_guest_rng_isolation.gd`: 호스트 권위 난수 결과 동기화
 
 ## GD-Sync 통합 테스트
 
@@ -26,7 +29,7 @@ Godot 4.7.2 headless 환경에서 다음 테스트가 모두 종료 코드 0과 
 - 호스트 발사와 참가자 발사 요청 검증
 - 턴 변경, 스냅샷 반영, 호스트 승리 판정과 게임 오버 동기화
 
-호스트와 참가자 모두 PASS 및 종료 코드 0을 반환했습니다. GD-Sync 플러그인에서 큰 스냅샷 1건에 대한 전송 크기 경고가 있었지만 테스트 흐름은 정상 완료됐습니다.
+프로토콜 v4는 같은 PC의 독립된 호스트·참가자 프로세스로 다시 검증해 양쪽 PASS를 확인했습니다. 물리적으로 분리된 두 PC 환경의 v4 통합 테스트는 아직 다시 수행하지 않았습니다.
 
 ## 환경 경고
 
