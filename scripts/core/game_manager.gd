@@ -152,7 +152,6 @@ func show_main_menu() -> void:
 	main_menu.local_setup_requested.connect(_start_local_setup)
 	main_menu.online_room_create_requested.connect(_create_online_room)
 	main_menu.online_room_join_requested.connect(_show_online_join_room)
-	main_menu.lan_menu_requested.connect(_show_lan_menu)
 	main_menu.settings_requested.connect(_show_settings)
 	main_menu.quit_requested.connect(get_tree().quit)
 	set_screen(main_menu)
@@ -314,99 +313,9 @@ func _join_online_code(code: String) -> void:
 		online_is_host = false
 		local_player_id = 2
 
-func _show_lan_menu() -> void:
-	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
-	set_screen(_panel_root())
-	_add_background(screen_root)
-	var title := _label("LAN / Tailscale 대전", 42, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(340, 120)
-	title.size = Vector2(600, 60)
-	screen_root.add_child(title)
-	var guide := _label("기존 UDP 직접 연결 방식을 사용합니다.", 18, Color("dac7ae"))
-	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	guide.position = Vector2(300, 195)
-	guide.size = Vector2(680, 35)
-	screen_root.add_child(guide)
-	var create := _button("LAN 방 만들기", _create_network_room)
-	create.position = Vector2(490, 285)
-	create.size = Vector2(300, 60)
-	screen_root.add_child(create)
-	var join := _button("IP 주소로 참가", _show_join_room)
-	join.position = Vector2(490, 370)
-	join.size = Vector2(300, 60)
-	screen_root.add_child(join)
-	var back := _button("뒤로", show_main_menu)
-	back.position = Vector2(520, 475)
-	back.size = Vector2(240, 54)
-	screen_root.add_child(back)
-
-func _create_network_room() -> void:
-	var error: Error = network_manager.create_host()
-	if error == OK:
-		online_mode = true
-		online_is_host = true
-		local_player_id = 1
-		_show_network_lobby()
-
-func _show_join_room() -> void:
-	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
-	set_screen(_panel_root())
-	_add_background(screen_root)
-	var title := _label("방 참가하기", 42, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(390, 90)
-	title.size = Vector2(500, 60)
-	screen_root.add_child(title)
-	var guide := _label("호스트의 Tailscale IPv4 주소와 UDP 포트를 입력하세요.", 18, Color("dac7ae"))
-	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	guide.position = Vector2(300, 165)
-	guide.size = Vector2(680, 35)
-	screen_root.add_child(guide)
-	var address := LineEdit.new()
-	address.name = "Address"
-	address.placeholder_text = "예: 100.64.12.34 또는 127.0.0.1"
-	address.text = "127.0.0.1"
-	address.position = Vector2(390, 235)
-	address.size = Vector2(360, 52)
-	address.add_theme_font_size_override("font_size", 19)
-	screen_root.add_child(address)
-	var port := SpinBox.new()
-	port.name = "Port"
-	port.min_value = 1024
-	port.max_value = 65535
-	port.value = 7777
-	port.position = Vector2(765, 235)
-	port.size = Vector2(125, 52)
-	screen_root.add_child(port)
-	network_status_label = _label("", 17, Color("e9c99a"))
-	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	network_status_label.position = Vector2(300, 310)
-	network_status_label.size = Vector2(680, 60)
-	network_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	screen_root.add_child(network_status_label)
-	var join := _button("참가", func(): _join_network_address(address.text, int(port.value)))
-	join.position = Vector2(490, 400)
-	join.size = Vector2(300, 60)
-	screen_root.add_child(join)
-	var back := _button("뒤로", show_main_menu)
-	back.position = Vector2(520, 485)
-	back.size = Vector2(240, 54)
-	screen_root.add_child(back)
-
-func _join_network_address(address: String, port: int) -> void:
-	var error: Error = network_manager.join_host(address.strip_edges(), port)
-	if error == OK:
-		online_mode = true
-		online_is_host = false
-		local_player_id = 2
-
 func _show_network_lobby() -> void:
 	state_machine.transition(GameStateMachine.State.LOBBY)
-	if network_manager.is_gdsync_mode():
-		_show_gdsync_lobby()
-		return
-	_show_lan_network_lobby()
+	_show_online_lobby()
 
 func _create_online_lobby_scene() -> OnlineLobby:
 	var lobby := OnlineLobbyScene.instantiate() as OnlineLobby
@@ -419,94 +328,12 @@ func _create_online_lobby_scene() -> OnlineLobby:
 	lobby.leave_requested.connect(show_main_menu)
 	return lobby
 
-func _show_gdsync_lobby() -> void:
+func _show_online_lobby() -> void:
 	var lobby := _create_online_lobby_scene()
 	set_screen(lobby)
 	var role := "방장 · 흑돌" if online_is_host else "참가자 · 백돌"
 	lobby.show_lobby(network_manager.get_room_code(), online_is_host, role, AlkkagiPiece.OWNER_COLORS[local_player_id])
 	network_status_label = lobby.status_label
-	_refresh_network_lobby()
-
-func _show_lan_network_lobby() -> void:
-	set_screen(_panel_root())
-	_add_background(screen_root)
-	var title := _label("네트워크 대전 로비", 40, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(360, 45)
-	title.size = Vector2(560, 60)
-	screen_root.add_child(title)
-	var role := "방장 · 흑돌" if online_is_host else "참가자 · 백돌"
-	var role_label := _label(role, 22, AlkkagiPiece.OWNER_COLORS[local_player_id])
-	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	role_label.position = Vector2(420, 110)
-	role_label.size = Vector2(440, 40)
-	screen_root.add_child(role_label)
-	var players := _label("", 20, Color("eee3cf"))
-	players.name = "LobbyPlayers"
-	players.position = Vector2(310, 180)
-	players.size = Vector2(660, 110)
-	players.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	players.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	screen_root.add_child(players)
-	var settings := HBoxContainer.new()
-	settings.position = Vector2(420, 315)
-	settings.size = Vector2(440, 58)
-	settings.alignment = BoxContainer.ALIGNMENT_CENTER
-	settings.add_theme_constant_override("separation", 15)
-	screen_root.add_child(settings)
-	var left := _button("◀", func(): network_manager.set_piece_count(int(network_manager.get("piece_count")) - 1))
-	left.custom_minimum_size = Vector2(62, 48)
-	left.disabled = not online_is_host
-	settings.add_child(left)
-	var count := _label("", 22, Color.WHITE)
-	count.name = "LobbyPieceCount"
-	count.custom_minimum_size = Vector2(220, 48)
-	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	count.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	settings.add_child(count)
-	var right := _button("▶", func(): network_manager.set_piece_count(int(network_manager.get("piece_count")) + 1))
-	right.custom_minimum_size = Vector2(62, 48)
-	right.disabled = not online_is_host
-	settings.add_child(right)
-	var refresh_toggle := CheckButton.new()
-	refresh_toggle.name = "RefreshModeToggle"
-	refresh_toggle.text = "새로고침 모드"
-	refresh_toggle.position = Vector2(420, 372)
-	refresh_toggle.size = Vector2(220, 42)
-	refresh_toggle.disabled = not online_is_host
-	refresh_toggle.toggled.connect(func(value: bool): network_manager.set_modes(value, bool(network_manager.get("chaos_mode"))))
-	screen_root.add_child(refresh_toggle)
-	var chaos_toggle := CheckButton.new()
-	chaos_toggle.name = "ChaosModeToggle"
-	chaos_toggle.text = "혼돈 모드"
-	chaos_toggle.position = Vector2(660, 372)
-	chaos_toggle.size = Vector2(180, 42)
-	chaos_toggle.disabled = not online_is_host
-	chaos_toggle.toggled.connect(func(value: bool): network_manager.set_modes(bool(network_manager.get("refresh_mode")), value))
-	screen_root.add_child(chaos_toggle)
-	var ready_button := CheckButton.new()
-	ready_button.name = "ReadyButton"
-	ready_button.text = "준비"
-	ready_button.position = Vector2(470, 400)
-	ready_button.size = Vector2(160, 54)
-	ready_button.add_theme_font_size_override("font_size", 21)
-	ready_button.toggled.connect(func(value: bool): network_manager.set_ready(value))
-	screen_root.add_child(ready_button)
-	var start := _button("게임 시작", func(): network_manager.start_match())
-	start.name = "LobbyStart"
-	start.position = Vector2(650, 400)
-	start.size = Vector2(210, 54)
-	start.visible = online_is_host
-	screen_root.add_child(start)
-	network_status_label = _label("UDP 7777 · 최대 2명", 16, Color("c6aa85"))
-	network_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	network_status_label.position = Vector2(340, 480)
-	network_status_label.size = Vector2(600, 55)
-	screen_root.add_child(network_status_label)
-	var leave := _button("방 나가기", show_main_menu)
-	leave.position = Vector2(520, 570)
-	leave.size = Vector2(240, 54)
-	screen_root.add_child(leave)
 	_refresh_network_lobby()
 
 func _refresh_network_lobby() -> void:
@@ -524,30 +351,6 @@ func _refresh_network_lobby() -> void:
 			bool(network_manager.get("chaos_mode"))
 		)
 		return
-	var players := screen_root.find_child("LobbyPlayers", true, false) as Label
-	if players:
-		var ready_state: Dictionary = network_manager.get("ready_state")
-		var connected_state: Dictionary = network_manager.get("connected_players")
-		var guest_status := "준비" if bool(ready_state.get(2, false)) else "대기"
-		if not bool(connected_state.get(2, false)):
-			guest_status = "접속 대기"
-		players.text = "방장  · 흑돌 · %s\n참가자 · 백돌 · %s" % ["준비" if bool(ready_state.get(1, false)) else "대기", guest_status]
-	var count := screen_root.find_child("LobbyPieceCount", true, false) as Label
-	if count:
-		count.text = "시작 바둑알 %d개" % int(network_manager.get("piece_count"))
-	var ready_button := screen_root.find_child("ReadyButton", true, false) as CheckButton
-	if ready_button:
-		var ready_state: Dictionary = network_manager.get("ready_state")
-		ready_button.set_pressed_no_signal(bool(ready_state.get(local_player_id, false)))
-	var refresh_toggle := screen_root.find_child("RefreshModeToggle", true, false) as CheckButton
-	if refresh_toggle:
-		refresh_toggle.set_pressed_no_signal(bool(network_manager.get("refresh_mode")))
-	var chaos_toggle := screen_root.find_child("ChaosModeToggle", true, false) as CheckButton
-	if chaos_toggle:
-		chaos_toggle.set_pressed_no_signal(bool(network_manager.get("chaos_mode")))
-	var start := screen_root.find_child("LobbyStart", true, false) as Button
-	if start:
-		start.disabled = not network_manager.can_start()
 
 func _on_network_lobby_updated(_data: Dictionary) -> void:
 	if not online_mode and network_manager.is_online():
@@ -1738,8 +1541,6 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		piece.field_damp_multiplier = blizzard_damp_multiplier if blizzard_turns != 0 else 1.0
 		piece.field_speed_multiplier = blizzard_speed_multiplier if blizzard_turns != 0 else 1.0
 		piece.refresh_physics()
-	_apply_network_effect_runtime(snapshot.get("effects", {}))
-	_sync_network_walls(snapshot.get("walls", PackedFloat32Array()))
 	var winner := int(snapshot.get("winner", 0))
 	if winner != 0 and network_winner == 0:
 		show_game_over(winner)
@@ -1767,6 +1568,12 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		update_hud("피의 축제 발동 · 추가 발사 기회")
 	else:
 		update_hud("자신의 차례입니다" if current_player == local_player_id else "상대 차례를 기다리는 중…")
+
+func apply_network_extras(effects: Dictionary, walls: PackedFloat32Array) -> void:
+	if online_is_host or board == null:
+		return
+	_apply_network_effect_runtime(effects)
+	_sync_network_walls(walls)
 
 func network_active_skill_rejected(reason: String) -> void:
 	_skill_debug("host rejected active request: %s" % reason)

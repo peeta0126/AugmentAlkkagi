@@ -328,7 +328,7 @@ func network_state() -> Dictionary:
 		"speed_cap": speed_cap
 	}
 
-# 20Hz UDP 스냅샷은 MTU를 넘지 않도록 필드명을 제외한 고정 배열로 전송한다.
+# 20Hz 온라인 스냅샷은 전송량을 줄이도록 필드명을 제외한 고정 배열로 전송한다.
 func compact_network_state() -> PackedFloat32Array:
 	var flags := (1 if is_tank else 0) | (2 if invulnerable else 0) | (4 if sonic_trail else 0) | (8 if reached_enemy_end else 0) | (16 if king_shockwave_available else 0)
 	var transform_code := maxi(TRANSFORM_NAMES.find(transformation), 0)

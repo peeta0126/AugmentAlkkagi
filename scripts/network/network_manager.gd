@@ -5,15 +5,17 @@ signal lobby_updated(data: Dictionary)
 signal connection_message(text: String, is_error: bool)
 signal session_ended(reason: String)
 
-const DEFAULT_PORT := 7777
-const MAX_CLIENTS := 1
 const SNAPSHOT_INTERVAL := 0.05
-const PROTOCOL_VERSION := 3
+const SNAPSHOT_HEARTBEAT := 1.0
+const SNAPSHOT_REPEATS := 2
+const SNAPSHOT_IDLE_GAP := 0.3
+# v4 separates reliable world extras from throttled movement snapshots.
+const PROTOCOL_VERSION := 4
 const ROOM_PREFIX := "AA-"
 const ROOM_CODE_LENGTH := 6
 const ROOM_CREATE_ATTEMPTS := 5
 
-enum Mode { OFFLINE, HOST, CLIENT, GDSYNC_HOST, GDSYNC_CLIENT }
+enum Mode { OFFLINE, HOST, CLIENT }
 
 var mode := Mode.OFFLINE
 var local_player_id := 0
@@ -36,6 +38,12 @@ var placement_completed: Dictionary = {1: false, 2: false}
 var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
+var heartbeat_elapsed := 0.0
+var last_fast_bytes := PackedByteArray()
+var last_slow_bytes := PackedByteArray()
+var fast_repeats := 0
+var pending_extras: Dictionary = {}
+var snapshot_metrics: Dictionary = {}
 var last_snapshot_received_usec := 0
 var shutting_down := false
 var room_code := ""
@@ -45,11 +53,6 @@ var gdsync_connected := false
 
 func _ready() -> void:
 	name = "NetworkManager"
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	multiplayer.connected_to_server.connect(_on_connected_to_server)
-	multiplayer.connection_failed.connect(_on_connection_failed)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	GDSync.lobby_created.connect(_on_gdsync_lobby_created)
 	GDSync.lobby_creation_failed.connect(_on_gdsync_lobby_creation_failed)
 	GDSync.lobby_joined.connect(_on_gdsync_lobby_joined)
@@ -77,6 +80,8 @@ func _ready() -> void:
 	GDSync.expose_func(receive_selection_complete, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_active_skill_rejected, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_snapshot, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_world_extras, ENUMS.EXPOSE_PERMISSION.HOST)
+	_reset_snapshot_cache()
 
 func game() -> Node:
 	return get_parent()
@@ -89,50 +94,12 @@ func _selection_reject(reason: String, player_id: int, stage: int, augment_id: S
 	if OS.is_debug_build():
 		push_warning("[augment-selection] rejected: %s (player=%d stage=%d active_stage=%d augment=%s completed=%s pending=%s)" % [reason, player_id, stage, active_selection_stage, augment_id, selection_completed, pending_choices])
 
-func create_host(port: int = DEFAULT_PORT) -> Error:
-	shutdown(false)
-	last_sequences.clear()
-	local_sequence = 0
-	var peer := ENetMultiplayerPeer.new()
-	var error := peer.create_server(port, MAX_CLIENTS)
-	if error != OK:
-		connection_message.emit("UDP %d 포트를 열 수 없습니다: %s" % [port, error_string(error)], true)
-		return error
-	multiplayer.multiplayer_peer = peer
-	mode = Mode.HOST
-	local_player_id = 1
-	peer_to_player = {1: 1}
-	ready_state = {1: false, 2: false}
-	connected_players = {1: true, 2: false}
-	connection_message.emit("호스트가 UDP %d에서 대기 중입니다." % port, false)
-	_emit_lobby()
-	return OK
-
-func join_host(address: String, port: int = DEFAULT_PORT) -> Error:
-	shutdown(false)
-	last_sequences.clear()
-	local_sequence = 0
-	last_snapshot_received_usec = 0
-	if not address.is_valid_ip_address() or ":" in address or port < 1 or port > 65535:
-		connection_message.emit("올바른 IPv4 주소를 입력하세요.", true)
-		return ERR_INVALID_PARAMETER
-	var peer := ENetMultiplayerPeer.new()
-	var error := peer.create_client(address, port)
-	if error != OK:
-		connection_message.emit("접속을 시작할 수 없습니다: %s" % error_string(error), true)
-		return error
-	multiplayer.multiplayer_peer = peer
-	mode = Mode.CLIENT
-	local_player_id = 2
-	connection_message.emit("%s:%d에 연결 중…" % [address, port], false)
-	return OK
-
 func create_online_room(preferred_code: String = "") -> Error:
 	if not gdsync_connected:
 		connection_message.emit("GD-Sync 서버에 아직 연결되지 않았습니다.", true)
 		return ERR_UNAVAILABLE
 	shutdown(false)
-	mode = Mode.GDSYNC_HOST
+	mode = Mode.HOST
 	local_player_id = 1
 	room_create_attempts = 0
 	_reset_lobby_state()
@@ -155,7 +122,7 @@ func join_online_room(code: String) -> Error:
 		return ERR_UNAVAILABLE
 	shutdown(false)
 	last_snapshot_received_usec = 0
-	mode = Mode.GDSYNC_CLIENT
+	mode = Mode.CLIENT
 	local_player_id = 2
 	room_code = normalized
 	_reset_lobby_state()
@@ -173,45 +140,51 @@ func _reset_lobby_state() -> void:
 	match_active = false
 	refresh_mode = false
 	chaos_mode = false
-	placement_completed = {1: false, 2: false}
+	_reset_selection_state()
+	_reset_snapshot_cache()
 	gdsync_host_id = -1
 
 func shutdown(notify: bool = true) -> void:
-	if mode == Mode.OFFLINE:
-		return
+	var was_online := mode != Mode.OFFLINE
 	shutting_down = true
-	if is_gdsync_mode() and not GDSync.lobby_get_name().is_empty():
+	if not GDSync.lobby_get_name().is_empty():
 		GDSync.lobby_leave()
-	elif multiplayer.multiplayer_peer:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	mode = Mode.OFFLINE
 	local_player_id = 0
 	match_active = false
 	last_snapshot_received_usec = 0
-	offers.clear()
-	selection_context.clear()
-	pending_choices.clear()
-	selection_completed = {1: false, 2: false}
-	selection_pick_counts = {1: 0, 2: 0}
-	selection_refresh_used = {1: false, 2: false}
-	placement_completed = {1: false, 2: false}
+	last_sequences.clear()
+	local_sequence = 0
+	peer_to_player = {1: 1}
+	ready_state = {1: false, 2: false}
+	connected_players = {1: true, 2: false}
+	_reset_selection_state()
+	_reset_snapshot_cache()
 	refresh_mode = false
 	chaos_mode = false
 	room_code = ""
+	room_create_attempts = 0
 	gdsync_host_id = -1
 	shutting_down = false
-	if notify:
+	if notify and was_online:
 		session_ended.emit("네트워크 방에서 나왔습니다.")
+
+func _reset_selection_state() -> void:
+	offers.clear()
+	selection_context.clear()
+	pending_choices.clear()
+	active_selection_stage = 0
+	selection_completed = {1: false, 2: false}
+	selection_pick_counts = {1: 0, 2: 0}
+	selection_pick_targets = {1: 1, 2: 1}
+	selection_refresh_used = {1: false, 2: false}
+	placement_completed = {1: false, 2: false}
 
 func is_online() -> bool:
 	return mode != Mode.OFFLINE
 
 func is_host() -> bool:
-	return mode in [Mode.HOST, Mode.GDSYNC_HOST]
-
-func is_gdsync_mode() -> bool:
-	return mode in [Mode.GDSYNC_HOST, Mode.GDSYNC_CLIENT]
+	return mode == Mode.HOST
 
 func get_room_code() -> String:
 	return room_code
@@ -220,9 +193,7 @@ func set_ready(value: bool) -> void:
 	if is_host():
 		ready_state[1] = value
 		_broadcast_lobby()
-	elif mode == Mode.CLIENT:
-		request_lobby_ready.rpc_id(1, value, PROTOCOL_VERSION)
-	elif mode == Mode.GDSYNC_CLIENT and gdsync_host_id >= 0:
+	elif mode == Mode.CLIENT and gdsync_host_id >= 0:
 		GDSync.call_func_on(gdsync_host_id, request_lobby_ready, value, PROTOCOL_VERSION)
 
 func set_piece_count(value: int) -> void:
@@ -248,12 +219,10 @@ func start_match() -> bool:
 		connection_message.emit("두 플레이어가 접속하고 모두 준비해야 합니다.", true)
 		return false
 	match_active = true
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	game().network_prepare_match(true, 1, piece_count, refresh_mode, chaos_mode)
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_world_start, piece_count, refresh_mode, chaos_mode)
-	else:
-		receive_world_start.rpc(piece_count, refresh_mode, chaos_mode)
+	GDSync.call_func(receive_world_start, piece_count, refresh_mode, chaos_mode)
 	game().network_start_world(piece_count)
 	return true
 
@@ -261,18 +230,16 @@ func return_to_lobby() -> void:
 	if not is_host():
 		return
 	match_active = false
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	ready_state = {1: false, 2: false}
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_return_lobby)
-	else:
-		receive_return_lobby.rpc()
+	GDSync.call_func(receive_return_lobby)
 	game()._show_network_lobby()
 	_broadcast_lobby()
 
-@rpc("authority", "call_remote", "reliable")
 func receive_return_lobby() -> void:
 	match_active = false
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	game()._show_network_lobby()
 
@@ -312,10 +279,7 @@ func _begin_selection(player_id: int, initial: bool, resume_player: int) -> void
 	if player_id == 1:
 		game().network_receive_offer(player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
 	else:
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
-		else:
-			receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
+		GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume_player, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), refresh_mode and not bool(selection_refresh_used[player_id]))
 
 func host_begin_round_selection(resume_player: int, completed_round: int) -> void:
 	_start_selection(false, resume_player, completed_round)
@@ -327,8 +291,6 @@ func submit_augment_choice(augment_id: StringName) -> void:
 	if is_host():
 		_host_process_augment_choice(1, stage, augment_id, local_sequence)
 	elif mode == Mode.CLIENT:
-		request_augment_choice.rpc_id(1, stage, str(augment_id), local_sequence)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_augment_choice, stage, str(augment_id), local_sequence)
 
 func submit_augment_refresh() -> void:
@@ -337,8 +299,6 @@ func submit_augment_refresh() -> void:
 	if is_host():
 		_host_process_augment_refresh(1, stage)
 	elif mode == Mode.CLIENT:
-		request_augment_refresh.rpc_id(1, stage, local_sequence)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_augment_refresh, stage, local_sequence)
 
 func submit_piece_placement(piece_id: int, position: Vector2) -> void:
@@ -346,8 +306,6 @@ func submit_piece_placement(piece_id: int, position: Vector2) -> void:
 	if is_host():
 		_host_process_piece_placement(1, piece_id, position)
 	elif mode == Mode.CLIENT:
-		request_piece_placement.rpc_id(1, piece_id, position, local_sequence)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_piece_placement, piece_id, position, local_sequence)
 
 func submit_placement_complete() -> void:
@@ -355,8 +313,6 @@ func submit_placement_complete() -> void:
 	if is_host():
 		_host_process_placement_complete(1)
 	elif mode == Mode.CLIENT:
-		request_placement_complete.rpc_id(1, local_sequence)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_placement_complete, local_sequence)
 
 func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
@@ -364,8 +320,6 @@ func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 	if is_host():
 		_host_process_shot(1, piece_id, pull_vector, local_sequence)
 	elif mode == Mode.CLIENT:
-		request_shot.rpc_id(1, piece_id, pull_vector, local_sequence)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_shot, piece_id, pull_vector, local_sequence)
 
 func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO, targeting_option: int = 0) -> void:
@@ -373,8 +327,6 @@ func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_p
 	if is_host():
 		_host_process_active(1, augment_id, target_ids, board_position, local_sequence, targeting_option)
 	elif mode == Mode.CLIENT:
-		request_active_skill.rpc_id(1, str(augment_id), target_ids, board_position, local_sequence, targeting_option)
-	elif mode == Mode.GDSYNC_CLIENT:
 		GDSync.call_func_on(gdsync_host_id, request_active_skill, str(augment_id), target_ids, board_position, local_sequence, targeting_option)
 
 func _process(delta: float) -> void:
@@ -385,11 +337,75 @@ func _process(delta: float) -> void:
 	snapshot_elapsed += delta
 	if snapshot_elapsed >= SNAPSHOT_INTERVAL:
 		snapshot_elapsed = 0.0
-		var snapshot: Dictionary = game().create_network_snapshot()
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func_unreliable(receive_snapshot, snapshot)
-		else:
-			receive_snapshot.rpc(snapshot)
+		var snapshot := _next_snapshot()
+		_send_pending_extras()
+		if snapshot.is_empty():
+			return
+		_record_snapshot_bytes("fast", snapshot)
+		GDSync.call_func_unreliable(receive_snapshot, snapshot)
+
+func _next_snapshot() -> Dictionary:
+	pending_extras = {}
+	var snapshot: Dictionary = game().create_network_snapshot()
+	var extras := {
+		"effects": snapshot.get("effects", {}),
+		"walls": snapshot.get("walls", PackedFloat32Array()),
+	}
+	snapshot.erase("effects")
+	snapshot.erase("walls")
+	var extras_bytes := var_to_bytes(extras)
+	if extras_bytes != last_slow_bytes:
+		last_slow_bytes = extras_bytes
+		pending_extras = extras
+	var fast_bytes := var_to_bytes(snapshot)
+	if fast_bytes != last_fast_bytes:
+		last_fast_bytes = fast_bytes
+		fast_repeats = SNAPSHOT_REPEATS
+	elif fast_repeats > 0:
+		fast_repeats -= 1
+	else:
+		heartbeat_elapsed += SNAPSHOT_INTERVAL
+		if heartbeat_elapsed < SNAPSHOT_HEARTBEAT:
+			return {}
+	heartbeat_elapsed = 0.0
+	return snapshot
+
+func _send_pending_extras() -> void:
+	if pending_extras.is_empty():
+		return
+	var effects: Dictionary = pending_extras["effects"]
+	var walls: PackedFloat32Array = pending_extras["walls"]
+	pending_extras = {}
+	_record_snapshot_bytes("extras", {"effects": effects, "walls": walls})
+	GDSync.call_func(receive_world_extras, effects, walls)
+
+func _reset_snapshot_cache() -> void:
+	snapshot_elapsed = 0.0
+	heartbeat_elapsed = 0.0
+	last_fast_bytes = PackedByteArray()
+	last_slow_bytes = PackedByteArray()
+	fast_repeats = 0
+	pending_extras = {}
+	snapshot_metrics = {
+		"fast_count": 0,
+		"fast_bytes": 0,
+		"fast_max_bytes": 0,
+		"extras_count": 0,
+		"extras_bytes": 0,
+		"extras_max_bytes": 0,
+	}
+
+func _record_snapshot_bytes(kind: String, payload: Dictionary) -> void:
+	var byte_count := var_to_bytes(payload).size()
+	var count_key := "%s_count" % kind
+	var bytes_key := "%s_bytes" % kind
+	var max_key := "%s_max_bytes" % kind
+	snapshot_metrics[count_key] = int(snapshot_metrics.get(count_key, 0)) + 1
+	snapshot_metrics[bytes_key] = int(snapshot_metrics.get(bytes_key, 0)) + byte_count
+	snapshot_metrics[max_key] = maxi(int(snapshot_metrics.get(max_key, 0)), byte_count)
+
+func get_snapshot_metrics() -> Dictionary:
+	return snapshot_metrics.duplicate()
 
 func _valid_sequence(peer_id: int, sequence: int, request_kind: String = "request") -> bool:
 	var previous := int(last_sequences.get(peer_id, 0))
@@ -410,25 +426,20 @@ func _peer_for_player(player_id: int) -> int:
 	return 0
 
 func _remote_sender_id() -> int:
-	return GDSync.get_sender_id() if is_gdsync_mode() else multiplayer.get_remote_sender_id()
+	return GDSync.get_sender_id()
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_lobby_ready(value: bool, protocol: int) -> void:
 	if not is_host():
 		return
 	var sender := _remote_sender_id()
 	if protocol != PROTOCOL_VERSION:
-		if is_gdsync_mode():
-			GDSync.lobby_kick_client(sender, "프로토콜 버전이 일치하지 않습니다.")
-		else:
-			multiplayer.multiplayer_peer.disconnect_peer(sender)
+		GDSync.lobby_kick_client(sender, "프로토콜 버전이 일치하지 않습니다.")
 		return
 	var player_id := _player_for_peer(sender)
 	if player_id == 2:
 		ready_state[player_id] = value
 		_broadcast_lobby()
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_shot(piece_id: int, pull_vector: Vector2, sequence: int) -> void:
 	if not is_host():
 		return
@@ -441,7 +452,6 @@ func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _se
 		return
 	game().network_execute_shot(player_id, piece_id, pull_vector)
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_augment_choice(stage: int, augment_id: String, sequence: int) -> void:
 	if not is_host():
 		_selection_reject("choice RPC received by non-host", 0, stage, StringName(augment_id))
@@ -454,7 +464,6 @@ func request_augment_choice(stage: int, augment_id: String, sequence: int) -> vo
 		return
 	_host_process_augment_choice(player_id, stage, StringName(augment_id), sequence)
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_augment_refresh(stage: int, sequence: int) -> void:
 	if not is_host():
 		return
@@ -485,12 +494,9 @@ func _host_process_augment_refresh(player_id: int, stage: int) -> void:
 	var completed_round := int(selection_context.get("round", 0))
 	if player_id == 1:
 		game().network_receive_offer(player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
-	elif mode == Mode.GDSYNC_HOST:
-		GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
 	else:
-		receive_augment_offer.rpc_id(_peer_for_player(2), player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
+		GDSync.call_func_on(_peer_for_player(2), receive_augment_offer, player_id, ids, initial, resume, active_selection_stage, completed_round, int(selection_pick_counts[player_id]) + 1, int(selection_pick_targets[player_id]), false)
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_piece_placement(piece_id: int, position: Vector2, sequence: int) -> void:
 	if not is_host():
 		return
@@ -505,7 +511,6 @@ func _host_process_piece_placement(player_id: int, piece_id: int, position: Vect
 		return
 	_broadcast_placement_state(piece_id, position)
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_placement_complete(sequence: int) -> void:
 	if not is_host():
 		return
@@ -525,10 +530,7 @@ func _host_process_placement_complete(player_id: int) -> void:
 
 func _broadcast_placement_state(piece_id: int, position: Vector2) -> void:
 	var completed := placement_completed.duplicate()
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_placement_state, piece_id, position, completed)
-	else:
-		receive_placement_state.rpc(piece_id, position, completed)
+	GDSync.call_func(receive_placement_state, piece_id, position, completed)
 	game().network_receive_placement_state(piece_id, position, completed)
 
 func _host_process_augment_choice(player_id: int, stage: int, augment_id: StringName, _sequence: int) -> void:
@@ -567,10 +569,7 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 		_selection_reject("augment_manager.acquire failed", player_id, stage, augment_id)
 		return
 	selection_pick_counts[player_id] = int(selection_pick_counts[player_id]) + 1
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_augment_granted, player_id, str(augment_id))
-	else:
-		receive_augment_granted.rpc(player_id, str(augment_id))
+	GDSync.call_func(receive_augment_granted, player_id, str(augment_id))
 	game().network_augment_granted(player_id, augment_id)
 	selection_completed[player_id] = int(selection_pick_counts[player_id]) >= int(selection_pick_targets[player_id]) or not game().augment_manager.can_acquire(player_id)
 	_selection_debug("stage %d accepted player %d augment=%s picks=%d/%d" % [stage, player_id, augment_id, selection_pick_counts[player_id], selection_pick_targets[player_id]])
@@ -587,13 +586,9 @@ func _host_process_augment_choice(player_id: int, stage: int, augment_id: String
 	offers.clear()
 	pending_choices.clear()
 	_selection_debug("stage %d committed for both players (initial=%s)" % [stage, initial])
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_selection_complete, stage, resume, completed_round, initial)
-	else:
-		receive_selection_complete.rpc(stage, resume, completed_round, initial)
+	GDSync.call_func(receive_selection_complete, stage, resume, completed_round, initial)
 	game().network_selection_complete(stage, resume, completed_round, initial)
 
-@rpc("any_peer", "call_remote", "reliable")
 func request_active_skill(augment_id: String, target_ids: Array, board_position: Vector2, sequence: int, targeting_option: int = 0) -> void:
 	if not is_host():
 		return
@@ -696,41 +691,29 @@ func _reject_active_skill(player_id: int, reason: String) -> void:
 	elif player_id == 2:
 		var peer_id := _peer_for_player(2)
 		if peer_id != 0:
-			if mode == Mode.GDSYNC_HOST:
-				GDSync.call_func_on(peer_id, receive_active_skill_rejected, reason)
-			else:
-				receive_active_skill_rejected.rpc_id(peer_id, reason)
+			GDSync.call_func_on(peer_id, receive_active_skill_rejected, reason)
 
 func broadcast_piece_sound(kind: String, volume_db: float) -> void:
 	if not is_host():
 		return
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_piece_sound, kind, volume_db)
-	else:
-		receive_piece_sound.rpc(kind, volume_db)
+	GDSync.call_func(receive_piece_sound, kind, volume_db)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_piece_sound(kind: String, volume_db: float) -> void:
-	if is_gdsync_mode() and GDSync.get_sender_id() != gdsync_host_id:
+	if GDSync.get_sender_id() != gdsync_host_id:
 		return
-	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT] and match_active:
+	if mode == Mode.CLIENT and match_active:
 		game().play_piece_sound(kind, volume_db)
 
 func broadcast_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
 	if is_host():
-		if mode == Mode.GDSYNC_HOST:
-			GDSync.call_func(receive_projectile, from, to, color, size)
-		else:
-			receive_projectile.rpc(from, to, color, size)
+		GDSync.call_func(receive_projectile, from, to, color, size)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_projectile(from: Vector2, to: Vector2, color: Color, size: float) -> void:
-	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT]:
+	if mode == Mode.CLIENT:
 		game().animate_projectile(from, to, color, size, false)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_lobby(data: Dictionary) -> void:
-	if is_gdsync_mode() and GDSync.get_sender_id() != gdsync_host_id:
+	if GDSync.get_sender_id() != gdsync_host_id:
 		return
 	piece_count = int(data.get("piece_count", GameplayRules.DEFAULT_PIECES))
 	ready_state = data.get("ready", {1: false, 2: false})
@@ -739,90 +722,48 @@ func receive_lobby(data: Dictionary) -> void:
 	chaos_mode = bool(data.get("chaos_mode", false))
 	lobby_updated.emit(data)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_augment_offer(player_id: int, ids: Array[String], initial: bool, resume_player: int, stage: int, completed_round: int, pick_index: int = 1, pick_total: int = 1, refresh_available: bool = false) -> void:
 	game().network_receive_offer(player_id, ids, initial, resume_player, stage, completed_round, pick_index, pick_total, refresh_available)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_augment_granted(player_id: int, augment_id: String) -> void:
 	if not game().augment_manager.has_augment(player_id, StringName(augment_id)):
 		game().augment_manager.acquire(game(), player_id, StringName(augment_id))
 	game().network_augment_granted(player_id, StringName(augment_id))
 
-@rpc("authority", "call_remote", "reliable")
 func receive_world_start(count: int, refresh_enabled: bool = false, chaos_enabled: bool = false) -> void:
 	match_active = true
 	last_snapshot_received_usec = 0
+	_reset_snapshot_cache()
 	refresh_mode = refresh_enabled
 	chaos_mode = chaos_enabled
 	game().network_prepare_match(false, local_player_id, count, refresh_mode, chaos_mode)
 	game().network_start_world(count)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_selection_complete(stage: int, resume_player: int, completed_round: int, initial: bool = false) -> void:
 	game().network_selection_complete(stage, resume_player, completed_round, initial)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_placement_state(piece_id: int, position: Vector2, completed: Dictionary) -> void:
 	placement_completed = completed
 	game().network_receive_placement_state(piece_id, position, completed)
 
-@rpc("authority", "call_remote", "reliable")
 func receive_active_skill_rejected(reason: String) -> void:
 	game().network_active_skill_rejected(reason)
 
-@rpc("authority", "call_remote", "unreliable_ordered", 1)
+func receive_world_extras(effects: Dictionary, walls: PackedFloat32Array) -> void:
+	if GDSync.get_sender_id() != gdsync_host_id:
+		return
+	if mode == Mode.CLIENT and match_active:
+		game().apply_network_extras(effects, walls)
+
 func receive_snapshot(snapshot: Dictionary) -> void:
-	if mode in [Mode.CLIENT, Mode.GDSYNC_CLIENT]:
+	if mode == Mode.CLIENT:
 		var now_usec := Time.get_ticks_usec()
 		var interpolation_duration := SNAPSHOT_INTERVAL
 		if last_snapshot_received_usec > 0:
-			interpolation_duration = clampf(float(now_usec - last_snapshot_received_usec) / 1000000.0, SNAPSHOT_INTERVAL * 0.5, 0.15)
+			var gap := float(now_usec - last_snapshot_received_usec) / 1000000.0
+			interpolation_duration = SNAPSHOT_INTERVAL if gap > SNAPSHOT_IDLE_GAP else clampf(gap, SNAPSHOT_INTERVAL * 0.5, 0.15)
 		last_snapshot_received_usec = now_usec
 		game().apply_network_snapshot(snapshot, interpolation_duration)
-
-func _on_peer_connected(peer_id: int) -> void:
-	if mode != Mode.HOST:
-		return
-	if bool(connected_players[2]):
-		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
-		return
-	peer_to_player[peer_id] = 2
-	last_sequences.erase(peer_id)
-	connected_players[2] = true
-	ready_state[2] = false
-	connection_message.emit("참가자가 연결되었습니다.", false)
-	_broadcast_lobby()
-
-func _on_peer_disconnected(peer_id: int) -> void:
-	if shutting_down:
-		return
-	if mode == Mode.HOST:
-		var player_id := _player_for_peer(peer_id)
-		if player_id == 2:
-			connected_players[2] = false
-			ready_state[2] = false
-			match_active = false
-			placement_completed = {1: false, 2: false}
-			peer_to_player.erase(peer_id)
-			session_ended.emit("참가자의 연결이 끊겼습니다.")
-			_broadcast_lobby()
-
-func _on_connected_to_server() -> void:
-	if mode != Mode.CLIENT:
-		return
-	connection_message.emit("호스트에 연결되었습니다.", false)
-
-func _on_connection_failed() -> void:
-	if mode == Mode.CLIENT:
-		mode = Mode.OFFLINE
-		connection_message.emit("호스트에 연결하지 못했습니다. IP, 포트, 방화벽을 확인하세요.", true)
-
-func _on_server_disconnected() -> void:
-	if mode == Mode.CLIENT and not shutting_down:
-		mode = Mode.OFFLINE
-		match_active = false
-		session_ended.emit("호스트와의 연결이 끊겼습니다.")
 
 func _lobby_data() -> Dictionary:
 	return {
@@ -839,46 +780,49 @@ func _emit_lobby() -> void:
 
 func _broadcast_lobby() -> void:
 	var data := _lobby_data()
-	if mode == Mode.GDSYNC_HOST:
-		GDSync.call_func(receive_lobby, data)
-	else:
-		receive_lobby.rpc(data)
+	GDSync.call_func(receive_lobby, data)
 	lobby_updated.emit(data)
 
 func _on_gdsync_lobby_created(lobby_name: String) -> void:
-	if mode != Mode.GDSYNC_HOST or lobby_name != ROOM_PREFIX + room_code:
+	if mode != Mode.HOST or lobby_name != ROOM_PREFIX + room_code:
 		return
 	GDSync.lobby_join(lobby_name)
 
 func _on_gdsync_lobby_creation_failed(lobby_name: String, error: int) -> void:
-	if mode != Mode.GDSYNC_HOST or lobby_name != ROOM_PREFIX + room_code:
+	if mode != Mode.HOST or lobby_name != ROOM_PREFIX + room_code:
 		return
 	if error == ENUMS.LOBBY_CREATION_ERROR.LOBBY_ALREADY_EXISTS and room_create_attempts < ROOM_CREATE_ATTEMPTS:
 		connection_message.emit("방 코드 충돌. 새 코드를 발급합니다…", false)
 		await get_tree().create_timer(3.1).timeout
-		if mode == Mode.GDSYNC_HOST:
+		if mode == Mode.HOST:
 			_create_online_room_attempt()
 		return
 	var reason: String = str(ENUMS.LOBBY_CREATION_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_CREATION_ERROR.size() else "UNKNOWN"
-	mode = Mode.OFFLINE
+	shutdown(false)
 	connection_message.emit("온라인 방 생성 실패: %s (error=%d)" % [reason, error], true)
 
 func _on_gdsync_lobby_joined(lobby_name: String) -> void:
 	if OS.is_debug_build():
 		print("[gdsync] lobby_joined name=%s expected=%s mode=%s host=%d self=%d" % [lobby_name, ROOM_PREFIX + room_code, Mode.keys()[mode], GDSync.get_host(), GDSync.get_client_id()])
-	if not is_gdsync_mode() or lobby_name != ROOM_PREFIX + room_code:
+	if not is_online() or lobby_name != ROOM_PREFIX + room_code:
+		return
+	var lobby_protocol := int(GDSync.lobby_get_tag("protocol", -1))
+	if lobby_protocol != PROTOCOL_VERSION:
+		var expected_code := room_code
+		shutdown(false)
+		connection_message.emit("온라인 방 %s의 프로토콜 버전이 일치하지 않습니다. (방 %d / 현재 %d)" % [expected_code, lobby_protocol, PROTOCOL_VERSION], true)
 		return
 	var own_id := GDSync.get_client_id()
-	if mode == Mode.GDSYNC_HOST:
+	if mode == Mode.HOST:
 		gdsync_host_id = own_id
-		mode = Mode.GDSYNC_HOST
+		mode = Mode.HOST
 		local_player_id = 1
 		peer_to_player = {own_id: 1}
 		connected_players = {1: true, 2: false}
 		connection_message.emit("온라인 방 생성 완료 · 코드 %s" % room_code, false)
 	else:
 		gdsync_host_id = GDSync.get_host()
-		mode = Mode.GDSYNC_CLIENT
+		mode = Mode.CLIENT
 		local_player_id = 2
 		peer_to_player = {gdsync_host_id: 1, own_id: 2}
 		connected_players = {1: true, 2: true}
@@ -888,16 +832,16 @@ func _on_gdsync_lobby_joined(lobby_name: String) -> void:
 func _on_gdsync_lobby_join_failed(lobby_name: String, error: int) -> void:
 	if OS.is_debug_build():
 		print("[gdsync] lobby_join_failed name=%s error=%d mode=%s" % [lobby_name, error, Mode.keys()[mode]])
-	if mode != Mode.GDSYNC_CLIENT or lobby_name != ROOM_PREFIX + room_code:
+	if mode != Mode.CLIENT or lobby_name != ROOM_PREFIX + room_code:
 		return
 	var reason: String = str(ENUMS.LOBBY_JOIN_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_JOIN_ERROR.size() else "UNKNOWN"
-	mode = Mode.OFFLINE
+	shutdown(false)
 	connection_message.emit("온라인 방 참가 실패: %s (error=%d)" % [reason, error], true)
 
 func _on_gdsync_client_joined(client_id: int) -> void:
-	if not is_gdsync_mode() or client_id == GDSync.get_client_id():
+	if not is_online() or client_id == GDSync.get_client_id():
 		return
-	if mode == Mode.GDSYNC_HOST:
+	if mode == Mode.HOST:
 		if bool(connected_players[2]):
 			GDSync.lobby_kick_client(client_id, "이 방은 2인 전용입니다.")
 			return
@@ -908,27 +852,26 @@ func _on_gdsync_client_joined(client_id: int) -> void:
 		_broadcast_lobby()
 
 func _on_gdsync_client_left(client_id: int) -> void:
-	if not is_gdsync_mode() or shutting_down:
+	if not is_online() or shutting_down:
 		return
 	var player_id := _player_for_peer(client_id)
 	peer_to_player.erase(client_id)
-	if mode == Mode.GDSYNC_HOST and player_id == 2:
+	if mode == Mode.HOST and player_id == 2:
 		connected_players[2] = false
 		ready_state[2] = false
 		match_active = false
-		placement_completed = {1: false, 2: false}
+		_reset_selection_state()
+		_reset_snapshot_cache()
 		session_ended.emit("참가자의 연결이 끊겼습니다.")
 		_broadcast_lobby()
-	elif mode == Mode.GDSYNC_CLIENT and client_id == gdsync_host_id:
-		mode = Mode.OFFLINE
-		match_active = false
-		placement_completed = {1: false, 2: false}
+	elif mode == Mode.CLIENT and client_id == gdsync_host_id:
+		shutdown(false)
 		session_ended.emit("방장이 방을 나갔거나 연결이 끊겼습니다.")
 
 func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:
 	if OS.is_debug_build():
 		print("[gdsync] host_changed new=%d tracked=%d mode=%s" % [new_host_id, gdsync_host_id, Mode.keys()[mode]])
-	if mode == Mode.GDSYNC_CLIENT:
+	if mode == Mode.CLIENT:
 		if gdsync_host_id < 0:
 			gdsync_host_id = new_host_id
 			peer_to_player.erase(-1)
@@ -936,15 +879,13 @@ func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:
 			connected_players[1] = true
 			_emit_lobby()
 		elif new_host_id != gdsync_host_id:
-			mode = Mode.OFFLINE
-			match_active = false
+			shutdown(false)
 			session_ended.emit("방장 연결이 끊겨 온라인 대전을 종료합니다.")
 
 func _on_gdsync_disconnected() -> void:
 	gdsync_connected = false
-	if is_gdsync_mode() and not shutting_down:
-		mode = Mode.OFFLINE
-		match_active = false
+	if is_online() and not shutting_down:
+		shutdown(false)
 		session_ended.emit("GD-Sync 서버와 연결이 끊겼습니다.")
 
 func _on_gdsync_connected() -> void:

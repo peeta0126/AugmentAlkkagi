@@ -193,18 +193,6 @@ theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
 text = "온라인 방 코드 참가"
 
-[node name="LanMenuButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
-text = "LAN / Tailscale"
-
 [node name="SettingsButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(300, 50)
