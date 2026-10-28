@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업판</title>
+<style>
+:root {
+  --bg: #fff; --ink: #1f2328; --mute: #656d76; --line: #d8dee4; --soft: #f6f8fa;
+  --accent: #0969da; --red: #cf222e; --amber: #9a6700; --green: #1a7f37;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "Pretendard", "Malgun Gothic", system-ui, sans-serif; }
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--accent); }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+header { border-bottom: 1px solid var(--line); }
+.bar { max-width: 1040px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 24px; height: 52px; }
+.bar h1 { font-size: 15px; margin: 0; font-weight: 600; }
+nav { display: flex; gap: 4px; height: 100%; }
+nav button { padding: 0 12px; color: var(--mute); border-bottom: 2px solid transparent; }
+nav button:hover { color: var(--ink); }
+nav button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.right { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--mute); }
+.btn { border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; background: var(--soft); color: var(--ink); }
+.btn:hover { border-color: #afb8c1; }
+.btn.main { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+main { max-width: 1040px; margin: 0 auto; padding: 24px 20px 80px; }
+h2 { font-size: 13px; font-weight: 600; margin: 28px 0 6px; color: var(--mute); display: flex; gap: 8px; align-items: baseline; }
+h2:first-child { margin-top: 0; }
+h2 .n { font-weight: 400; }
+.empty { color: var(--mute); padding: 10px 0; }
+
+.row { display: grid; grid-template-columns: 52px 1fr auto auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.row:hover { background: var(--soft); }
+.row .no { color: var(--mute); }
+.row .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .who { color: var(--mute); font-size: 13px; }
+.tag { font-size: 12px; border: 1px solid; border-radius: 4px; padding: 0 6px; margin-right: 6px; }
+.tag.hi { color: var(--red); border-color: #ffcecb; }
+.tag.lo { color: var(--mute); border-color: var(--line); }
+.acts { display: flex; gap: 12px; font-size: 13px; color: var(--mute); visibility: hidden; }
+.row:hover .acts { visibility: visible; }
+.acts button:hover { color: var(--accent); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.doing { background: var(--accent); } .blocked { background: var(--red); } .todo { background: #afb8c1; } .done { background: var(--green); }
+
+.next { border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 12px 14px; margin-bottom: 8px; }
+.next small { color: var(--mute); display: block; }
+.cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.cols .row { grid-template-columns: 1fr; gap: 2px; padding: 8px 0; }
+.cols .row .meta { display: flex; justify-content: space-between; color: var(--mute); font-size: 12px; }
+.cols .acts { visibility: visible; font-size: 12px; gap: 10px; }
+.filter { margin-bottom: 16px; color: var(--mute); }
+select, input, textarea { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: #fff; color: var(--ink); }
+textarea { width: 100%; resize: vertical; }
+
+.person { margin-bottom: 28px; }
+.person h3 { font-size: 15px; margin: 0 0 4px; }
+.person dl { display: grid; grid-template-columns: 90px 1fr; margin: 0; }
+.person dt { color: var(--mute); padding: 5px 0; border-top: 1px solid var(--line); }
+.person dd { margin: 0; padding: 5px 0; border-top: 1px solid var(--line); }
+.person dd div { padding: 1px 0; }
+.mute { color: var(--mute); }
+
+.log { border-top: 1px solid var(--line); padding: 14px 0; }
+.log .when { color: var(--mute); font-size: 12px; margin-bottom: 4px; }
+.log h4 { margin: 10px 0 2px; font-size: 13px; }
+.log ul { margin: 0; padding-left: 18px; }
+.log code { background: var(--soft); padding: 0 4px; border-radius: 3px; font-size: 12.5px; }
+
+dialog { border: 1px solid var(--line); border-radius: 8px; padding: 20px; width: 440px; max-width: 94vw; }
+dialog::backdrop { background: rgba(31, 35, 40, .35); }
+dialog label { display: block; margin: 12px 0 4px; color: var(--mute); font-size: 13px; }
+dialog input[type=text] { width: 100%; }
+dialog .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+#msg { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 6px; display: none; max-width: 90vw; }
+@media (max-width: 800px) { .cols { grid-template-columns: 1fr; } .row { grid-template-columns: 44px 1fr; } .row .who, .row .acts { grid-column: 2; } .acts { visibility: visible; } }
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <h1>작업판</h1>
+  <nav id="tabs"></nav>
+  <div class="right"><span id="me"></span><button class="btn" id="reload">새로고침</button><button class="btn main" id="add">새 일</button></div>
+</div></header>
+<main id="view">불러오는 중…</main>
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <b>새 일</b>
+    <label>무엇을 하나요</label><input type="text" name="title" required>
+    <label>이러면 끝입니다</label><textarea name="done" rows="3"></textarea>
+    <label>담당</label><select name="assignee" id="who"></select>
+    <label>우선순위</label><select name="prio"><option value="">보통</option><option value="high">급함</option><option value="low">여유 있을 때</option></select>
+    <div class="foot"><button class="btn" value="cancel" formnovalidate>취소</button><button class="btn main" value="ok">만들기</button></div>
+  </form>
+</dialog>
+<div id="msg"></div>
+<script>
+const TOKEN = "__TOKEN__";
+const TABS = [["mine", "내 일"], ["all", "전체"], ["people", "사람별"], ["log", "변경 기록"]];
+let D = null, tab = localStorage.getItem("tab") || "mine", who = "";
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const $ = id => document.getElementById(id);
+const ago = iso => {
+  const m = (Date.now() - new Date(iso)) / 60000;
+  return m < 60 ? Math.max(1, Math.round(m)) + "분 전" : m < 1440 ? Math.round(m / 60) + "시간 전" : Math.round(m / 1440) + "일 전";
+};
+const sort = (a, b) => b.prio - a.prio || a.number - b.number;
+const STATUS = { doing: "진행 중", todo: "할 일", blocked: "막힘", done: "끝남" };
+
+function toast(t) { const m = $("msg"); m.textContent = t; m.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => m.style.display = "none", 4000); }
+
+async function load(force) {
+  try {
+    const r = await fetch("/api/data" + (force ? "?force=1" : ""));
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    D = j; render();
+  } catch (e) { $("view").innerHTML = `<p class="empty">불러오지 못했습니다: ${esc(e.message)}<br>터미널에서 <code>gh auth status</code> 로 로그인을 확인해 주세요.</p>`; }
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "X-Token": TOKEN, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error);
+  return j;
+}
+
+async function act(number, action) {
+  if (action === "done" && !confirm(`#${number} 을 끝낸 것으로 닫을까요?`)) return;
+  try { await post("/api/action", { number, action }); await load(); } catch (e) { toast("실패: " + e.message); }
+}
+
+function buttons(i) {
+  const b = [], mine = i.people.includes(D.me);
+  if (i.status === "todo") b.push(["start", "시작"]);
+  if (i.status === "doing") b.push(["block", "막힘"]);
+  if (i.status === "blocked") b.push(["unblock", "풀림"], ["start", "다시 시작"]);
+  if (i.status !== "done") b.push(["done", "끝"]);
+  if (i.status === "done") b.push(["reopen", "다시 열기"]);
+  if (i.status !== "done" && !mine) b.push(["take", "내가 맡기"]);
+  if (i.status !== "done" && mine) b.push(["drop", "놓기"]);
+  if (i.status !== "done") b.push(i.prio > 0 ? ["prio_normal", "급함 해제"] : ["prio_high", "급함"]);
+  return `<span class="acts">${b.map(([a, t]) => `<button data-n="${i.number}" data-a="${a}">${t}</button>`).join("")}</span>`;
+}
+
+function row(i, opts = {}) {
+  const tag = i.prio > 0 ? '<span class="tag hi">급함</span>' : i.prio < 0 ? '<span class="tag lo">여유</span>' : "";
+  const w = i.people.length ? i.people.map(p => p === D.me ? "나" : p).join(", ") : "담당 없음";
+  const dot = opts.status ? `<span class="dot ${i.status}"></span>${STATUS[i.status]} · ` : "";
+  return `<div class="row"><span class="no">#${i.number}</span>
+    <a class="title" href="${esc(i.url)}" target="_blank" title="${esc(i.body)}">${tag}${esc(i.title)}</a>
+    <span class="who">${dot}${esc(w)}</span>${buttons(i)}</div>`;
+}
+
+function group(title, list, opts) {
+  return `<h2>${title}<span class="n">${list.length}</span></h2>` + (list.length ? list.map(i => row(i, opts)).join("") : '<div class="empty">없음</div>');
+}
+
+function vMine() {
+  const all = D.issues.filter(i => i.status !== "done");
+  const mine = all.filter(i => i.people.includes(D.me)).sort(sort);
+  const by = s => mine.filter(i => i.status === s);
+  const first = [...by("doing"), ...by("todo")].sort((a, b) => b.prio - a.prio)[0];
+  const free = all.filter(i => !i.people.length).sort(sort);
+  let h = "";
+  if (first) h += `<div class="next"><small>지금 먼저 할 일</small><a href="${esc(first.url)}" target="_blank">#${first.number} ${esc(first.title)}</a></div>`;
+  h += group("진행 중", by("doing")) + group("할 일", by("todo")) + group("막힘", by("blocked"));
+  if (!mine.length) h += '<p class="empty">맡은 일이 없습니다. 아래 담당 없는 일에서 가져가거나 새 일을 만드세요.</p>';
+  h += group("담당 없는 일", free, { status: true });
+  return h;
+}
+
+function vAll() {
+  const people = [...new Set(D.issues.flatMap(i => i.people))].sort();
+  const list = D.issues.filter(i => !who || i.people.includes(who) || (who === "-" && !i.people.length));
+  const col = (s) => {
+    const l = list.filter(i => i.status === s).sort(s === "done" ? (a, b) => new Date(b.closedAt) - new Date(a.closedAt) : sort);
+    return `<div><h2>${STATUS[s]}${s === "done" ? " (2주)" : ""}<span class="n">${l.length}</span></h2>` +
+      (l.map(i => `<div class="row"><a class="title" style="white-space:normal" href="${esc(i.url)}" target="_blank">${i.prio > 0 ? '<span class="tag hi">급함</span>' : ""}#${i.number} ${esc(i.title)}</a>
+        <div class="meta"><span>${esc(i.people.join(", ") || "담당 없음")}</span></div>${buttons(i)}</div>`).join("") || '<div class="empty">없음</div>') + "</div>";
+  };
+  return `<div class="filter">보기 <select id="whoSel"><option value="">모두</option><option value="-" ${who === "-" ? "selected" : ""}>담당 없음</option>${people.map(p => `<option ${p === who ? "selected" : ""}>${esc(p)}</option>`).join("")}</select></div>
+    <div class="cols">${["todo", "doing", "blocked", "done"].map(col).join("")}</div>`;
+}
+
+function vPeople() {
+  const cut = Date.now() - 14 * 864e5;
+  const names = [...new Set([...D.issues.flatMap(i => i.people), ...D.commits.map(c => c.login), ...D.prs.map(p => p.author), D.me])].filter(Boolean).sort();
+  return names.map(n => {
+    const open = D.issues.filter(i => i.people.includes(n) && i.status !== "done").sort(sort);
+    const done = D.issues.filter(i => i.people.includes(n) && i.status === "done");
+    const prs = D.prs.filter(p => p.author === n && (p.state === "OPEN" || new Date(p.mergedAt || p.createdAt) > cut));
+    const cm = D.commits.filter(c => c.login === n && new Date(c.date) > cut);
+    const li = a => a.length ? a.join("") : '<span class="mute">없음</span>';
+    return `<div class="person"><h3>${esc(n)}${n === D.me ? ' <span class="mute">(나)</span>' : ""}</h3><dl>
+      <dt>맡은 일</dt><dd>${li(open.map(i => `<div><span class="dot ${i.status}"></span><a href="${esc(i.url)}" target="_blank">#${i.number} ${esc(i.title)}</a></div>`))}</dd>
+      <dt>끝낸 일</dt><dd>${li(done.map(i => `<div><a href="${esc(i.url)}" target="_blank">#${i.number} ${esc(i.title)}</a> <span class="mute">${ago(i.closedAt)}</span></div>`))}</dd>
+      <dt>PR</dt><dd>${li(prs.map(p => `<div><a href="${esc(p.url)}" target="_blank">#${p.number} ${esc(p.title)}</a> <span class="mute">${p.state === "MERGED" ? "합침" : p.state === "OPEN" ? (p.draft ? "초안" : "검토 중") : "닫힘"}</span></div>`))}</dd>
+      <dt>커밋 (2주)</dt><dd>${cm.length ? `<div class="mute">${cm.length}개</div>` + cm.slice(0, 5).map(c => `<div><a href="${esc(c.url)}" target="_blank">${esc(c.msg)}</a> <span class="mute">${ago(c.date)}</span></div>`).join("") : '<span class="mute">없음</span>'}</dd>
+    </dl></div>`;
+  }).join("") || '<p class="empty">아직 기록이 없습니다.</p>';
+}
+
+function md(t) {
+  let out = "", inList = false;
+  for (const raw of t.split("\n")) {
+    const s = esc(raw).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
+    const li = s.match(/^\s*- (.*)/);
+    if (li && !inList) { out += "<ul>"; inList = true; }
+    if (!li && inList) { out += "</ul>"; inList = false; }
+    out += li ? `<li>${li[1]}</li>` : s.startsWith("### ") ? `<h4>${s.slice(4)}</h4>` : s.trim() ? `<div>${s}</div>` : "";
+  }
+  return out + (inList ? "</ul>" : "");
+}
+
+function vLog() {
+  if (!D.log.length) return '<p class="empty">아직 변경 기록이 없습니다. main 에 코드가 올라오면 여기에 쌓입니다.</p>';
+  return D.log.map(l => `<div class="log"><div class="when">${new Date(l.date).toLocaleString("ko-KR")} (${ago(l.date)})</div>${md(l.body)}</div>`).join("");
+}
+
+function render() {
+  $("tabs").innerHTML = TABS.map(([k, t]) => `<button data-t="${k}" class="${k === tab ? "on" : ""}">${t}</button>`).join("");
+  $("me").textContent = D.me;
+  $("view").innerHTML = { mine: vMine, all: vAll, people: vPeople, log: vLog }[tab]();
+  const sel = $("whoSel"); if (sel) sel.onchange = () => { who = sel.value; render(); };
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-t]"); if (t) { tab = t.dataset.t; localStorage.setItem("tab", tab); render(); }
+  const a = e.target.closest("[data-a]"); if (a) act(+a.dataset.n, a.dataset.a);
+});
+$("reload").onclick = () => load(true);
+$("add").onclick = () => {
+  const names = [...new Set([D.me, ...D.issues.flatMap(i => i.people), ...D.commits.map(c => c.login)])].filter(Boolean);
+  $("who").innerHTML = `<option value="">담당 없음</option>` + names.map(n => `<option value="${esc(n)}" ${n === D.me ? "selected" : ""}>${esc(n)}${n === D.me ? " (나)" : ""}</option>`).join("");
+  $("form").reset(); $("dlg").showModal();
+};
+$("form").onsubmit = async e => {
+  if (e.submitter?.value !== "ok") return;
+  const f = Object.fromEntries(new FormData($("form")));
+  try { const r = await post("/api/new", f); toast("만들었습니다: " + r.url); await load(); } catch (err) { toast("실패: " + err.message); }
+};
+load(true);
+setInterval(() => { if (!document.hidden) load(); }, 60000);
+</script>
+</body>
+</html>
