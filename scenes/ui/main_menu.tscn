@@ -1,80 +1,230 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://b1nxdokcucrwp"]
 
-[ext_resource type="Script" uid="uid://d051i3t688445" path="res://scripts/ui/main_menu.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://d051i3t688445" path="res://scripts/ui/main_menu.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://ei38g3lkpwhy" path="res://assets/ui/lobby_board.png" id="2_otr3d"]
+[ext_resource type="Texture2D" uid="uid://bpojnslei547i" path="res://assets/ui/lobby_logo.png" id="3_8ekit"]
+[ext_resource type="Texture2D" uid="uid://bts8lmao21iho" path="res://assets/ui/button_dark.png" id="5_877pj"]
+[ext_resource type="Texture2D" uid="uid://b2iexqfm1w4d5" path="res://assets/ui/button_orange.png" id="6_ayp64"]
+[ext_resource type="Texture2D" uid="uid://co1ymo22u867x" path="res://assets/ui/icon_local.png" id="7_y2j7i"]
+[ext_resource type="Texture2D" uid="uid://cu0gabnj3pfod" path="res://assets/ui/icon_online.png" id="8_y1h5l"]
+[ext_resource type="Texture2D" uid="uid://cquqnxun5hnxr" path="res://assets/ui/icon_join.png" id="9_pw24t"]
+[ext_resource type="Texture2D" uid="uid://dv8rvlhbsiow7" path="res://assets/ui/icon_settings.png" id="10_5dct7"]
+[ext_resource type="Texture2D" uid="uid://dhajws0g153m6" path="res://assets/ui/icon_quit.png" id="11_qilvv"]
+[ext_resource type="Texture2D" uid="uid://cqwaqdhbvbfcb" path="res://assets/ui/icon_developer.png" id="12_jbte4"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu_panel"]
-bg_color = Color(0.290196, 0.176471, 0.121569, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.482353, 0.317647, 0.203922, 1)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_6ud2m"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
-bg_color = Color(0.439216, 0.27451, 0.180392, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.611765, 0.419608, 0.262745, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_4ovp2"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-bg_color = Color(0.584314, 0.380392, 0.235294, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.878431, 0.678431, 0.407843, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_1mexh"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
-bg_color = Color(0.337255, 0.203922, 0.129412, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.945098, 0.772549, 0.498039, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_qqxfm"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
-bg_color = Color(0.231373, 0.188235, 0.168627, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.341176, 0.294118, 0.270588, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ktljq"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_button_focus"]
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_rbask"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
 
-[node name="MainMenu" type="Control"]
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_e6a60"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_5et21"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ei00g"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_75tx2"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_j4d8q"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_qpknu"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_wabu5"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_3e805"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_iglv2"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_c68a3"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_01voq"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_hr2v7"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_t4suy"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_xupgs"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_6gmx2"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_3g7do"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ojeks"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_f8svg"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_0jeo2"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_k6jjb"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_71yxc"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_lwoqm"]
+texture = ExtResource("5_877pj")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_85es6"]
+texture = ExtResource("6_ayp64")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+
+[node name="MainMenu" type="Control" unique_id=660702643]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_script")
+script = ExtResource("1")
 
-[node name="Background" type="ColorRect" parent="."]
-unique_name_in_owner = true
+[node name="Backdrop" type="ColorRect" parent="." unique_id=2096677825]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -82,147 +232,269 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.141176, 0.0862745, 0.0588235, 1)
+color = Color(0.12941177, 0.10980392, 0.09803922, 1)
 
-[node name="SafeMargin" type="MarginContainer" parent="."]
+[node name="BoardImage" type="TextureRect" parent="." unique_id=565174295]
+texture_filter = 2
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 28
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 28
+mouse_filter = 2
+texture = ExtResource("2_otr3d")
+expand_mode = 1
 
-[node name="Center" type="CenterContainer" parent="SafeMargin"]
-layout_mode = 2
+[node name="LogoImage" type="TextureRect" parent="." unique_id=74868159]
+texture_filter = 2
+layout_mode = 0
+offset_left = 320.0
+offset_top = 26.0
+offset_right = 960.0
+offset_bottom = 231.0
+pivot_offset = Vector2(320, 102)
+mouse_filter = 2
+texture = ExtResource("3_8ekit")
+expand_mode = 1
+stretch_mode = 5
 
-[node name="MainContent" type="VBoxContainer" parent="SafeMargin/Center"]
-custom_minimum_size = Vector2(600, 0)
-layout_mode = 2
-theme_override_constants/separation = 4
+[node name="LocalButton" type="Button" parent="." unique_id=1958852710]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 248.0
+offset_right = 820.0
+offset_bottom = 302.0
+scale = Vector2(1, 0.9952358)
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_6ud2m")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_4ovp2")
+theme_override_styles/hover = SubResource("StyleBoxTexture_1mexh")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_6ud2m")
+theme_override_styles/focus = SubResource("StyleBoxTexture_qqxfm")
 
-[node name="TitleLabel" type="Label" parent="SafeMargin/Center/MainContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 72)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.956863, 0.843137, 0.603922, 1)
-theme_override_font_sizes/font_size = 58
-text = "증강 알까기"
-horizontal_alignment = 1
-vertical_alignment = 1
+[node name="Icon" type="TextureRect" parent="LocalButton" unique_id=1775601110]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("7_y2j7i")
+expand_mode = 1
+stretch_mode = 5
 
-[node name="SubtitleLabel" type="Label" parent="SafeMargin/Center/MainContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 36)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.784314, 0.619608, 0.396078, 1)
-theme_override_font_sizes/font_size = 21
-text = "AUGMENT ALKKAGI"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="MenuFrame" type="CenterContainer" parent="SafeMargin/Center/MainContent"]
-custom_minimum_size = Vector2(0, 458)
-layout_mode = 2
-
-[node name="MenuPanel" type="PanelContainer" parent="SafeMargin/Center/MainContent/MenuFrame"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(404, 458)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_menu_panel")
-
-[node name="MenuMargin" type="MarginContainer" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 28
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 28
-theme_override_constants/margin_bottom = 20
-
-[node name="MenuButtons" type="VBoxContainer" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="DeveloperModeButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
-text = "개발자 모드 · 증강 테스트"
-[node name="LocalGameButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
+[node name="Text" type="Label" parent="LocalButton" unique_id=1553804106]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
 text = "로컬 대전 시작"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="CreateOnlineRoomButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
+[node name="OnlineCreateButton" type="Button" parent="." unique_id=188270758]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 311.0
+offset_right = 820.0
+offset_bottom = 365.0
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_ktljq")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_rbask")
+theme_override_styles/hover = SubResource("StyleBoxTexture_e6a60")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_5et21")
+theme_override_styles/focus = SubResource("StyleBoxTexture_ei00g")
+
+[node name="Icon" type="TextureRect" parent="OnlineCreateButton" unique_id=519704458]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("8_y1h5l")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="Label" parent="OnlineCreateButton" unique_id=2133385639]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
 text = "온라인 방 만들기"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="JoinOnlineRoomButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
-text = "온라인 방 코드 참가"
+[node name="JoinButton" type="Button" parent="." unique_id=161197714]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 374.0
+offset_right = 820.0
+offset_bottom = 428.0
+scale = Vector2(0.9905123, 1)
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_75tx2")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_j4d8q")
+theme_override_styles/hover = SubResource("StyleBoxTexture_qpknu")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_wabu5")
+theme_override_styles/focus = SubResource("StyleBoxTexture_3e805")
 
-[node name="SettingsButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
+[node name="Icon" type="TextureRect" parent="JoinButton" unique_id=224649111]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("9_pw24t")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="Label" parent="JoinButton" unique_id=536970000]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
+text = "6자리 방 코드 참가"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SettingsButton" type="Button" parent="." unique_id=1737371085]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 437.0
+offset_right = 820.0
+offset_bottom = 491.0
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_iglv2")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_c68a3")
+theme_override_styles/hover = SubResource("StyleBoxTexture_01voq")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_hr2v7")
+theme_override_styles/focus = SubResource("StyleBoxTexture_t4suy")
+
+[node name="Icon" type="TextureRect" parent="SettingsButton" unique_id=861912337]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("10_5dct7")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="Label" parent="SettingsButton" unique_id=1498340171]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
 text = "설정"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="QuitButton" type="Button" parent="SafeMargin/Center/MainContent/MenuFrame/MenuPanel/MenuMargin/MenuButtons"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_button_focus")
+[node name="QuitButton" type="Button" parent="." unique_id=1522335821]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 500.0
+offset_right = 820.0
+offset_bottom = 554.0
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_xupgs")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_6gmx2")
+theme_override_styles/hover = SubResource("StyleBoxTexture_3g7do")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_ojeks")
+theme_override_styles/focus = SubResource("StyleBoxTexture_f8svg")
+
+[node name="Icon" type="TextureRect" parent="QuitButton" unique_id=1038026728]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("11_qilvv")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="Label" parent="QuitButton" unique_id=599983088]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
 text = "게임 종료"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="VersionLabel" type="Label" parent="SafeMargin/Center/MainContent"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.658824, 0.533333, 0.411765, 1)
-theme_override_font_sizes/font_size = 15
-text = "Augment Phase · v0.2.0"
+[node name="DeveloperDivider" type="ColorRect" parent="." unique_id=619873731]
+visible = false
+layout_mode = 0
+offset_left = 453.0
+offset_top = 625.0
+offset_right = 833.0
+offset_bottom = 627.0
+mouse_filter = 2
+color = Color(0.64705884, 0.5411765, 0.4509804, 1)
+
+[node name="DeveloperToolsLabel" type="Label" parent="." unique_id=184726351]
+layout_mode = 0
+offset_left = 480.0
+offset_top = 570.0
+offset_right = 800.0
+offset_bottom = 592.0
+pivot_offset = Vector2(160, 11)
+theme_override_colors/font_color = Color(0.6627451, 0.5803922, 0.5019608, 1)
+theme_override_font_sizes/font_size = 12
+text = "DEVELOPER TOOLS"
+vertical_alignment = 1
+
+[node name="DeveloperButton" type="Button" parent="." unique_id=557415487]
+layout_mode = 0
+offset_left = 460.0
+offset_top = 598.0
+offset_right = 820.0
+offset_bottom = 652.0
+pivot_offset = Vector2(180, 27)
+theme_override_styles/normal = SubResource("StyleBoxTexture_0jeo2")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_k6jjb")
+theme_override_styles/hover = SubResource("StyleBoxTexture_71yxc")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_lwoqm")
+theme_override_styles/focus = SubResource("StyleBoxTexture_85es6")
+
+[node name="Icon" type="TextureRect" parent="DeveloperButton" unique_id=1455846801]
+texture_filter = 2
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 0
+offset_left = 16.0
+offset_top = 7.0
+offset_right = 56.0
+offset_bottom = 47.0
+mouse_filter = 2
+texture = ExtResource("12_jbte4")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Text" type="Label" parent="DeveloperButton" unique_id=155506853]
+layout_mode = 0
+offset_right = 360.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.9607843, 0.91764706, 0.85882354, 1)
+theme_override_font_sizes/font_size = 22
+text = "증강 테스트 모드"
 horizontal_alignment = 1
 vertical_alignment = 1
