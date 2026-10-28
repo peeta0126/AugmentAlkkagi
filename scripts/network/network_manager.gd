@@ -6,7 +6,11 @@ signal connection_message(text: String, is_error: bool)
 signal session_ended(reason: String)
 
 const SNAPSHOT_INTERVAL := 0.05
-const PROTOCOL_VERSION := 3
+const SNAPSHOT_HEARTBEAT := 1.0
+const SNAPSHOT_REPEATS := 2
+const SNAPSHOT_IDLE_GAP := 0.3
+# v4 separates reliable world extras from throttled movement snapshots.
+const PROTOCOL_VERSION := 4
 const ROOM_PREFIX := "AA-"
 const ROOM_CODE_LENGTH := 6
 const ROOM_CREATE_ATTEMPTS := 5
@@ -34,6 +38,12 @@ var placement_completed: Dictionary = {1: false, 2: false}
 var last_sequences: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
+var heartbeat_elapsed := 0.0
+var last_fast_bytes := PackedByteArray()
+var last_slow_bytes := PackedByteArray()
+var fast_repeats := 0
+var pending_extras: Dictionary = {}
+var snapshot_metrics: Dictionary = {}
 var last_snapshot_received_usec := 0
 var shutting_down := false
 var room_code := ""
@@ -70,6 +80,8 @@ func _ready() -> void:
 	GDSync.expose_func(receive_selection_complete, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_active_skill_rejected, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_snapshot, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_world_extras, ENUMS.EXPOSE_PERMISSION.HOST)
+	_reset_snapshot_cache()
 
 func game() -> Node:
 	return get_parent()
@@ -128,12 +140,12 @@ func _reset_lobby_state() -> void:
 	match_active = false
 	refresh_mode = false
 	chaos_mode = false
-	placement_completed = {1: false, 2: false}
+	_reset_selection_state()
+	_reset_snapshot_cache()
 	gdsync_host_id = -1
 
 func shutdown(notify: bool = true) -> void:
-	if mode == Mode.OFFLINE:
-		return
+	var was_online := mode != Mode.OFFLINE
 	shutting_down = true
 	if not GDSync.lobby_get_name().is_empty():
 		GDSync.lobby_leave()
@@ -141,20 +153,32 @@ func shutdown(notify: bool = true) -> void:
 	local_player_id = 0
 	match_active = false
 	last_snapshot_received_usec = 0
-	offers.clear()
-	selection_context.clear()
-	pending_choices.clear()
-	selection_completed = {1: false, 2: false}
-	selection_pick_counts = {1: 0, 2: 0}
-	selection_refresh_used = {1: false, 2: false}
-	placement_completed = {1: false, 2: false}
+	last_sequences.clear()
+	local_sequence = 0
+	peer_to_player = {1: 1}
+	ready_state = {1: false, 2: false}
+	connected_players = {1: true, 2: false}
+	_reset_selection_state()
+	_reset_snapshot_cache()
 	refresh_mode = false
 	chaos_mode = false
 	room_code = ""
+	room_create_attempts = 0
 	gdsync_host_id = -1
 	shutting_down = false
-	if notify:
+	if notify and was_online:
 		session_ended.emit("네트워크 방에서 나왔습니다.")
+
+func _reset_selection_state() -> void:
+	offers.clear()
+	selection_context.clear()
+	pending_choices.clear()
+	active_selection_stage = 0
+	selection_completed = {1: false, 2: false}
+	selection_pick_counts = {1: 0, 2: 0}
+	selection_pick_targets = {1: 1, 2: 1}
+	selection_refresh_used = {1: false, 2: false}
+	placement_completed = {1: false, 2: false}
 
 func is_online() -> bool:
 	return mode != Mode.OFFLINE
@@ -195,6 +219,7 @@ func start_match() -> bool:
 		connection_message.emit("두 플레이어가 접속하고 모두 준비해야 합니다.", true)
 		return false
 	match_active = true
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	game().network_prepare_match(true, 1, piece_count, refresh_mode, chaos_mode)
 	GDSync.call_func(receive_world_start, piece_count, refresh_mode, chaos_mode)
@@ -205,6 +230,7 @@ func return_to_lobby() -> void:
 	if not is_host():
 		return
 	match_active = false
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	ready_state = {1: false, 2: false}
 	GDSync.call_func(receive_return_lobby)
@@ -213,6 +239,7 @@ func return_to_lobby() -> void:
 
 func receive_return_lobby() -> void:
 	match_active = false
+	_reset_snapshot_cache()
 	placement_completed = {1: false, 2: false}
 	game()._show_network_lobby()
 
@@ -310,8 +337,75 @@ func _process(delta: float) -> void:
 	snapshot_elapsed += delta
 	if snapshot_elapsed >= SNAPSHOT_INTERVAL:
 		snapshot_elapsed = 0.0
-		var snapshot: Dictionary = game().create_network_snapshot()
+		var snapshot := _next_snapshot()
+		_send_pending_extras()
+		if snapshot.is_empty():
+			return
+		_record_snapshot_bytes("fast", snapshot)
 		GDSync.call_func_unreliable(receive_snapshot, snapshot)
+
+func _next_snapshot() -> Dictionary:
+	pending_extras = {}
+	var snapshot: Dictionary = game().create_network_snapshot()
+	var extras := {
+		"effects": snapshot.get("effects", {}),
+		"walls": snapshot.get("walls", PackedFloat32Array()),
+	}
+	snapshot.erase("effects")
+	snapshot.erase("walls")
+	var extras_bytes := var_to_bytes(extras)
+	if extras_bytes != last_slow_bytes:
+		last_slow_bytes = extras_bytes
+		pending_extras = extras
+	var fast_bytes := var_to_bytes(snapshot)
+	if fast_bytes != last_fast_bytes:
+		last_fast_bytes = fast_bytes
+		fast_repeats = SNAPSHOT_REPEATS
+	elif fast_repeats > 0:
+		fast_repeats -= 1
+	else:
+		heartbeat_elapsed += SNAPSHOT_INTERVAL
+		if heartbeat_elapsed < SNAPSHOT_HEARTBEAT:
+			return {}
+	heartbeat_elapsed = 0.0
+	return snapshot
+
+func _send_pending_extras() -> void:
+	if pending_extras.is_empty():
+		return
+	var effects: Dictionary = pending_extras["effects"]
+	var walls: PackedFloat32Array = pending_extras["walls"]
+	pending_extras = {}
+	_record_snapshot_bytes("extras", {"effects": effects, "walls": walls})
+	GDSync.call_func(receive_world_extras, effects, walls)
+
+func _reset_snapshot_cache() -> void:
+	snapshot_elapsed = 0.0
+	heartbeat_elapsed = 0.0
+	last_fast_bytes = PackedByteArray()
+	last_slow_bytes = PackedByteArray()
+	fast_repeats = 0
+	pending_extras = {}
+	snapshot_metrics = {
+		"fast_count": 0,
+		"fast_bytes": 0,
+		"fast_max_bytes": 0,
+		"extras_count": 0,
+		"extras_bytes": 0,
+		"extras_max_bytes": 0,
+	}
+
+func _record_snapshot_bytes(kind: String, payload: Dictionary) -> void:
+	var byte_count := var_to_bytes(payload).size()
+	var count_key := "%s_count" % kind
+	var bytes_key := "%s_bytes" % kind
+	var max_key := "%s_max_bytes" % kind
+	snapshot_metrics[count_key] = int(snapshot_metrics.get(count_key, 0)) + 1
+	snapshot_metrics[bytes_key] = int(snapshot_metrics.get(bytes_key, 0)) + byte_count
+	snapshot_metrics[max_key] = maxi(int(snapshot_metrics.get(max_key, 0)), byte_count)
+
+func get_snapshot_metrics() -> Dictionary:
+	return snapshot_metrics.duplicate()
 
 func _valid_sequence(peer_id: int, sequence: int, request_kind: String = "request") -> bool:
 	var previous := int(last_sequences.get(peer_id, 0))
@@ -639,6 +733,7 @@ func receive_augment_granted(player_id: int, augment_id: String) -> void:
 func receive_world_start(count: int, refresh_enabled: bool = false, chaos_enabled: bool = false) -> void:
 	match_active = true
 	last_snapshot_received_usec = 0
+	_reset_snapshot_cache()
 	refresh_mode = refresh_enabled
 	chaos_mode = chaos_enabled
 	game().network_prepare_match(false, local_player_id, count, refresh_mode, chaos_mode)
@@ -654,12 +749,19 @@ func receive_placement_state(piece_id: int, position: Vector2, completed: Dictio
 func receive_active_skill_rejected(reason: String) -> void:
 	game().network_active_skill_rejected(reason)
 
+func receive_world_extras(effects: Dictionary, walls: PackedFloat32Array) -> void:
+	if GDSync.get_sender_id() != gdsync_host_id:
+		return
+	if mode == Mode.CLIENT and match_active:
+		game().apply_network_extras(effects, walls)
+
 func receive_snapshot(snapshot: Dictionary) -> void:
 	if mode == Mode.CLIENT:
 		var now_usec := Time.get_ticks_usec()
 		var interpolation_duration := SNAPSHOT_INTERVAL
 		if last_snapshot_received_usec > 0:
-			interpolation_duration = clampf(float(now_usec - last_snapshot_received_usec) / 1000000.0, SNAPSHOT_INTERVAL * 0.5, 0.15)
+			var gap := float(now_usec - last_snapshot_received_usec) / 1000000.0
+			interpolation_duration = SNAPSHOT_INTERVAL if gap > SNAPSHOT_IDLE_GAP else clampf(gap, SNAPSHOT_INTERVAL * 0.5, 0.15)
 		last_snapshot_received_usec = now_usec
 		game().apply_network_snapshot(snapshot, interpolation_duration)
 
@@ -696,13 +798,19 @@ func _on_gdsync_lobby_creation_failed(lobby_name: String, error: int) -> void:
 			_create_online_room_attempt()
 		return
 	var reason: String = str(ENUMS.LOBBY_CREATION_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_CREATION_ERROR.size() else "UNKNOWN"
-	mode = Mode.OFFLINE
+	shutdown(false)
 	connection_message.emit("온라인 방 생성 실패: %s (error=%d)" % [reason, error], true)
 
 func _on_gdsync_lobby_joined(lobby_name: String) -> void:
 	if OS.is_debug_build():
 		print("[gdsync] lobby_joined name=%s expected=%s mode=%s host=%d self=%d" % [lobby_name, ROOM_PREFIX + room_code, Mode.keys()[mode], GDSync.get_host(), GDSync.get_client_id()])
 	if not is_online() or lobby_name != ROOM_PREFIX + room_code:
+		return
+	var lobby_protocol := int(GDSync.lobby_get_tag("protocol", -1))
+	if lobby_protocol != PROTOCOL_VERSION:
+		var expected_code := room_code
+		shutdown(false)
+		connection_message.emit("온라인 방 %s의 프로토콜 버전이 일치하지 않습니다. (방 %d / 현재 %d)" % [expected_code, lobby_protocol, PROTOCOL_VERSION], true)
 		return
 	var own_id := GDSync.get_client_id()
 	if mode == Mode.HOST:
@@ -727,7 +835,7 @@ func _on_gdsync_lobby_join_failed(lobby_name: String, error: int) -> void:
 	if mode != Mode.CLIENT or lobby_name != ROOM_PREFIX + room_code:
 		return
 	var reason: String = str(ENUMS.LOBBY_JOIN_ERROR.keys()[error]) if error >= 0 and error < ENUMS.LOBBY_JOIN_ERROR.size() else "UNKNOWN"
-	mode = Mode.OFFLINE
+	shutdown(false)
 	connection_message.emit("온라인 방 참가 실패: %s (error=%d)" % [reason, error], true)
 
 func _on_gdsync_client_joined(client_id: int) -> void:
@@ -752,13 +860,12 @@ func _on_gdsync_client_left(client_id: int) -> void:
 		connected_players[2] = false
 		ready_state[2] = false
 		match_active = false
-		placement_completed = {1: false, 2: false}
+		_reset_selection_state()
+		_reset_snapshot_cache()
 		session_ended.emit("참가자의 연결이 끊겼습니다.")
 		_broadcast_lobby()
 	elif mode == Mode.CLIENT and client_id == gdsync_host_id:
-		mode = Mode.OFFLINE
-		match_active = false
-		placement_completed = {1: false, 2: false}
+		shutdown(false)
 		session_ended.emit("방장이 방을 나갔거나 연결이 끊겼습니다.")
 
 func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:
@@ -772,15 +879,13 @@ func _on_gdsync_host_changed(_is_host: bool, new_host_id: int) -> void:
 			connected_players[1] = true
 			_emit_lobby()
 		elif new_host_id != gdsync_host_id:
-			mode = Mode.OFFLINE
-			match_active = false
+			shutdown(false)
 			session_ended.emit("방장 연결이 끊겨 온라인 대전을 종료합니다.")
 
 func _on_gdsync_disconnected() -> void:
 	gdsync_connected = false
 	if is_online() and not shutting_down:
-		mode = Mode.OFFLINE
-		match_active = false
+		shutdown(false)
 		session_ended.emit("GD-Sync 서버와 연결이 끊겼습니다.")
 
 func _on_gdsync_connected() -> void:

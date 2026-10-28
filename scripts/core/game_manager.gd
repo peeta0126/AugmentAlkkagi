@@ -1541,8 +1541,6 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		piece.field_damp_multiplier = blizzard_damp_multiplier if blizzard_turns != 0 else 1.0
 		piece.field_speed_multiplier = blizzard_speed_multiplier if blizzard_turns != 0 else 1.0
 		piece.refresh_physics()
-	_apply_network_effect_runtime(snapshot.get("effects", {}))
-	_sync_network_walls(snapshot.get("walls", PackedFloat32Array()))
 	var winner := int(snapshot.get("winner", 0))
 	if winner != 0 and network_winner == 0:
 		show_game_over(winner)
@@ -1570,6 +1568,12 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		update_hud("피의 축제 발동 · 추가 발사 기회")
 	else:
 		update_hud("자신의 차례입니다" if current_player == local_player_id else "상대 차례를 기다리는 중…")
+
+func apply_network_extras(effects: Dictionary, walls: PackedFloat32Array) -> void:
+	if online_is_host or board == null:
+		return
+	_apply_network_effect_runtime(effects)
+	_sync_network_walls(walls)
 
 func network_active_skill_rejected(reason: String) -> void:
 	_skill_debug("host rejected active request: %s" % reason)
