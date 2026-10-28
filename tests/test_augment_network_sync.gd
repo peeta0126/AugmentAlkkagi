@@ -28,7 +28,13 @@ func reset_pair(host: Node, guest: Node) -> void:
 	await process_frame
 
 func sync_snapshot(host: Node, guest: Node) -> void:
-	guest.apply_network_snapshot(host.create_network_snapshot(), 0.05)
+	var snapshot: Dictionary = host.create_network_snapshot()
+	var effects: Dictionary = snapshot["effects"]
+	var walls: PackedFloat32Array = snapshot["walls"]
+	snapshot.erase("effects")
+	snapshot.erase("walls")
+	guest.apply_network_snapshot(snapshot, 0.05)
+	guest.apply_network_extras(effects, walls)
 	await process_frame
 
 func run_test() -> void:
@@ -118,5 +124,5 @@ func run_test() -> void:
 	guest.queue_free()
 	await process_frame
 	if failures == 0:
-		print("PASS: version 2 augment host-to-guest snapshot synchronization")
+		print("PASS: version 2 augment host-to-guest GD-Sync synchronization")
 	quit(failures)
