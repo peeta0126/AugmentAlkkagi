@@ -34,18 +34,28 @@ func _ready() -> void:
 	add_child(instruction)
 
 	var scroll := ScrollContainer.new()
-	scroll.position = Vector2(70, 124)
-	scroll.size = Vector2(1140, 510)
+	# 카드 3열(316×3 + 간격 36 = 984)에 양옆 여백 20씩을 더한 폭을 화면 가운데에 둔다.
+	const GRID_WIDTH := 984.0
+	const SIDE_MARGIN := 20.0
+	var scroll_width := GRID_WIDTH + SIDE_MARGIN * 2.0
+	scroll.position = Vector2((1280.0 - scroll_width) * 0.5, 124)
+	scroll.size = Vector2(scroll_width, 510)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(scroll)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", int(SIDE_MARGIN))
+	margin.add_theme_constant_override("margin_right", int(SIDE_MARGIN))
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	scroll.add_child(margin)
 
 	grid = GridContainer.new()
 	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 18)
 	grid.add_theme_constant_override("v_separation", 16)
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(grid)
+	margin.add_child(grid)
 
 	var back := Button.new()
 	back.text = "메인 메뉴로"
@@ -53,6 +63,14 @@ func _ready() -> void:
 	back.size = Vector2(240, 48)
 	back.add_theme_color_override("font_color", Color("f3e7d3"))
 	back.add_theme_font_size_override("font_size", 18)
+	for state in ["normal", "hover", "pressed"]:
+		var style := StyleBoxFlat.new()
+		style.set_corner_radius_all(4)
+		style.set_border_width_all(1)
+		style.bg_color = Color("2b2018") if state == "hover" else Color(0, 0, 0, 0)
+		style.border_color = Color("c9b99c") if state == "hover" else Color("6f5c3f")
+		back.add_theme_stylebox_override(state, style)
+	back.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	back.pressed.connect(func(): back_requested.emit())
 	add_child(back)
 
