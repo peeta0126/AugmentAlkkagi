@@ -106,10 +106,26 @@ func _center_burst() -> void:
 		_burst.position = size * 0.5 - _burst.size * 0.5
 
 
+## 튀어나올 때 폭발이 커졌다 돌아오기 때문에(커지는 정도와 회전 포함) 양 끝 카드에서는 화면 밖으로 삐져나가 잘린다.
+## 모양과 크기는 그대로 두고, 화면 안에 다 들어오도록 가로 위치만 안쪽으로 민다.
+func _keep_burst_on_screen() -> void:
+	_center_burst()
+	var half_reach := _burst.size.x * 0.5 * 1.14
+	var viewport_width := get_viewport_rect().size.x
+	var center_x := global_position.x + size.x * 0.5
+	var shift := 0.0
+	if center_x - half_reach < 0.0:
+		shift = half_reach - center_x
+	elif center_x + half_reach > viewport_width:
+		shift = viewport_width - half_reach - center_x
+	_burst.position.x += shift / maxf(scale.x, 0.01)
+
+
 func _pop_burst(strength: float) -> void:
 	if _burst == null:
 		return
 	z_index = 10  # 옆 카드에 가리지 않고 폭발이 끝까지 보이게 맨 앞으로
+	_keep_burst_on_screen()
 	if _burst_tween:
 		_burst_tween.kill()
 	_burst.scale = Vector2(0.55, 0.55)
