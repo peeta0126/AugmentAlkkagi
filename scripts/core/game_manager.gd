@@ -1355,7 +1355,7 @@ func show_game_over(winner: int) -> void:
 	swash.stretch_mode = TextureRect.STRETCH_SCALE
 	swash.position = Vector2(250, 170)
 	swash.size = Vector2(780, 170)
-	swash.rotation_degrees = -2.0
+	swash.rotation_degrees = -1.0
 	swash.pivot_offset = swash.size * 0.5
 	var burst := TextureRect.new()
 	burst.texture = InkStyle.BURST_TEXTURE
@@ -1373,7 +1373,7 @@ func show_game_over(winner: int) -> void:
 	label.size = Vector2(700, 90)
 	label.position = Vector2(290, 215)
 	label.pivot_offset = label.size * 0.5
-	label.rotation_degrees = -2.0
+	label.rotation_degrees = -1.0
 	InkStyle.brush_label(label, 60, InkStyle.CREAM, 16)
 	overlay.add_child(label)
 	var replay_callback := _start_developer_mode if developer_mode_active else begin_match
@@ -1710,7 +1710,7 @@ func _build_game_backdrop() -> void:
 	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	board.stretch_mode = TextureRect.STRETCH_SCALE
 	board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	board.modulate = Color(0.78, 0.7, 0.62)
+	board.modulate = Color(0.36, 0.3, 0.26)
 	backdrop_layer.add_child(board)
 	var vignette := TextureRect.new()
 	vignette.texture = InkStyle.VIGNETTE_TEXTURE

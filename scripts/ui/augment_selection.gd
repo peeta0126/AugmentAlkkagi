@@ -100,7 +100,7 @@ func _build_backdrop() -> void:
 func _style_chrome() -> void:
 	InkStyle.brush_label(title_label, 52, InkStyle.CREAM, 16)
 	title_label.pivot_offset = title_label.size * 0.5
-	title_label.rotation_degrees = -2.5
+	title_label.rotation_degrees = -1.0
 	InkStyle.outline_label(instruction_label, 19, InkStyle.CREAM_SOFT, 6)
 	# 로고 밑줄처럼 제목 뒤에 크게 깔리는 주황 붓 터치.
 	var swash := TextureRect.new()
@@ -111,7 +111,7 @@ func _style_chrome() -> void:
 	swash.position = Vector2(640.0 - 360.0, 26.0)
 	swash.size = Vector2(720.0, 118.0)
 	swash.pivot_offset = swash.size * 0.5
-	swash.rotation_degrees = -2.5
+	swash.rotation_degrees = -1.0
 	add_child(swash)
 	move_child(swash, title_label.get_index())
 	_title_rule = ColorRect.new()

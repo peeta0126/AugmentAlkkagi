@@ -17,7 +17,7 @@ func _ready() -> void:
 	swash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swash.position = Vector2(640.0 - 400.0, 4.0)
 	swash.size = Vector2(800.0, 112.0)
-	swash.rotation_degrees = -1.5
+	swash.rotation_degrees = -0.5
 	swash.pivot_offset = swash.size * 0.5
 	add_child(swash)
 
@@ -29,7 +29,7 @@ func _ready() -> void:
 	title.position = Vector2(200, 24)
 	InkStyle.brush_label(title, 40, InkStyle.CREAM, 12)
 	title.pivot_offset = title.size * 0.5
-	title.rotation_degrees = -1.5
+	title.rotation_degrees = -0.5
 	add_child(title)
 
 	var instruction := Label.new()

@@ -56,7 +56,7 @@ func play_enter(delay: float) -> void:
 func _apply_style() -> void:
 	background.add_theme_stylebox_override("panel", InkStyle.panel(34.0, 0.0))
 	divider.color = Color(InkStyle.TAN, 0.4)
-	InkStyle.brush_label(name_label, 31, InkStyle.CREAM, 10)
+	InkStyle.outline_label(name_label, 30, InkStyle.CREAM, 9)
 	description_label.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
 	trigger_label.add_theme_color_override("font_color", InkStyle.TAN)
 	InkStyle.style_button(select_button, 22)
@@ -68,7 +68,7 @@ func _apply_definition() -> void:
 	icon.setup(_definition)
 	name_label.text = _definition.display_name
 	var length := _definition.display_name.length()
-	InkStyle.brush_label(name_label, 31 if length <= 6 else (26 if length <= 9 else 22), InkStyle.CREAM, 10)
+	InkStyle.outline_label(name_label, 30 if length <= 6 else (26 if length <= 9 else 22), InkStyle.CREAM, 9)
 	rarity_label.text = "%s · %s" % [_definition.rarity_name(), _definition.kind_name()]
 	description_label.text = _definition.description
 	trigger_label.text = _definition.trigger_description

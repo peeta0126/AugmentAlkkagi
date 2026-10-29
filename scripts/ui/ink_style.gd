@@ -76,12 +76,12 @@ static func outline_label(label: Label, font_size: int, color: Color = CREAM, ou
 	label.add_theme_constant_override("outline_size", outline)
 
 
-## 로고 같은 굵은 붓글씨 느낌: 글자를 더 두껍게 하고 오른쪽으로 눕힌 뒤 두꺼운 검정 테두리.
+## 큰 제목 전용: 글자를 살짝 두껍게 하고 아주 조금 눕힌 뒤 두꺼운 검정 테두리. 작은 글자에는 쓰지 않는다.
 static func brush_label(label: Label, font_size: int, color: Color = CREAM, outline: int = 14) -> void:
 	var font := FontVariation.new()
 	font.base_font = label.get_theme_font("font")
-	font.variation_embolden = 0.9
-	font.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(-0.2, 1.0), Vector2.ZERO)
+	font.variation_embolden = 0.35
+	font.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(-0.07, 1.0), Vector2.ZERO)
 	label.add_theme_font_override("font", font)
 	outline_label(label, font_size, color, outline)
 
@@ -147,7 +147,10 @@ static func swash_box(compact: bool = false) -> StyleBoxTexture:
 ## 붓 터치 위에 크게 눕힌 제목.
 static func swash_title(label: Label, font_size: int, text_color: Color = CREAM, compact: bool = false) -> void:
 	label.add_theme_stylebox_override("normal", swash_box(compact))
-	brush_label(label, font_size, text_color, 8 if compact else 12)
+	if compact:
+		outline_label(label, font_size, text_color, 7)
+	else:
+		brush_label(label, font_size, text_color, 12)
 
 
 ## 메인 메뉴 버튼처럼 왼쪽에 크림색 아이콘을 붙인다.

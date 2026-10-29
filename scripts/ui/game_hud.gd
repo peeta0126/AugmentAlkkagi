@@ -58,7 +58,7 @@ func _apply_ink_style() -> void:
 	mode_status_label.size = Vector2(300.0, 22.0)
 	InkStyle.brush_label(turn_label, 42, InkStyle.CREAM, 14)
 	turn_label.pivot_offset = Vector2(220.0, 19.0)
-	turn_label.rotation_degrees = -2.0
+	turn_label.rotation_degrees = 0.0
 	var swash := TextureRect.new()
 	swash.texture = InkStyle.SWASH_TEXTURE
 	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -67,18 +67,18 @@ func _apply_ink_style() -> void:
 	swash.size = Vector2(500.0, 92.0)
 	swash.position = Vector2(640.0 - 250.0, -6.0)
 	swash.pivot_offset = swash.size * 0.5
-	swash.rotation_degrees = -2.0
+	swash.rotation_degrees = 0.0
 	add_child(swash)
 	move_child(swash, turn_label.get_parent().get_index())
 	count_label.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
 	mode_status_label.add_theme_color_override("font_color", InkStyle.TAN)
 	hint_label.add_theme_color_override("font_color", InkStyle.CREAM)
 	for title: Label in [black_augment_title, white_augment_title]:
-		InkStyle.swash_title(title, 21, InkStyle.CREAM, true)
+		InkStyle.outline_label(title, 21, InkStyle.CREAM, 7)
 	black_augment_progress.add_theme_color_override("font_color", InkStyle.TAN)
 	white_augment_progress.add_theme_color_override("font_color", InkStyle.TAN)
 	for title: Label in [%ActiveSkillTitle, passive_status_panel.get_node("Margin/Content/PassiveStatusTitle")]:
-		InkStyle.swash_title(title, 19, InkStyle.CREAM, true)
+		InkStyle.outline_label(title, 20, InkStyle.ORANGE, 7)
 	_passive_status_template.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
 	# 위쪽 줄 밑에 주황 선, 파워 막대는 검정 테두리에 주황 채움
 	(%TopBar as ColorRect).visible = false

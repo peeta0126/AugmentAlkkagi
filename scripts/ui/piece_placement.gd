@@ -39,7 +39,7 @@ func _apply_ink_style() -> void:
 	var margin := panel.get_node("Margin") as MarginContainer
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 4)
-	InkStyle.brush_label(title_label, 28, InkStyle.CREAM, 10)
+	InkStyle.outline_label(title_label, 28, InkStyle.CREAM, 8)
 	InkStyle.outline_label(instruction_label, 15, InkStyle.CREAM_SOFT, 4)
 	InkStyle.outline_label(my_status_label, 17, InkStyle.CREAM, 5)
 	InkStyle.outline_label(opponent_status_label, 17, InkStyle.CREAM, 5)
