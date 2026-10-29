@@ -100,21 +100,18 @@ func _on_select_button_pressed() -> void:
 		augment_selected.emit(_definition.id)
 
 
-## 목록(스크롤 영역) 안에서 카드가 아래·위에 걸쳐 있으면, 커지는 카드가 잘리지 않게 카드 전체가 보이도록 스크롤한다.
-func _reveal_in_scroll() -> void:
-	var node := get_parent()
-	while node != null and not node is ScrollContainer:
-		node = node.get_parent()
-	if node == null:
-		return
-	var scroll := node as ScrollContainer
-	var view := scroll.get_global_rect()
-	var rect := get_global_rect()
-	var pad := 14.0
-	if rect.position.y < view.position.y + pad:
-		scroll.scroll_vertical -= int(view.position.y + pad - rect.position.y)
-	elif rect.end.y > view.end.y - pad:
-		scroll.scroll_vertical += int(rect.end.y - (view.end.y - pad))
+## 스크롤하면 카드가 마우스 밑에서 움직이는데 이때 엔진이 마우스 나감 신호를 안 줄 때가 있어, 커진 채 남는 문제가 생긴다.
+## 호버 중에는 매 프레임 마우스가 실제로 카드 안에 있는지 확인해서 벗어났으면 바로 원래대로 돌린다.
+func _process(_delta: float) -> void:
+	if _hovered and not get_global_rect().has_point(get_global_mouse_position()):
+		_force_unhover()
+
+
+func _force_unhover() -> void:
+	_hovered = false
+	background.self_modulate = Color.WHITE
+	_hide_burst()
+	_animate_to(Vector2.ONE)
 
 
 func _build_burst() -> void:
@@ -182,7 +179,6 @@ func _on_mouse_entered() -> void:
 	if _hovered:
 		return  # 카드 안에서 글자·버튼 위로 옮길 때마다 폭발이 처음부터 다시 터지지 않게 한다
 	_hovered = true
-	_reveal_in_scroll()
 	background.self_modulate = Color(1.12, 1.08, 1.02)
 	_pop_burst(1.0)
 	_animate_to(hover_scale)
@@ -191,10 +187,7 @@ func _on_mouse_entered() -> void:
 func _on_mouse_exited() -> void:
 	if select_button.is_hovered() or get_global_rect().has_point(get_global_mouse_position()):
 		return
-	_hovered = false
-	background.self_modulate = Color.WHITE
-	_hide_burst()
-	_animate_to(Vector2.ONE)
+	_force_unhover()
 
 
 func _on_select_button_mouse_exited() -> void:
