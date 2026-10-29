@@ -33,6 +33,7 @@ func _ready() -> void:
 	_active_button_template = %ActiveSkillButtonTemplate
 	_passive_status_template = %PassiveStatusTemplate
 	_apply_ink_style()
+	set_power_percent(0.0)
 	# 오른쪽 열은 증강 → 패시브 상태 → 액티브 스킬 순으로 쌓는다.
 	var right_column := active_skills_panel.get_parent()
 	right_column.move_child(passive_status_panel, active_skills_panel.get_index())
@@ -253,4 +254,4 @@ func _refresh_power_gauge() -> void:
 	_power_fill_panel.size.x = maxf((power_bar.custom_minimum_size.x - 40.0) * power, 0.0)
 	_power_fill_panel.visible = power > 0.005
 	_power_fill.bg_color = InkStyle.CREAM.lerp(InkStyle.ORANGE, clampf(power * 2.0, 0.0, 1.0)).lerp(Color("e0361a"), clampf((power - 0.6) * 2.5, 0.0, 1.0))
-	_power_number.text = "%d%%" % int(round(power_bar.value)) if power_bar.value > 0.5 else "당겨서 발사"
+	_power_number.text = "%d%%" % int(round(power_bar.value))

@@ -820,7 +820,7 @@ func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 	update_hud("ESC / 우클릭: 발사 취소")
 
 func update_aim(pointer: Vector2) -> void:
-	if selected_piece == null:
+	if not dragging or not state_machine.allows_aiming() or not is_instance_valid(selected_piece):
 		return
 	var profile := _current_shot_profile()
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
@@ -910,7 +910,7 @@ func confirm_board_position_skill(board_position: Vector2) -> void:
 		_skill_debug("board target submitted: augment=%s position=%s" % [active_skill.definition.id, board_position])
 		network_manager.submit_active_skill(active_skill.definition.id, target_ids, board_position, active_skill.targeting_option())
 		active_skill.cancel_active()
-		network_show_waiting("벽 설치 요청을 호스트가 검증하는 중…")
+		network_show_waiting("%s 설치 요청을 호스트가 검증하는 중..." % ("중력장" if active_skill.definition.id == &"gravity_field" else "벽"))
 	else:
 		active_skill.on_position_target(self, active_skill_player, board_position)
 
@@ -944,12 +944,7 @@ func fire_selected(pointer: Vector2) -> void:
 	if not transformed:
 		selected_piece.apply_launch_impulse(impulse)
 	augment_manager.after_shot(self, current_player, selected_piece)
-	selected_piece = null
-	dragging = false
-	board.clear_aim()
-	var game_hud := _get_game_hud()
-	if game_hud:
-		game_hud.set_power_percent(0.0)
+	cancel_aim()
 	settle_time = 0.0
 	shot_elapsed = 0.0
 	state_machine.transition(GameStateMachine.State.PIECES_MOVING)
@@ -1598,6 +1593,27 @@ func apply_network_extras(effects: Dictionary, walls: PackedFloat32Array) -> voi
 		return
 	_apply_network_effect_runtime(effects)
 	_sync_network_walls(walls)
+
+func network_active_skill_result(accepted: bool, reason: String, snapshot: Dictionary) -> void:
+	var previous_state := state_machine.current
+	if previous_state not in [GameStateMachine.State.SKILL_TARGETING, GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
+		return # A delayed response must not replace selection, lobby or game-over UI.
+	if active_skill:
+		active_skill.cancel_active()
+	active_skill = null
+	active_skill_player = 0
+	network_skill_targets.clear()
+	skill_targeting_snapshot_logged = false
+	# Only the host snapshot can commit effects or advance the replicated turn.
+	if previous_state == GameStateMachine.State.SKILL_TARGETING:
+		state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
+	if not snapshot.is_empty():
+		apply_network_extras(snapshot.get("effects", {}), snapshot.get("walls", PackedFloat32Array()))
+		apply_network_snapshot(snapshot)
+	build_hud()
+	if not accepted:
+		update_hud("스킬 요청 실패: %s" % reason)
+	_skill_debug("request completed: accepted=%s state=%s -> %s" % [accepted, previous_state, state_machine.current])
 
 func network_active_skill_rejected(reason: String) -> void:
 	_skill_debug("host rejected active request: %s" % reason)

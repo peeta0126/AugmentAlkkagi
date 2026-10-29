@@ -4,6 +4,8 @@ extends Control
 signal augment_selected(augment_id: StringName)
 signal refresh_requested
 
+const LAYOUT_SIZE := Vector2(1280.0, 870.0)
+
 const AugmentCardScene := preload("res://scenes/ui/augment_card.tscn")
 
 @export_group("Transition")
@@ -30,6 +32,10 @@ var _title_rule: ColorRect
 
 
 func _ready() -> void:
+	resized.connect(_fit_layout)
+	_fit_layout()
+	# Keep the status above the independent refresh button.
+	refresh_status_label.get_parent().move_child(refresh_status_label, 0)
 	refresh_button.pressed.connect(func(): refresh_requested.emit())
 	_build_backdrop()
 	_style_chrome()
@@ -73,6 +79,7 @@ func _apply_content() -> void:
 	)
 	progress_label.text = "%d/%d" % [_pick_index, _pick_total]
 	progress_label.visible = _pick_total > 1
+	$Layout/BodyMargin/Body/RefreshArea.visible = _refresh_enabled
 	refresh_button.visible = _refresh_enabled
 	refresh_button.disabled = not _refresh_available
 	refresh_status_label.visible = _refresh_enabled
@@ -112,17 +119,17 @@ func _style_chrome() -> void:
 	swash.size = Vector2(720.0, 118.0)
 	swash.pivot_offset = swash.size * 0.5
 	swash.rotation_degrees = -1.0
-	add_child(swash)
-	move_child(swash, title_label.get_index())
+	$Layout.add_child(swash)
+	$Layout.move_child(swash, title_label.get_index())
 	_title_rule = ColorRect.new()
 	InkStyle.outline_label(progress_label, 28, InkStyle.ORANGE, 8)
-	var footer := get_node_or_null("FooterLabel") as Label
+	var footer := get_node_or_null("Layout/BodyMargin/Body/FooterLabel") as Label
 	if footer:
 		InkStyle.outline_label(footer, 15, InkStyle.CREAM_SOFT, 5)
 	InkStyle.outline_label(refresh_status_label, 16, InkStyle.CREAM_SOFT, 5)
 	InkStyle.style_button(refresh_button, 19)
 	InkStyle.button_icon(refresh_button, InkStyle.ICON_LINK, 28)
-	InkStyle.logo(self, Vector2(18.0, 10.0), 78.0)
+	InkStyle.logo($Layout, Vector2(18.0, 10.0), 78.0)
 
 
 func _on_card_selected(augment_id: StringName) -> void:
@@ -133,3 +140,9 @@ func set_interaction_enabled(value: bool) -> void:
 		if child is Control:
 			(child as Control).mouse_filter = Control.MOUSE_FILTER_STOP if value else Control.MOUSE_FILTER_IGNORE
 	refresh_button.disabled = not value or not _refresh_available
+
+
+func _fit_layout() -> void:
+	var fit := minf(size.x / LAYOUT_SIZE.x, size.y / LAYOUT_SIZE.y)
+	$Layout.scale = Vector2.ONE * fit
+	$Layout.position = (size - LAYOUT_SIZE * fit) * 0.5

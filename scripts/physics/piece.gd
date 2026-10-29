@@ -517,5 +517,3 @@ func _draw_transformation_mark(_color: Color) -> void:
 	var icon: Texture2D = BADGE_KNIGHT if transformation == "KNIGHT" else BADGE_WIZARD
 	var height := visual_radius * 2.3
 	draw_texture_rect(icon, Rect2(Vector2(-height * 0.5, -visual_radius - height * 0.78), Vector2(height, height)), false)
-
-

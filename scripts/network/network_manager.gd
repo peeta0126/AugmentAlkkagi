@@ -9,8 +9,9 @@ const SNAPSHOT_INTERVAL := 0.05
 const SNAPSHOT_HEARTBEAT := 1.0
 const SNAPSHOT_REPEATS := 2
 const SNAPSHOT_IDLE_GAP := 0.3
+const ACTIVE_REQUEST_TIMEOUT := 8.0
 # v4 separates reliable world extras from throttled movement snapshots.
-const PROTOCOL_VERSION := 4
+const PROTOCOL_VERSION := 5
 const ROOM_PREFIX := "AA-"
 const ROOM_CODE_LENGTH := 6
 const ROOM_CREATE_ATTEMPTS := 5
@@ -36,6 +37,11 @@ var selection_refresh_used: Dictionary = {1: false, 2: false}
 var pending_choices: Dictionary = {}
 var placement_completed: Dictionary = {1: false, 2: false}
 var last_sequences: Dictionary = {}
+var pending_active_sequence := 0
+var pending_active_seconds := 0.0
+var active_response_context := false
+var active_response_reason := ""
+var active_results: Dictionary = {}
 var local_sequence := 0
 var snapshot_elapsed := 0.0
 var heartbeat_elapsed := 0.0
@@ -79,6 +85,7 @@ func _ready() -> void:
 	GDSync.expose_func(receive_world_start, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_selection_complete, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_active_skill_rejected, ENUMS.EXPOSE_PERMISSION.HOST)
+	GDSync.expose_func(receive_active_skill_result, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_snapshot, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(receive_world_extras, ENUMS.EXPOSE_PERMISSION.HOST)
 	_reset_snapshot_cache()
@@ -133,6 +140,8 @@ func join_online_room(code: String) -> Error:
 
 func _reset_lobby_state() -> void:
 	last_sequences.clear()
+	active_results.clear()
+	pending_active_sequence = 0
 	local_sequence = 0
 	peer_to_player.clear()
 	ready_state = {1: false, 2: false}
@@ -154,6 +163,8 @@ func shutdown(notify: bool = true) -> void:
 	match_active = false
 	last_snapshot_received_usec = 0
 	last_sequences.clear()
+	active_results.clear()
+	pending_active_sequence = 0
 	local_sequence = 0
 	peer_to_player = {1: 1}
 	ready_state = {1: false, 2: false}
@@ -323,13 +334,31 @@ func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 		GDSync.call_func_on(gdsync_host_id, request_shot, piece_id, pull_vector, local_sequence)
 
 func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO, targeting_option: int = 0) -> void:
+	if pending_active_sequence != 0:
+		return
 	local_sequence += 1
 	if is_host():
 		_host_process_active(1, augment_id, target_ids, board_position, local_sequence, targeting_option)
 	elif mode == Mode.CLIENT:
+		pending_active_sequence = local_sequence
+		pending_active_seconds = 0.0
+		print("[active-skill] send id=%d player=%d host=%d type=%s position=%s" % [local_sequence, local_player_id, gdsync_host_id, augment_id, board_position])
 		GDSync.call_func_on(gdsync_host_id, request_active_skill, str(augment_id), target_ids, board_position, local_sequence, targeting_option)
 
+func _tick_active_request(delta: float) -> void:
+	if pending_active_sequence == 0:
+		return
+	if mode != Mode.CLIENT or not match_active:
+		pending_active_sequence = 0
+		return
+	pending_active_seconds += delta
+	if pending_active_seconds >= ACTIVE_REQUEST_TIMEOUT:
+		print("[active-skill] timeout id=%d host=%d" % [pending_active_sequence, gdsync_host_id])
+		pending_active_sequence = 0
+		game().network_active_skill_result(false, "호스트 응답 시간이 초과되었습니다. 상태를 확인한 뒤 다시 시도하세요", {})
+
 func _process(delta: float) -> void:
+	_tick_active_request(delta)
 	if not is_host() or not match_active or game().board == null:
 		return
 	if game().state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
@@ -594,14 +623,45 @@ func request_active_skill(augment_id: String, target_ids: Array, board_position:
 		return
 	var sender := _remote_sender_id()
 	var player_id := _player_for_peer(sender)
-	if not _valid_sequence(sender, sequence, "active skill"):
-		_reject_active_skill(player_id, "중복되거나 오래된 요청입니다")
+	if player_id != 2:
+		return # Unknown senders cannot mutate the match.
+	var key := "%d:%d" % [sender, sequence]
+	print("[active-skill] receive id=%d sender=%d host=%d type=%s position=%s state=%s" % [sequence, sender, gdsync_host_id, augment_id, board_position, game().state_machine.current])
+	if active_results.has(key):
+		_send_active_result(sender, sequence, active_results[key])
 		return
+	active_response_context = true
+	active_response_reason = ""
+	var accepted := false
 	var validated_target_ids: Array[int] = []
-	if not validate_active_target_ids(target_ids, validated_target_ids):
-		_reject_active_skill(player_id, "대상 ID 형식이 올바르지 않습니다")
+	if not _valid_sequence(sender, sequence, "active skill"):
+		active_response_reason = "중복되거나 오래된 요청입니다"
+	elif not validate_active_target_ids(target_ids, validated_target_ids):
+		active_response_reason = "대상 ID 형식이 올바르지 않습니다"
+	else:
+		accepted = _host_process_active(player_id, StringName(augment_id), validated_target_ids, board_position, sequence, targeting_option)
+	active_response_context = false
+	var result := {"accepted": accepted, "reason": active_response_reason, "snapshot": game().create_network_snapshot()}
+	active_results[key] = result
+	if active_results.size() > 64:
+		active_results.erase(active_results.keys()[0])
+	_send_active_result(sender, sequence, result)
+
+func _send_active_result(peer_id: int, sequence: int, result: Dictionary) -> void:
+	print("[active-skill] response id=%d peer=%d accepted=%s reason=%s state=%s" % [sequence, peer_id, result.accepted, result.reason, result.snapshot.get("state")])
+	GDSync.call_func_on(peer_id, receive_active_skill_result, sequence, result.accepted, result.reason, result.snapshot)
+
+func receive_active_skill_result(sequence: int, accepted: bool, reason: String, snapshot: Dictionary) -> void:
+	if GDSync.get_sender_id() != gdsync_host_id:
 		return
-	_host_process_active(player_id, StringName(augment_id), validated_target_ids, board_position, sequence, targeting_option)
+	_apply_active_result(sequence, accepted, reason, snapshot)
+
+func _apply_active_result(sequence: int, accepted: bool, reason: String, snapshot: Dictionary) -> void:
+	if sequence != pending_active_sequence or pending_active_sequence == 0:
+		return
+	print("[active-skill] result received id=%d host=%d accepted=%s state=%s" % [sequence, gdsync_host_id, accepted, snapshot.get("state")])
+	pending_active_sequence = 0
+	game().network_active_skill_result(accepted, reason, snapshot)
 
 func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Array[int]) -> bool:
 	validated_target_ids.clear()
@@ -613,17 +673,17 @@ func validate_active_target_ids(raw_target_ids: Array, validated_target_ids: Arr
 		validated_target_ids.append(int(target_id))
 	return true
 
-func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int, targeting_option: int = 0) -> void:
+func _host_process_active(player_id: int, augment_id: StringName, target_ids: Array[int], board_position: Vector2, _sequence: int, targeting_option: int = 0) -> bool:
 	if OS.is_debug_build():
-		print("[active-skill] host request: player=%d augment=%s targets=%s position=%s current_player=%d state=%s" % [player_id, augment_id, target_ids, board_position, game().current_player, GameStateMachine.State.keys()[game().state_machine.current]])
+		print("[active-skill] host request: id=%d player=%d augment=%s targets=%s position=%s current_player=%d state=%s" % [_sequence, player_id, augment_id, target_ids, board_position, game().current_player, GameStateMachine.State.keys()[game().state_machine.current]])
 	if not is_host():
-		return
-	if player_id != game().current_player:
+		return false
+	if player_id not in [1, 2] or player_id != game().current_player:
 		_reject_active_skill(player_id, "현재 플레이어의 차례가 아닙니다")
-		return
+		return false
 	if not game().state_machine.allows_aiming():
 		_reject_active_skill(player_id, "현재 상태에서는 스킬을 사용할 수 없습니다")
-		return
+		return false
 	var effect: AugmentEffect
 	for candidate: AugmentEffect in game().augment_manager.effects[player_id]:
 		if candidate.definition.id == augment_id:
@@ -631,14 +691,14 @@ func _host_process_active(player_id: int, augment_id: StringName, target_ids: Ar
 			break
 	if effect == null:
 		_reject_active_skill(player_id, "보유하지 않은 스킬입니다")
-		return
+		return false
 	if not effect.can_activate(game(), player_id):
 		_reject_active_skill(player_id, "사용 횟수 또는 재사용 대기시간 조건을 만족하지 않습니다")
-		return
+		return false
 	if augment_id == &"wall_maria":
 		if targeting_option not in [0, 1]:
 			_reject_active_skill(player_id, "벽 방향 값이 올바르지 않습니다")
-			return
+			return false
 		effect.apply_targeting_option(targeting_option)
 	var required := 0
 	if effect.definition.target_mode in [AugmentDefinition.TargetMode.OWN_PIECE, AugmentDefinition.TargetMode.ENEMY_PIECE]:
@@ -647,27 +707,28 @@ func _host_process_active(player_id: int, augment_id: StringName, target_ids: Ar
 		required = 2
 	if target_ids.size() != required or (target_ids.size() == 2 and target_ids[0] == target_ids[1]):
 		_reject_active_skill(player_id, "필요한 대상 수가 올바르지 않습니다")
-		return
+		return false
 	for index in target_ids.size():
 		var validated_piece: AlkkagiPiece = game().find_piece(target_ids[index])
 		if validated_piece == null:
 			_reject_active_skill(player_id, "대상 바둑알을 찾을 수 없습니다")
-			return
+			return false
 		if augment_id == &"wizard":
 			if (index == 0 and validated_piece.owner_id != player_id) or (index == 1 and validated_piece.owner_id == player_id):
 				_reject_active_skill(player_id, "마법사 대상 순서가 올바르지 않습니다")
-				return
+				return false
 		elif effect.definition.target_mode in [AugmentDefinition.TargetMode.OWN_PIECE, AugmentDefinition.TargetMode.TWO_OWN_PIECES] and validated_piece.owner_id != player_id:
 			_reject_active_skill(player_id, "자신의 바둑알을 선택해야 합니다")
-			return
+			return false
 		elif effect.definition.target_mode == AugmentDefinition.TargetMode.ENEMY_PIECE and validated_piece.owner_id == player_id:
 			_reject_active_skill(player_id, "상대 바둑알을 선택해야 합니다")
-			return
+			return false
 	if effect.definition.target_mode == AugmentDefinition.TargetMode.NONE:
 		effect.activate_immediate(game(), player_id)
 	elif effect.definition.target_mode == AugmentDefinition.TargetMode.BOARD_POSITION:
 		if not effect.on_position_target(game(), player_id, board_position):
 			_reject_active_skill(player_id, "해당 위치에는 설치할 수 없습니다")
+			return false
 	else:
 		var applied := false
 		for index in target_ids.size():
@@ -675,15 +736,21 @@ func _host_process_active(player_id: int, augment_id: StringName, target_ids: Ar
 			var piece: AlkkagiPiece = game().find_piece(target_id)
 			if piece == null:
 				_reject_active_skill(player_id, "대상 바둑알이 사라졌습니다")
-				return
+				return false
 			var accepted := effect.on_piece_target(game(), player_id, piece)
 			if index == target_ids.size() - 1:
 				applied = accepted
 		if not applied:
 			effect.cancel_active()
 			_reject_active_skill(player_id, "선택한 대상에 스킬을 적용할 수 없습니다")
+			return false
+
+	return true
 
 func _reject_active_skill(player_id: int, reason: String) -> void:
+	if active_response_context:
+		active_response_reason = reason
+		return
 	if OS.is_debug_build():
 		push_warning("[active-skill] rejected player %d: %s" % [player_id, reason])
 	if player_id == 1:
