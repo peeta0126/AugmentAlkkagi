@@ -79,7 +79,8 @@ func run_test() -> void:
 	check(stasis.uses_left == 0, "stasis has one use")
 	black.tick_status(1)
 	check(black.freeze and black.invulnerable, "stasis remains through the activation turn")
-	black.tick_status(1)
+	for cycle in 2:
+		stasis.on_owner_cycle(game)
 	check(not black.freeze and not black.invulnerable, "stasis ends and restores the stone")
 
 	# 03 느려: 예측 선상 아군이 옆으로 이동한다.

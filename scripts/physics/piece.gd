@@ -48,6 +48,7 @@ var invulnerable := false
 var status_turns := 0
 var status_kind := ""
 var stasis_turns := 0
+var stasis_cycle_based := false
 var snow_turns := 0
 var transformation := ""
 var carried_count := 0
@@ -209,7 +210,7 @@ func apply_snow(turns: int) -> void:
 func tick_status(for_owner: int) -> void:
 	if owner_id != for_owner or status_turns <= 0:
 		return
-	if stasis_turns > 0:
+	if stasis_turns > 0 and not stasis_cycle_based:
 		stasis_turns -= 1
 		if stasis_turns == 0:
 			freeze = snow_turns > 0
@@ -223,6 +224,7 @@ func tick_status(for_owner: int) -> void:
 	refresh_physics()
 
 func clear_temporary_status() -> void:
+	stasis_cycle_based = false
 	freeze = false
 	invulnerable = false
 	stasis_turns = 0
@@ -231,6 +233,18 @@ func clear_temporary_status() -> void:
 	status_kind = ""
 	status_mass_factor = 1.0
 	status_damp_bonus = 0.0
+	refresh_physics()
+
+func tick_stasis_cycle() -> void:
+	if not stasis_cycle_based or stasis_turns <= 0:
+		return
+	stasis_turns -= 1
+	if stasis_turns == 0:
+		stasis_cycle_based = false
+		invulnerable = false
+		freeze = snow_turns > 0
+	status_turns = maxi(stasis_turns, snow_turns)
+	_update_status_kind()
 	refresh_physics()
 
 func _update_status_kind() -> void:

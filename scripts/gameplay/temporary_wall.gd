@@ -6,6 +6,7 @@ const WallMariaScene := preload("res://scenes/effects/wall_maria.tscn")
 var wall_id := 0
 var wall_size := GameplayRules.WALL_SIZE
 var turns_left := 3
+var cycle_based := false
 
 func setup(center: Vector2, wall_rotation: float, duration: int, id: int = 0) -> void:
 	wall_id = id
@@ -30,6 +31,8 @@ func setup(center: Vector2, wall_rotation: float, duration: int, id: int = 0) ->
 	add_child(wall_visual)
 
 func tick() -> bool:
+	if cycle_based:
+		return false
 	turns_left -= 1
 	return turns_left <= 0
 

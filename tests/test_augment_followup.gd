@@ -74,9 +74,11 @@ func run_test() -> void:
 	game.augment_manager.acquire(game, 1, &"stasis")
 	var frozen: AlkkagiPiece = game.get_pieces().filter(func(p): return p.owner_id == 1)[0]
 	game.augment_manager.effects[1][0].activate_immediate(game, 1)
-	frozen.apply_snow(3)
-	frozen.tick_status(1)
-	frozen.tick_status(1)
+	frozen.apply_snow(6)
+	game.augment_manager.effects[1][0].on_owner_cycle(game)
+	game.augment_manager.effects[1][0].on_owner_cycle(game)
+	for turn in 5:
+		frozen.tick_status(1)
 	check(frozen.freeze and not frozen.invulnerable and frozen.snow_turns == 1, "time freeze expires without clearing snow")
 	frozen.tick_status(1)
 	check(not frozen.freeze, "snow eventually expires")

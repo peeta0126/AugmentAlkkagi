@@ -46,8 +46,7 @@ func on_physics_tick(game: Node, _player_id: int, delta: float) -> void:
 				piece.queue_free()
 				break
 
-func on_turn_ended(game: Node, player_id: int) -> void:
-	super.on_turn_ended(game, player_id)
+func on_owner_cycle(game: Node) -> void:
 	if not active:
 		return
 	turns_left -= 1

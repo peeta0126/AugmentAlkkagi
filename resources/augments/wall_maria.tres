@@ -7,14 +7,14 @@
 script = ExtResource("1")
 id = &"wall_maria"
 display_name = "월마리아"
-description = "R로 가로·세로 방향을 고른 뒤 선택한 위치에 3턴 동안 반사 벽을 설치합니다."
+description = "턴을 소비하지 않고 R로 방향을 골라 반사 벽을 설치합니다. 내 차례가 두 번 돌아오면 제거됩니다."
 rarity = 2
 icon_text = "▥"
 kind = 2
 target_mode = 4
 max_uses = 2
 cooldown_turns = 3
-duration_turns = 3
-consumes_turn = true
+duration_turns = 2
+consumes_turn = false
 values = {}
 effect_script = ExtResource("2")

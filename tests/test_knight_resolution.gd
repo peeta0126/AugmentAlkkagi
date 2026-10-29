@@ -36,7 +36,7 @@ func run_test() -> void:
 	restored.setup(1, 98765)
 	root.add_child(restored)
 	restored.apply_compact_network_state(knight.compact_network_state(), 0, false)
-	var ok: bool = enemy.linear_velocity.x > 0 and sword.cooldown_left == 3 and sword.pending_knight_id == -1 and restored.transformation == "KNIGHT"
+	var ok: bool = enemy.linear_velocity.x > 0 and sword.cooldown_left == 0 and sword.pending_knight_id == -1 and restored.transformation == "KNIGHT"
 	if ok:
 		print("PASS: first knight shot triggers via game settling and knight visual state restores")
 	else:

@@ -3,16 +3,36 @@ extends AugmentEffect
 
 var vertical := false
 var preview: WallMariaVisual
+var wall_ids: Array[int] = []
 
 func on_position_target(game: Node, player_id: int, position: Vector2) -> bool:
 	var wall_rotation: float = PI * 0.5 if vertical else 0.0
 	if not game.can_place_wall(position, wall_rotation):
 		return false
-	if not game.spawn_wall(position, int(definition.duration_turns) + 1, wall_rotation):
+	if not game.spawn_wall(position, int(definition.duration_turns), wall_rotation):
 		return false
+	var wall: TemporaryWall = game.temporary_walls.back()
+	wall.cycle_based = true
+	wall_ids.append(wall.wall_id)
 	_clear_preview()
 	commit_use(game, player_id)
 	return true
+
+func on_owner_cycle(game: Node) -> void:
+	for wall: TemporaryWall in game.temporary_walls.duplicate():
+		if not is_instance_valid(wall) or wall.wall_id not in wall_ids:
+			continue
+		wall.turns_left -= 1
+		if wall.turns_left <= 0:
+			wall_ids.erase(wall.wall_id)
+			game.temporary_walls.erase(wall)
+			wall.queue_free()
+
+func network_state() -> Dictionary:
+	return {"wall_ids": wall_ids}
+
+func apply_network_state(_game: Node, state: Dictionary) -> void:
+	wall_ids.assign(state.get("wall_ids", []))
 
 func update_target_preview(game: Node, _player_id: int, position: Vector2) -> void:
 	if preview == null or not is_instance_valid(preview):

@@ -17,7 +17,7 @@ func can_activate(game: Node, player_id: int) -> bool:
 
 func after_shot(_game: Node, player_id: int, piece: AlkkagiPiece) -> void:
 	pending_knight_id = -1
-	if cooldown_left == 0 and is_instance_valid(piece) and not piece.is_queued_for_deletion() and piece.owner_id == player_id and piece.piece_id in knight_ids:
+	if is_instance_valid(piece) and not piece.is_queued_for_deletion() and piece.owner_id == player_id and piece.piece_id in knight_ids:
 		pending_knight_id = piece.piece_id
 
 func on_pieces_settled(game: Node, player_id: int) -> bool:
@@ -40,7 +40,6 @@ func on_pieces_settled(game: Node, player_id: int) -> bool:
 		target.apply_central_impulse(direction * knockback)
 		applied = true
 	if applied:
-		cooldown_left = definition.cooldown_turns + 1 if definition.cooldown_turns > 0 else 0
 		game.animate_projectile(piece.position + Vector2(-radius, 0), piece.position + Vector2(radius, 0), Color("d9e4ff"), 8.0)
 	return applied
 

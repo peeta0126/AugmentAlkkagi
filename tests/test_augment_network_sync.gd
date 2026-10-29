@@ -112,7 +112,7 @@ func run_test() -> void:
 	wish.activate_immediate(host, 1)
 	await sync_snapshot(host, guest)
 	var guest_wish: WishAugmentEffect = find_effect(guest, 1, &"wish")
-	check(guest_wish != null and guest_wish.balls == wish.balls and guest_wish.collected == 0, "dragon ball positions and collection count reach guest")
+	check(guest_wish != null and guest_wish.balls == wish.balls and guest_wish.collected == wish.collected, "dragon ball positions and collection count reach guest (host=%d guest=%d)" % [wish.collected, guest_wish.collected])
 	check(guest.board.field_visuals.has("wish_1"), "dragon ball visuals reach guest")
 
 	# Passive train phase and its host-selected warning path share the effect runtime snapshot.

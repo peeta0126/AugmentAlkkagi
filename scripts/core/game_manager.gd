@@ -640,7 +640,8 @@ func build_hud() -> void:
 	_add_augment_hud(2)
 	_add_active_skill_hud()
 	_add_passive_status_hud()
-	if int(blind_turns[current_player]) > 0 and (not online_mode or current_player == local_player_id):
+	var viewer := local_player_id if online_mode and local_player_id in [1, 2] else current_player
+	if int(blind_turns[viewer]) > 0:
 		_add_blind_overlay()
 
 func _add_augment_hud(player_id: int) -> void:
@@ -1017,6 +1018,8 @@ func resolve_turn() -> void:
 		return
 	bonus_turn_active = false
 	var next_player := 2 if current_player == 1 else 1
+	if int(blind_turns[completed_player]) > 0:
+		blind_turns[completed_player] = int(blind_turns[completed_player]) - 1
 	augment_manager.start_player_turn(self, next_player)
 	augment_manager.finish_turn(self, completed_player)
 	round_actions[completed_player] = true
@@ -1233,6 +1236,7 @@ func start_blizzard(turns: int, friction_multiplier: float, speed_multiplier: fl
 
 func apply_blind(player_id: int, turns: int) -> void:
 	blind_turns[player_id] = maxi(int(blind_turns[player_id]), turns)
+	update_piece_visibility()
 
 func tick_field_effects() -> void:
 	if blizzard_turns > 0:
@@ -1243,8 +1247,6 @@ func tick_field_effects() -> void:
 				piece.field_damp_multiplier = 1.0
 				piece.field_speed_multiplier = 1.0
 				piece.refresh_physics()
-	if int(blind_turns[current_player]) > 0:
-		blind_turns[current_player] = int(blind_turns[current_player]) - 1
 	for wall in temporary_walls.duplicate():
 		if not is_instance_valid(wall) or wall.tick():
 			temporary_walls.erase(wall)
@@ -1507,6 +1509,7 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 	var round_flags := int(snapshot.get("round_flags", 0))
 	round_actions = {1: (round_flags & 1) != 0, 2: (round_flags & 2) != 0}
 	blind_turns = snapshot.get("blind", blind_turns)
+	update_piece_visibility()
 	bonus_turn_active = bool(snapshot.get("bonus_turn", false))
 	blizzard_turns = int(snapshot.get("blizzard", 0))
 	blizzard_damp_multiplier = float(snapshot.get("blizzard_damp", 1.0))
@@ -1574,6 +1577,7 @@ func _apply_network_effect_runtime(states: Dictionary) -> void:
 					effect.apply_network_state(self, state.get("runtime", {}))
 
 func _update_blind_centers() -> void:
+	update_piece_visibility()
 	if blind_visual == null or not is_instance_valid(blind_visual) or board == null:
 		return
 	var centers := PackedVector2Array()
@@ -1587,6 +1591,7 @@ func update_piece_visibility() -> void:
 	var viewer := local_player_id if online_mode else current_player
 	for piece: AlkkagiPiece in get_pieces():
 		piece.visible = piece.hidden_from_player == 0 or piece.hidden_from_player != viewer
+		piece.modulate.a = 1.0
 
 func _sync_network_walls(states: PackedFloat32Array) -> void:
 	var signature := str(states)

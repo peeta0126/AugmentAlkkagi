@@ -5,14 +5,15 @@
 
 [resource]
 script = ExtResource("1")
+consumes_turn = false
 id = &"greatsword"
-display_name = "무한의 대검"
-description = "아군 돌 하나를 기사로 변신시킵니다. 기사를 직접 발사해 이동을 마치면 60px 안의 상대 돌을 밀어냅니다. 밀치기 성공 후 쿨다운 2턴."
+display_name = "기사"
+description = "턴을 소비하지 않고 아군 돌 하나를 기사로 변신시킵니다. 쿨다운 없이 기사를 직접 발사해 이동을 마칠 때마다 60px 안의 상대 돌을 밀어냅니다."
 rarity = 2
 icon_text = "†"
 kind = 3
 target_mode = 1
-cooldown_turns = 2
+cooldown_turns = 0
 values = {
 "knockback": 500.0,
 "radius": 60.0

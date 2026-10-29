@@ -71,14 +71,7 @@ func run_test() -> void:
 	enemy.position = center + Vector2(50, 0)
 	check(sword.on_piece_target(game, 1, knight) and sword.cooldown_left == 0 and knight.transformation == "KNIGHT", "designation transforms knight and leaves first attack ready")
 	check(not sword.on_piece_target(game, 1, other), "only one knight can be designated")
-	sword.cooldown_left = 3
-	sword.after_shot(game, 1, knight)
-	check(sword.pending_knight_id == -1 and not sword.on_pieces_settled(game, 1), "knight cannot trigger while cooldown is active")
-	sword.on_turn_ended(game, 1)
-	check(sword.cooldown_left == 2, "designation turn leaves two cooldown turns")
-	sword.on_turn_ended(game, 1)
-	sword.on_turn_ended(game, 1)
-	check(sword.cooldown_left == 0, "cooldown becomes ready")
+	check(sword.definition.cooldown_turns == 0, "knight has no cooldown")
 	game.state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
 	game.selected_piece = other
 	game.fire_selected(other.global_position - Vector2(50, 0))
@@ -90,12 +83,14 @@ func run_test() -> void:
 	game.fire_selected(knight.global_position - Vector2(50, 0))
 	check(sword.pending_knight_id == knight.piece_id, "direct knight shot is recorded")
 	other.stop_motion()
-	check(sword.on_pieces_settled(game, 1) and sword.cooldown_left == 3, "direct knight shot triggers and starts cooldown")
+	check(sword.on_pieces_settled(game, 1) and sword.cooldown_left == 0, "direct knight shot triggers without cooldown")
 	check(not sword.on_pieces_settled(game, 1), "one activation per shot")
 	await physics_frame
 	check(enemy.linear_velocity.x > 0, "knight pushes enemy outward")
 	check(other.linear_velocity.is_zero_approx(), "knight does not push allies")
 	check(sword.network_state().pending_knight_id == -1, "consumed shot state is serialized")
+	sword.after_shot(game, 1, knight)
+	check(sword.on_pieces_settled(game, 1), "next direct shot can trigger immediately")
 	sword.cooldown_left = 0
 	sword.after_shot(game, 1, knight)
 	knight.queue_free()
