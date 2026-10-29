@@ -293,14 +293,16 @@ func _create_online_room() -> void:
 	else:
 		lobby = _create_online_lobby_scene()
 		set_screen(lobby)
-	lobby.show_lobby("------", true, "방장 · 흑돌", AlkkagiPiece.OWNER_COLORS[1])
 	network_status_label = lobby.status_label
+	# 방을 먼저 만들어 실제 방 코드를 받은 뒤에 화면에 보여 준다(코드 자리에 자리표시자를 띄우지 않는다).
 	var error: Error = network_manager.create_online_room()
 	if error == OK:
 		online_mode = true
 		online_is_host = true
 		local_player_id = 1
-		lobby.set_room_code(network_manager.get_room_code())
+	lobby.show_lobby(network_manager.get_room_code(), true, "방장 · 흑돌", AlkkagiPiece.OWNER_COLORS[1])
+	network_status_label = lobby.status_label
+	if error == OK:
 		lobby.update_status("온라인 방 %s 생성 중…" % network_manager.get_room_code(), false)
 
 func _show_online_join_room() -> void:

@@ -113,7 +113,7 @@ func show_lobby(room_code: String, is_host: bool, role_text: String, role_color:
 
 
 func set_room_code(room_code: String) -> void:
-	room_code_label.text = "방 코드  %s" % room_code
+	room_code_label.text = "방 코드  %s" % room_code if not room_code.is_empty() else "방 코드  연결 중…"
 
 
 func update_lobby(
