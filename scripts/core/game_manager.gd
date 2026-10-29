@@ -274,8 +274,21 @@ func _show_settings() -> void:
 	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0)) * 100.0
 	volume.value_changed.connect(_set_master_volume)
 	screen_root.add_child(volume)
+	var blind_text := _label("실명 암막 세기", 19, Color("dac7ae"))
+	blind_text.position = Vector2(440, 395)
+	blind_text.size = Vector2(150, 35)
+	screen_root.add_child(blind_text)
+	var blind_level := OptionButton.new()
+	blind_level.name = "BlindLevelOption"
+	for level in BlindVisual.LEVELS:
+		blind_level.add_item(str(level.name))
+	blind_level.selected = BlindVisual.load_level()
+	blind_level.position = Vector2(600, 393)
+	blind_level.size = Vector2(240, 36)
+	blind_level.item_selected.connect(BlindVisual.save_level)
+	screen_root.add_child(blind_level)
 	var back := _button("완료", show_main_menu)
-	back.position = Vector2(520, 430)
+	back.position = Vector2(520, 470)
 	back.size = Vector2(240, 58)
 	screen_root.add_child(back)
 
@@ -513,9 +526,14 @@ func activate_gameplay_after_placement() -> void:
 	for piece in get_pieces():
 		piece.modulate = Color.WHITE
 		piece.freeze = online_mode and not online_is_host
+	var toss_result := ""
+	if not online_mode or online_is_host:
+		# 동전 던지기: 먼저 쏘는 쪽을 호스트(또는 로컬)가 정하고, 참가자는 스냅샷으로 받는다.
+		current_player = 1 if augment_manager.rng.randi() % 2 == 0 else 2
+		toss_result = "동전 던지기 · %s 선공 · " % AlkkagiPiece.STONE_NAMES[current_player]
 	build_hud()
 	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
-	update_hud("증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
+	update_hud(toss_result + "증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
 
 func _show_placement_ui() -> void:
 	var placement_ui := PiecePlacementScene.instantiate()
@@ -1142,7 +1160,7 @@ func split_piece_and_launch(original: AlkkagiPiece, player_id: int, impulse: Vec
 		fragment.prepare_shot_speed_cap(original.speed_cap)
 		augment_manager.before_shot(player_id, fragment)
 		fragment.sleeping = false
-		fragment.apply_launch_impulse(direction * impulse.length() * 0.70)
+		fragment.linear_velocity = direction * impulse.length() * 0.70
 	board.add_effect_line(origin - Vector2(24, 0), origin + Vector2(24, 0), Color("fff1ad"), 0.5, 5.0)
 
 func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: float, distance: float) -> bool:

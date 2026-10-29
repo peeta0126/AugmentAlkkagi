@@ -106,10 +106,9 @@ func run_test() -> void:
 	host.augment_manager.acquire(host, 1, &"train")
 	var host_train: TrainAugmentEffect = find_effect(host, 1, &"train")
 	host_train.on_global_turn_ended(host, 1)
-	host_train.on_global_turn_ended(host, 2)
 	await sync_snapshot(host, guest)
 	var guest_train: TrainAugmentEffect = find_effect(guest, 1, &"train")
-	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNED_PASS, "train passive phase reaches guest")
+	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNING, "train passive phase reaches guest")
 	check(guest_train.warned_path == host_train.warned_path and guest.board.field_visuals.has("train_warning_1"), "host-selected train warning path reaches guest")
 
 	# Blindness is synchronized as state but rendered only for the targeted local viewer.
