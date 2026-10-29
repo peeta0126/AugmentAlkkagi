@@ -50,6 +50,6 @@ func _apply_ink_style() -> void:
 	%MenuButton.custom_minimum_size = Vector2(150, 58)
 	var actions := $Actions as HBoxContainer
 	actions.alignment = BoxContainer.ALIGNMENT_END
-	actions.offset_top = 650.0
-	actions.offset_bottom = 712.0
+	actions.offset_top = 618.0
+	actions.offset_bottom = 680.0
 	actions.add_theme_constant_override("separation", 14)
