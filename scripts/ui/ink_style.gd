@@ -326,3 +326,27 @@ static func style_line_edit(edit: LineEdit, font_size: int = 32) -> void:
 
 static func button_box_orange() -> StyleBoxTexture:
 	return _button_style(BUTTON_ORANGE)
+
+
+## 한국어 글을 띄어쓰기에서만 줄바꿈해 준다(엔진 자동 줄바꿈은 글자 중간에서 끊는다). 기존 줄바꿈은 그대로 둔다.
+static func wrap_korean(text: String, font: Font, font_size: int, width: float) -> String:
+	var lines: PackedStringArray = []
+	for paragraph in text.split("
+"):
+		var line := ""
+		for word in paragraph.split(" ", false):
+			var candidate := word if line.is_empty() else line + " " + word
+			if line.is_empty() or font.get_string_size(candidate, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width:
+				line = candidate
+			else:
+				lines.append(line)
+				line = word
+		lines.append(line)
+	return "
+".join(lines)
+
+
+## 라벨에 글을 넣으면서 위 방식으로 줄을 바꾼다. width는 글이 들어갈 폭.
+static func set_wrapped(label: Label, text: String, width: float) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.text = wrap_korean(text, label.get_theme_font("font"), label.get_theme_font_size("font_size"), width)

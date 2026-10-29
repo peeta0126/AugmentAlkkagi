@@ -1352,8 +1352,8 @@ func show_game_over(winner: int) -> void:
 	burst.texture = InkStyle.BURST_TEXTURE
 	burst.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	burst.stretch_mode = TextureRect.STRETCH_SCALE
-	burst.size = Vector2(600, 600)
-	burst.position = Vector2(340, -40)
+	burst.size = Vector2(560, 560)
+	burst.position = Vector2(360, 4)
 	burst.pivot_offset = burst.size * 0.5
 	burst.modulate.a = 0.9
 	overlay.add_child(burst)
@@ -1708,9 +1708,9 @@ func show_leave_dialog() -> void:
 	var box := InkStyle.centered_card(leave_dialog, 520.0, 20)
 	_center_child(box, InkStyle.banner("메뉴", 44, 300.0))
 	var message := "지금 대전을 끝내고 메인 메뉴로 나갑니다." if not online_mode else "방을 나가면 상대와의 연결이 끊깁니다."
-	var info := _label(message, 21, InkStyle.CREAM_SOFT)
+	var info := _label("", 21, InkStyle.CREAM_SOFT)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	InkStyle.set_wrapped(info, message, 440.0)
 	box.add_child(info)
 	var resume := _button("계속하기", _close_leave_dialog)
 	InkStyle.style_button_primary(resume, 24)

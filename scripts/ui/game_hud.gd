@@ -110,11 +110,11 @@ func update_status(turn_text: String, turn_color: Color, count_text: String, hin
 	turn_label.text = turn_text
 	turn_label.modulate = turn_color
 	count_label.text = count_text
-	hint_label.text = hint_text
+	InkStyle.set_wrapped(hint_label, hint_text, 290.0)
 
 
 func set_hint(text: String) -> void:
-	hint_label.text = text
+	InkStyle.set_wrapped(hint_label, text, 290.0)
 
 
 func set_power_percent(value: float) -> void:
@@ -180,7 +180,7 @@ func set_passive_statuses(entries: Array[Dictionary]) -> void:
 	for entry in entries:
 		var item := _passive_status_template.duplicate() as Label
 		item.visible = true
-		item.text = str(entry.get("text", ""))
+		InkStyle.set_wrapped(item, str(entry.get("text", "")), 245.0)
 		item.tooltip_text = str(entry.get("tooltip", ""))
 		passive_status_items.add_child(item)
 

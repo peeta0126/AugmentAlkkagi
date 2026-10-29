@@ -26,10 +26,14 @@ func update_state(my_done: bool, opponent_done: bool, editable: bool) -> void:
 	opponent_status_label.text = "상대 배치: 완료" if opponent_done else "상대 배치: 대기 중"
 	confirm_button.disabled = my_done or not editable
 	confirm_button.text = "배치 완료" if not my_done else "배치 확정됨"
-	instruction_label.text = (
-		"양쪽 배치가 끝났습니다. 증강 선택을 준비합니다."
-		if my_done and opponent_done
-		else "자기 진영 안에서 돌을 드래그하세요. 겹치거나 경계를 벗어난 위치는 확정되지 않습니다."
+	InkStyle.set_wrapped(
+		instruction_label,
+		(
+			"양쪽 배치가 끝났습니다. 증강 선택을 준비합니다."
+			if my_done and opponent_done
+			else "자기 진영 안에서 돌을 드래그하세요. 겹치거나 경계를 벗어난 위치는 확정되지 않습니다."
+		),
+		296.0
 	)
 
 
