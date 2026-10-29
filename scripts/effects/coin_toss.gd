@@ -11,6 +11,7 @@ const FACES := {
 const FLIPS := 7
 const FLIP_SECONDS := 1.9
 const COIN_SIZE := 150.0
+const RESULT_HOLD_SECONDS := 3.0
 
 var coin: TextureRect
 var caption: Label
@@ -64,7 +65,7 @@ func play(get_result: Callable) -> void:
 	var pop := create_tween()
 	pop.tween_property(coin, "scale", Vector2(1.25, 1.25), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	pop.tween_property(coin, "scale", Vector2.ONE, 0.12)
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(RESULT_HOLD_SECONDS).timeout
 	var out := create_tween().set_parallel(true)
 	out.tween_property(self, "modulate:a", 0.0, 0.35)
 	await out.finished
