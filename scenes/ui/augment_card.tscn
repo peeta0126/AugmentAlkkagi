@@ -2,69 +2,7 @@
 
 [ext_resource type="Script" uid="uid://u3smx7u0wf5l" path="res://scripts/ui/augment_card.gd" id="1_script"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover"]
-bg_color = Color(0.34902, 0.25098, 0.180392, 1)
-border_width_left = 5
-border_width_top = 5
-border_width_right = 5
-border_width_bottom = 5
-border_color = Color(0.835294, 0.780392, 0.682353, 1)
-corner_radius_top_left = 15
-corner_radius_top_right = 15
-corner_radius_bottom_right = 15
-corner_radius_bottom_left = 15
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_background"]
-bg_color = Color(0.5091206, 0.29018813, 0, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.576471, 0.545098, 0.47451, 1)
-corner_radius_top_left = 15
-corner_radius_top_right = 15
-corner_radius_bottom_right = 15
-corner_radius_bottom_left = 15
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
-bg_color = Color(0.286275, 0.196078, 0.141176, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.576471, 0.470588, 0.337255, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
-bg_color = Color(0.419608, 0.294118, 0.188235, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(1, 0.890196, 0.603922, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-bg_color = Color(0.411765, 0.286275, 0.180392, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(1, 0.890196, 0.603922, 1)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
-
-[node name="AugmentCard" type="Control" unique_id=1909797780]
+[node name="AugmentCard" type="Control"]
 custom_minimum_size = Vector2(316, 360)
 layout_mode = 3
 anchors_preset = 0
@@ -72,9 +10,8 @@ offset_right = 316.0
 offset_bottom = 360.0
 mouse_filter = 1
 script = ExtResource("1_script")
-hover_style = SubResource("StyleBoxFlat_hover")
 
-[node name="Background" type="PanelContainer" parent="." unique_id=1197057560]
+[node name="Background" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -83,91 +20,110 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_background")
 
-[node name="ContentMargin" type="MarginContainer" parent="." unique_id=1896009177]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 16
-
-[node name="Content" type="VBoxContainer" parent="ContentMargin" unique_id=1909842795]
+[node name="ContentMargin" type="MarginContainer" parent="Background"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 
-[node name="IconLabel" type="Label" parent="ContentMargin/Content" unique_id=1662963209]
+[node name="Content" type="VBoxContainer" parent="Background/ContentMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="HBoxContainer" parent="Background/ContentMargin/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 16
+
+[node name="IconLabel" type="Label" parent="Background/ContentMargin/Content/Header"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 46)
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.890196, 0.603922, 1)
-theme_override_font_sizes/font_size = 38
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 32
 text = "◆"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="NameLabel" type="Label" parent="ContentMargin/Content" unique_id=1873931842]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
+[node name="Titles" type="VBoxContainer" parent="Background/ContentMargin/Content/Header"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.964706, 0.917647, 0.835294, 1)
-theme_override_font_sizes/font_size = 23
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="Background/ContentMargin/Content/Header/Titles"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
 text = "증강 이름"
-horizontal_alignment = 1
-vertical_alignment = 1
+autowrap_mode = 2
 
-[node name="RarityLabel" type="Label" parent="ContentMargin/Content" unique_id=1653284045]
+[node name="RarityLabel" type="Label" parent="Background/ContentMargin/Content/Header/Titles"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.835294, 0.780392, 0.682353, 1)
-theme_override_font_sizes/font_size = 16
-text = "[일반]"
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_font_sizes/font_size = 14
+text = "일반"
 
-[node name="DescriptionLabel" type="Label" parent="ContentMargin/Content" unique_id=2016968393]
+[node name="Gap" type="Control" parent="Background/ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Divider" type="ColorRect" parent="Background/ContentMargin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 1)
+layout_mode = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.1)
+
+[node name="Gap2" type="Control" parent="Background/ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="DescriptionLabel" type="Label" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.964706, 0.917647, 0.835294, 1)
-theme_override_font_sizes/font_size = 17
-text = "증강 효과 설명이 이 영역에 표시됩니다.
-여러 줄 설명도 편집기에서 확인할 수 있습니다."
-horizontal_alignment = 1
-vertical_alignment = 1
+theme_override_constants/line_spacing = 6
+theme_override_font_sizes/font_size = 16
+text = "증강 효과 설명이 이 영역에 표시됩니다."
 autowrap_mode = 2
 
-[node name="TriggerLabel" type="Label" parent="ContentMargin/Content" unique_id=1436358600]
+[node name="TriggerLabel" type="Label" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.866667, 0.8, 0.690196, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 14
 text = "획득 즉시"
-horizontal_alignment = 1
-vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="SelectButton" type="Button" parent="ContentMargin/Content" unique_id=102494294]
+[node name="Gap3" type="Control" parent="Background/ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SelectButton" type="Button" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 mouse_filter = 1
-theme_override_colors/font_color = Color(0.964706, 0.917647, 0.835294, 1)
-theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 18
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+theme_override_font_sizes/font_size = 16
 text = "선택"
+
+[node name="AccentBar" type="ColorRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 14.0
+offset_right = -14.0
+offset_bottom = 3.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)

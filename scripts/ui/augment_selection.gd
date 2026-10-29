@@ -26,10 +26,13 @@ var _pick_index := 1
 var _pick_total := 1
 var _refresh_enabled := false
 var _refresh_available := false
+var _title_rule: ColorRect
 
 
 func _ready() -> void:
 	refresh_button.pressed.connect(func(): refresh_requested.emit())
+	_build_backdrop()
+	_style_chrome()
 	if _is_configured:
 		_apply_content()
 	modulate.a = 0.0
@@ -62,8 +65,8 @@ func setup(
 
 
 func _apply_content() -> void:
-	title_label.text = "%s 플레이어 · 증강 선택" % _player_name
-	title_label.add_theme_color_override("font_color", _player_color.lightened(0.22))
+	title_label.text = "%s · 증강 선택" % _player_name
+	_title_rule.color = _player_color.lightened(0.15)
 	instruction_label.text = (
 		"게임 시작 증강을 하나 선택하세요"
 		if _is_initial
@@ -79,11 +82,66 @@ func _apply_content() -> void:
 	for child in card_area.get_children():
 		card_area.remove_child(child)
 		child.queue_free()
-	for definition in _choices:
+	for index in _choices.size():
 		var card := AugmentCardScene.instantiate() as AugmentCard
-		card.setup(definition)
+		card.setup(_choices[index])
 		card.augment_selected.connect(_on_card_selected)
 		card_area.add_child(card)
+		card.play_enter(0.1 + 0.09 * index)
+
+
+func _build_backdrop() -> void:
+	# 가장자리로 갈수록 어두워지는 배경. 화면 가운데에 시선이 모이게 한다.
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.13, 0.09, 0.06, 1.0))
+	gradient.set_color(1, Color(0.035, 0.024, 0.017, 1.0))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.45)
+	texture.fill_to = Vector2(1.0, 1.0)
+	texture.width = 256
+	texture.height = 256
+	var backdrop := TextureRect.new()
+	backdrop.texture = texture
+	backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	backdrop.stretch_mode = TextureRect.STRETCH_SCALE
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(backdrop)
+	move_child(backdrop, 1)
+
+
+func _style_chrome() -> void:
+	title_label.add_theme_font_size_override("font_size", 32)
+	title_label.add_theme_color_override("font_color", Color("f3e7d0"))
+	instruction_label.add_theme_font_size_override("font_size", 17)
+	instruction_label.add_theme_color_override("font_color", Color("a8987c"))
+	_title_rule = ColorRect.new()
+	_title_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_rule.position = Vector2(640.0 - 20.0, 100.0)
+	_title_rule.size = Vector2(40.0, 2.0)
+	add_child(_title_rule)
+	progress_label.add_theme_font_size_override("font_size", 22)
+	progress_label.add_theme_color_override("font_color", Color("c9b99c"))
+	var footer := get_node_or_null("FooterLabel") as Label
+	if footer:
+		footer.add_theme_font_size_override("font_size", 14)
+		footer.add_theme_color_override("font_color", Color("6f6350"))
+	refresh_status_label.add_theme_color_override("font_color", Color("a8987c"))
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var style := StyleBoxFlat.new()
+		style.set_corner_radius_all(4)
+		style.set_border_width_all(1)
+		style.bg_color = Color(0, 0, 0, 0) if state != "hover" else Color("2b2018")
+		style.border_color = Color("6f5c3f") if state != "hover" else Color("c9b99c")
+		if state == "disabled":
+			style.border_color = Color("3d3226")
+		refresh_button.add_theme_stylebox_override(state, style)
+	refresh_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	refresh_button.add_theme_color_override("font_color", Color("e0d2b6"))
+	refresh_button.add_theme_color_override("font_disabled_color", Color("6f6350"))
+	refresh_button.add_theme_font_size_override("font_size", 17)
 
 
 func _on_card_selected(augment_id: StringName) -> void:

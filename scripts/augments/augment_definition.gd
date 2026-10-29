@@ -26,5 +26,8 @@ enum TargetMode { NONE, OWN_PIECE, ENEMY_PIECE, TWO_OWN_PIECES, BOARD_POSITION }
 func rarity_name() -> String:
 	return ["일반", "희귀", "영웅", "전설"][rarity]
 
+func kind_name() -> String:
+	return ["패시브", "발사", "필드", "액티브", "조건부"][kind]
+
 func rarity_color() -> Color:
 	return [Color("d5c7ae"), Color("66b9ff"), Color("c57aff"), Color("ffc857")][rarity]

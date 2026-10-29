@@ -32,6 +32,41 @@ func _ready() -> void:
 	_white_item_template = %WhiteAugmentItemTemplate
 	_active_button_template = %ActiveSkillButtonTemplate
 	_passive_status_template = %PassiveStatusTemplate
+	# 오른쪽 열은 증강 → 패시브 상태 → 액티브 스킬 순으로 쌓는다.
+	var right_column := active_skills_panel.get_parent()
+	right_column.move_child(passive_status_panel, active_skills_panel.get_index())
+
+
+## 보유 증강 한 줄: 등급 색 인장 + 이름. 설명은 마우스를 올리면 나온다.
+func _augment_row(definition: AugmentDefinition) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.tooltip_text = definition.description
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	var color := definition.rarity_color()
+	var seal := Label.new()
+	seal.text = definition.icon_text
+	seal.custom_minimum_size = Vector2(28, 28)
+	seal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	seal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	seal.add_theme_font_size_override("font_size", 15)
+	seal.add_theme_color_override("font_color", color.lightened(0.1))
+	var seal_style := StyleBoxFlat.new()
+	seal_style.bg_color = color.darkened(0.78)
+	seal_style.border_color = color.darkened(0.2)
+	seal_style.set_border_width_all(1)
+	seal_style.set_corner_radius_all(14)
+	seal.add_theme_stylebox_override("normal", seal_style)
+	seal.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(seal)
+	var name_label := Label.new()
+	name_label.text = definition.display_name
+	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_color_override("font_color", Color("f3e7d0"))
+	name_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(name_label)
+	return row
 
 
 func update_status(turn_text: String, turn_color: Color, count_text: String, hint_text: String) -> void:
@@ -76,12 +111,7 @@ func set_player_augments(
 		items.add_child(empty_item)
 	else:
 		for definition in definitions:
-			var item := template.duplicate() as Label
-			item.visible = true
-			item.text = "%s  %s" % [definition.icon_text, definition.display_name]
-			item.add_theme_color_override("font_color", definition.rarity_color())
-			item.tooltip_text = definition.description
-			items.add_child(item)
+			items.add_child(_augment_row(definition))
 
 	var owned_count := definitions.size()
 	progress.text = (

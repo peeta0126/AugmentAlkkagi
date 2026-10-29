@@ -3,88 +3,88 @@
 [ext_resource type="Script" uid="uid://c0486u13r7efg" path="res://scripts/ui/game_hud.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_black_panel"]
-bg_color = Color(0.12, 0.07, 0.045, 0.84)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.72549, 0.580392, 0.32549, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_white_panel"]
-bg_color = Color(0.12, 0.07, 0.045, 0.84)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.819608, 0.8, 0.752941, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_active_panel"]
-bg_color = Color(0.12, 0.07, 0.045, 0.84)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.647059, 0.470588, 0.282353, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
-bg_color = Color(0.439216, 0.27451, 0.180392, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.611765, 0.419608, 0.262745, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-bg_color = Color(0.584314, 0.380392, 0.235294, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.878431, 0.678431, 0.407843, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
-bg_color = Color(0.337255, 0.203922, 0.129412, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.945098, 0.772549, 0.498039, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
-bg_color = Color(0.231373, 0.188235, 0.168627, 1)
+bg_color = Color(0.1294, 0.0980, 0.0706, 0.92)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.341176, 0.294118, 0.270588, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+border_color = Color(0.55, 0.43, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_white_panel"]
+bg_color = Color(0.1294, 0.0980, 0.0706, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.74, 0.70, 0.62, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_active_panel"]
+bg_color = Color(0.1294, 0.0980, 0.0706, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.36, 0.28, 0.19, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.1647, 0.1176, 0.0824, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.43, 0.36, 0.25, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.2275, 0.1647, 0.1098, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.70, 0.42, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.1294, 0.0902, 0.0588, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.80, 0.50, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+bg_color = Color(0.1294, 0.1020, 0.0784, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.20, 0.15, 1)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
@@ -101,7 +101,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_power_fill"]
-bg_color = Color(0.956863, 0.541176, 0.231373, 1)
+bg_color = Color(0.85, 0.64, 0.26, 1)
 corner_radius_top_left = 5
 corner_radius_top_right = 5
 corner_radius_bottom_right = 5
@@ -121,14 +121,14 @@ script = ExtResource("1_script")
 unique_name_in_owner = true
 z_index = 2
 layout_mode = 0
-offset_left = 500.0
-offset_top = 18.0
-offset_right = 780.0
-offset_bottom = 46.0
-theme_override_colors/font_color = Color(0.94, 0.76, 0.45, 1)
-theme_override_font_sizes/font_size = 15
+offset_left = 20.0
+offset_top = 30.0
+offset_right = 300.0
+offset_bottom = 54.0
+theme_override_colors/font_color = Color(0.62, 0.54, 0.42, 1)
+theme_override_font_sizes/font_size = 14
 text = "기본 모드"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
 [node name="TopBar" type="ColorRect" parent="."]
 unique_name_in_owner = true
@@ -138,7 +138,7 @@ anchor_right = 1.0
 offset_bottom = 84.0
 grow_horizontal = 2
 mouse_filter = 2
-color = Color(0.08, 0.045, 0.025, 0.91)
+color = Color(0.075, 0.055, 0.04, 0.94)
 
 [node name="TurnInfo" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -158,7 +158,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.823529, 0.658824, 0.372549, 1)
+theme_override_colors/font_color = Color(0.953, 0.906, 0.816, 1)
 theme_override_font_sizes/font_size = 28
 text = "흑돌 차례"
 horizontal_alignment = 1
@@ -250,8 +250,7 @@ theme_override_colors/font_color = Color(0.85098, 0.772549, 0.623529, 1)
 theme_override_font_sizes/font_size = 15
 text = "증강 1 / 3"
 
-[node name="WhiteAugmentPanel" type="PanelContainer" parent="."]
-unique_name_in_owner = true
+[node name="RightColumn" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
@@ -259,12 +258,19 @@ anchor_right = 1.0
 offset_left = -330.0
 offset_top = 110.0
 offset_right = -18.0
-offset_bottom = 300.0
+offset_bottom = 640.0
 grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="WhiteAugmentPanel" type="PanelContainer" parent="RightColumn"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 190)
+unique_name_in_owner = true
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_white_panel")
 
-[node name="Margin" type="MarginContainer" parent="WhiteAugmentPanel"]
+[node name="Margin" type="MarginContainer" parent="RightColumn/WhiteAugmentPanel"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 12
@@ -272,12 +278,12 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="Content" type="VBoxContainer" parent="WhiteAugmentPanel/Margin"]
+[node name="Content" type="VBoxContainer" parent="RightColumn/WhiteAugmentPanel/Margin"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 5
 
-[node name="WhiteAugmentTitle" type="Label" parent="WhiteAugmentPanel/Margin/Content"]
+[node name="WhiteAugmentTitle" type="Label" parent="RightColumn/WhiteAugmentPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -285,14 +291,14 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 18
 text = "백돌 플레이어 증강"
 
-[node name="WhiteAugmentItems" type="VBoxContainer" parent="WhiteAugmentPanel/Margin/Content"]
+[node name="WhiteAugmentItems" type="VBoxContainer" parent="RightColumn/WhiteAugmentPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 theme_override_constants/separation = 3
 
-[node name="WhiteAugmentItemTemplate" type="Label" parent="WhiteAugmentPanel/Margin/Content/WhiteAugmentItems"]
+[node name="WhiteAugmentItemTemplate" type="Label" parent="RightColumn/WhiteAugmentPanel/Margin/Content/WhiteAugmentItems"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 0
@@ -300,7 +306,7 @@ theme_override_colors/font_color = Color(0.4, 0.72549, 1, 1)
 theme_override_font_sizes/font_size = 16
 text = "◆  눈덩이"
 
-[node name="WhiteAugmentProgress" type="Label" parent="WhiteAugmentPanel/Margin/Content"]
+[node name="WhiteAugmentProgress" type="Label" parent="RightColumn/WhiteAugmentPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -308,35 +314,19 @@ theme_override_colors/font_color = Color(0.85098, 0.772549, 0.623529, 1)
 theme_override_font_sizes/font_size = 15
 text = "증강 1 / 3"
 
-[node name="ActiveSkillsPanel" type="PanelContainer" parent="."]
+[node name="ActiveSkillsPanel" type="PanelContainer" parent="RightColumn"]
+layout_mode = 2
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -330.0
-offset_top = 330.0
-offset_right = -30.0
-offset_bottom = 550.0
-grow_horizontal = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_active_panel")
 
-[node name="PassiveStatusPanel" type="PanelContainer" parent="."]
+[node name="PassiveStatusPanel" type="PanelContainer" parent="RightColumn"]
+layout_mode = 2
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -330.0
-offset_top = 210.0
-offset_right = -30.0
-offset_bottom = 315.0
-grow_horizontal = 0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_active_panel")
 
-[node name="Margin" type="MarginContainer" parent="PassiveStatusPanel"]
+[node name="Margin" type="MarginContainer" parent="RightColumn/PassiveStatusPanel"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 10
@@ -344,24 +334,24 @@ theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 8
 
-[node name="Content" type="VBoxContainer" parent="PassiveStatusPanel/Margin"]
+[node name="Content" type="VBoxContainer" parent="RightColumn/PassiveStatusPanel/Margin"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 5
 
-[node name="PassiveStatusTitle" type="Label" parent="PassiveStatusPanel/Margin/Content"]
+[node name="PassiveStatusTitle" type="Label" parent="RightColumn/PassiveStatusPanel/Margin/Content"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.945098, 0.831373, 0.603922, 1)
 theme_override_font_sizes/font_size = 16
 text = "패시브 이벤트"
 
-[node name="PassiveStatusItems" type="VBoxContainer" parent="PassiveStatusPanel/Margin/Content"]
+[node name="PassiveStatusItems" type="VBoxContainer" parent="RightColumn/PassiveStatusPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 
-[node name="PassiveStatusTemplate" type="Label" parent="PassiveStatusPanel/Margin/Content/PassiveStatusItems"]
+[node name="PassiveStatusTemplate" type="Label" parent="RightColumn/PassiveStatusPanel/Margin/Content/PassiveStatusItems"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -370,7 +360,7 @@ theme_override_font_sizes/font_size = 15
 text = "칙칙폭폭 · 다음 턴 종료: 첫 기차 통과"
 autowrap_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="ActiveSkillsPanel"]
+[node name="Margin" type="MarginContainer" parent="RightColumn/ActiveSkillsPanel"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 10
@@ -378,12 +368,12 @@ theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="VBoxContainer" parent="ActiveSkillsPanel/Margin"]
+[node name="Content" type="VBoxContainer" parent="RightColumn/ActiveSkillsPanel/Margin"]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 6
 
-[node name="ActiveSkillTitle" type="Label" parent="ActiveSkillsPanel/Margin/Content"]
+[node name="ActiveSkillTitle" type="Label" parent="RightColumn/ActiveSkillsPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
@@ -391,13 +381,13 @@ theme_override_colors/font_color = Color(0.945098, 0.831373, 0.603922, 1)
 theme_override_font_sizes/font_size = 17
 text = "액티브 스킬"
 
-[node name="ActiveSkillItems" type="VBoxContainer" parent="ActiveSkillsPanel/Margin/Content"]
+[node name="ActiveSkillItems" type="VBoxContainer" parent="RightColumn/ActiveSkillsPanel/Margin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 6
 
-[node name="ActiveSkillButtonTemplate" type="Button" parent="ActiveSkillsPanel/Margin/Content/ActiveSkillItems"]
+[node name="ActiveSkillButtonTemplate" type="Button" parent="RightColumn/ActiveSkillsPanel/Margin/Content/ActiveSkillItems"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(270, 42)
 layout_mode = 2
