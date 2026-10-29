@@ -14,6 +14,10 @@ const LOGO_TEXTURE := preload("res://assets/ui/lobby_logo.png")
 const ICON_SWORDS := preload("res://assets/ui/icon_local.png")
 const ICON_GEAR := preload("res://assets/ui/icon_settings.png")
 const ICON_LINK := preload("res://assets/ui/icon_join.png")
+const TOGGLE_ON := preload("res://assets/ui/ink/toggle_on.png")
+const TOGGLE_OFF := preload("res://assets/ui/ink/toggle_off.png")
+const ARROW_LEFT := preload("res://assets/ui/ink/arrow_left.png")
+const ARROW_RIGHT := preload("res://assets/ui/ink/arrow_right.png")
 const ICON_FLASK := preload("res://assets/ui/icon_developer.png")
 const SWASH_TEXTURE := preload("res://assets/ui/swash.png")
 const BURST_TEXTURE := preload("res://assets/ui/burst.png")
@@ -167,3 +171,79 @@ static func logo(parent: Control, position: Vector2, height: float) -> TextureRe
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(rect)
 	return rect
+
+
+## 그림을 비율 유지하며 높이에 맞춰 줄인다(테마 아이콘은 자체 크기 조절이 안 돼서 미리 줄여 둔다).
+static func scaled_texture(texture: Texture2D, height: float) -> Texture2D:
+	var image := texture.get_image()
+	var width := int(round(float(image.get_width()) * height / float(image.get_height())))
+	image.resize(width, int(height), Image.INTERPOLATE_LANCZOS)
+	return ImageTexture.create_from_image(image)
+
+
+## 로비 시트의 스위치 그림으로 체크 버튼을 바꾼다.
+static func style_toggle(toggle: Button, font_size: int = 20) -> void:
+	var on := scaled_texture(TOGGLE_ON, 44.0)
+	var off := scaled_texture(TOGGLE_OFF, 44.0)
+	for name in ["checked", "checked_mirrored", "checked_disabled"]:
+		toggle.add_theme_icon_override(name, on)
+	for name in ["unchecked", "unchecked_mirrored", "unchecked_disabled"]:
+		toggle.add_theme_icon_override(name, off)
+	toggle.add_theme_font_size_override("font_size", font_size)
+	for color_name in ["font_color", "font_focus_color", "font_pressed_color"]:
+		toggle.add_theme_color_override(color_name, CREAM)
+	for color_name in ["font_hover_color", "font_hover_pressed_color"]:
+		toggle.add_theme_color_override(color_name, Color.WHITE)
+	toggle.add_theme_color_override("font_outline_color", INK)
+	toggle.add_theme_constant_override("outline_size", 5)
+	toggle.add_theme_constant_override("h_separation", 14)
+	toggle.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## 슬라이더: 어두운 홈에 주황 채움, 손잡이는 흰 바둑돌.
+static func style_slider(slider: HSlider) -> void:
+	var track := StyleBoxFlat.new()
+	track.bg_color = CHARCOAL
+	track.border_color = INK
+	track.set_border_width_all(3)
+	track.set_corner_radius_all(8)
+	track.content_margin_top = 8.0
+	track.content_margin_bottom = 8.0
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = ORANGE
+	fill.border_color = INK
+	fill.set_border_width_all(3)
+	fill.set_corner_radius_all(8)
+	fill.content_margin_top = 8.0
+	fill.content_margin_bottom = 8.0
+	slider.add_theme_stylebox_override("slider", track)
+	slider.add_theme_stylebox_override("grabber_area", fill)
+	slider.add_theme_stylebox_override("grabber_area_highlight", fill)
+	var stone := scaled_texture(load("res://assets/ui/ink/stone_white.png"), 38.0)
+	slider.add_theme_icon_override("grabber", stone)
+	slider.add_theme_icon_override("grabber_highlight", stone)
+
+
+## 로비 시트의 주황 화살표 버튼.
+static func arrow_button(left: bool, callback: Callable) -> TextureButton:
+	var button := TextureButton.new()
+	button.texture_normal = ARROW_LEFT if left else ARROW_RIGHT
+	button.ignore_texture_size = true
+	button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	button.custom_minimum_size = Vector2(62, 62)
+	button.modulate = Color.WHITE
+	button.mouse_entered.connect(func(): button.modulate = Color(1.15, 1.1, 1.0))
+	button.mouse_exited.connect(func(): button.modulate = Color.WHITE)
+	button.pressed.connect(callback)
+	return button
+
+
+## 화면 가운데에 놓는 숯색 판(안쪽에 글자와 버튼을 얹는다).
+static func center_panel(parent: Control, rect: Rect2) -> Panel:
+	var panel := Panel.new()
+	panel.add_theme_stylebox_override("panel", InkStyle.panel(40.0, 0.0, true))
+	panel.position = rect.position
+	panel.size = rect.size
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(panel)
+	return panel

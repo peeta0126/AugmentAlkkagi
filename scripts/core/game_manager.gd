@@ -195,6 +195,7 @@ func _start_local_setup() -> void:
 	state_machine.transition(GameStateMachine.State.LOCAL_SETUP)
 	set_screen(_panel_root())
 	_add_background(screen_root)
+	InkStyle.center_panel(screen_root, Rect2(300, 70, 680, 580))
 	var title := _label("로컬 대전 설정", 42, Color("f4d79a"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(390, 110)
@@ -206,30 +207,30 @@ func _start_local_setup() -> void:
 	info.size = Vector2(600, 35)
 	screen_root.add_child(info)
 	var picker := HBoxContainer.new()
-	picker.position = Vector2(450, 280)
-	picker.size = Vector2(380, 64)
+	picker.position = Vector2(430, 250)
+	picker.size = Vector2(420, 70)
 	picker.alignment = BoxContainer.ALIGNMENT_CENTER
 	picker.add_theme_constant_override("separation", 22)
 	screen_root.add_child(picker)
-	picker.add_child(_button("◀", func(): _change_piece_count(-1)))
+	picker.add_child(InkStyle.arrow_button(true, func(): _change_piece_count(-1)))
 	var value := _label("시작 바둑알: %d개" % starting_piece_count, 25, Color.WHITE)
 	value.name = "PieceCount"
 	value.custom_minimum_size = Vector2(220, 58)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	picker.add_child(value)
-	picker.add_child(_button("▶", func(): _change_piece_count(1)))
+	picker.add_child(InkStyle.arrow_button(false, func(): _change_piece_count(1)))
 	var start := _button("증강 선택 시작", begin_match)
-	start.position = Vector2(490, 400)
-	start.size = Vector2(300, 64)
+	start.position = Vector2(480, 450)
+	start.size = Vector2(320, 66)
 	screen_root.add_child(start)
 	var back := _button("뒤로", show_main_menu)
-	back.position = Vector2(540, 492)
-	back.size = Vector2(200, 54)
+	back.position = Vector2(540, 540)
+	back.size = Vector2(200, 58)
 	screen_root.add_child(back)
 	var mode_row := HBoxContainer.new()
-	mode_row.position = Vector2(420, 350)
-	mode_row.size = Vector2(440, 45)
+	mode_row.position = Vector2(350, 360)
+	mode_row.size = Vector2(580, 60)
 	mode_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	mode_row.add_theme_constant_override("separation", 28)
 	screen_root.add_child(mode_row)
@@ -237,11 +238,13 @@ func _start_local_setup() -> void:
 	refresh_toggle.text = "새로고침 모드"
 	refresh_toggle.button_pressed = refresh_mode
 	refresh_toggle.toggled.connect(func(value: bool): refresh_mode = value)
+	InkStyle.style_toggle(refresh_toggle, 20)
 	mode_row.add_child(refresh_toggle)
 	var chaos_toggle := CheckButton.new()
 	chaos_toggle.text = "혼돈 모드"
 	chaos_toggle.button_pressed = chaos_mode
 	chaos_toggle.toggled.connect(func(value: bool): chaos_mode = value)
+	InkStyle.style_toggle(chaos_toggle, 20)
 	mode_row.add_child(chaos_toggle)
 
 func _change_piece_count(delta: int) -> void:
@@ -254,6 +257,7 @@ func _show_settings() -> void:
 	state_machine.transition(GameStateMachine.State.PAUSED)
 	set_screen(_panel_root())
 	_add_background(screen_root)
+	InkStyle.center_panel(screen_root, Rect2(340, 90, 600, 470))
 	var title := _label("설정", 44, Color("f4d79a"))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.position = Vector2(440, 120)
@@ -266,6 +270,7 @@ func _show_settings() -> void:
 	fullscreen.size = Vector2(430, 48)
 	fullscreen.add_theme_font_size_override("font_size", 19)
 	fullscreen.toggled.connect(_set_fullscreen)
+	InkStyle.style_toggle(fullscreen, 22)
 	screen_root.add_child(fullscreen)
 	var volume_text := _label("전체 음량", 19, Color("dac7ae"))
 	volume_text.position = Vector2(440, 335)
@@ -278,6 +283,7 @@ func _show_settings() -> void:
 	volume.max_value = 100
 	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0)) * 100.0
 	volume.value_changed.connect(_set_master_volume)
+	InkStyle.style_slider(volume)
 	screen_root.add_child(volume)
 	var back := _button("완료", show_main_menu)
 	back.position = Vector2(520, 430)
@@ -1343,6 +1349,32 @@ func show_game_over(winner: int) -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.position = Vector2(340, 220)
 	label.size = Vector2(600, 80)
+	var swash := TextureRect.new()
+	swash.texture = InkStyle.SWASH_TEXTURE
+	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	swash.stretch_mode = TextureRect.STRETCH_SCALE
+	swash.position = Vector2(250, 170)
+	swash.size = Vector2(780, 170)
+	swash.rotation_degrees = -2.0
+	swash.pivot_offset = swash.size * 0.5
+	var burst := TextureRect.new()
+	burst.texture = InkStyle.BURST_TEXTURE
+	burst.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	burst.stretch_mode = TextureRect.STRETCH_SCALE
+	burst.size = Vector2(600, 600)
+	burst.position = Vector2(340, -40)
+	burst.pivot_offset = burst.size * 0.5
+	burst.modulate.a = 0.9
+	overlay.add_child(burst)
+	overlay.add_child(swash)
+	var pop := create_tween().set_parallel(true)
+	burst.scale = Vector2(0.2, 0.2)
+	pop.tween_property(burst, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	label.size = Vector2(700, 90)
+	label.position = Vector2(290, 215)
+	label.pivot_offset = label.size * 0.5
+	label.rotation_degrees = -2.0
+	InkStyle.brush_label(label, 60, InkStyle.CREAM, 16)
 	overlay.add_child(label)
 	var replay_callback := _start_developer_mode if developer_mode_active else begin_match
 	var replay_text := "다시 하기"
@@ -1705,27 +1737,31 @@ func _panel_root() -> Control:
 	return root_control
 
 func _add_background(parent: Control, color: Color = Color("291911")) -> void:
-	var background := ColorRect.new()
-	background.color = color
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	parent.add_child(background)
+	# 메인 화면과 같은 나무 보드 배경. 색을 따로 준 화면(알파가 있는 덮개)은 그 색으로 덮는다.
+	InkStyle.board_backdrop(parent, 0.5)
+	if color.a < 0.99 or color != Color("291911"):
+		var cover := ColorRect.new()
+		cover.color = Color(color, minf(color.a, 0.8))
+		cover.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(cover)
 
 func _label(text_value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text_value
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
+	if font_size >= 36:
+		InkStyle.brush_label(label, font_size, InkStyle.CREAM, 14)
+	elif font_size >= 22:
+		InkStyle.outline_label(label, font_size, color, 7)
+	else:
+		InkStyle.outline_label(label, font_size, color, 5)
 	return label
 
 func _button(text_value: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text_value
-	button.custom_minimum_size = Vector2(240, 54)
-	button.add_theme_font_size_override("font_size", 19)
-	button.add_theme_stylebox_override("normal", _style(Color("70462e"), 10, Color("9c6b43"), 2))
-	button.add_theme_stylebox_override("hover", _style(Color("95613c"), 10, Color("e0ad68"), 3))
-	button.add_theme_stylebox_override("pressed", _style(Color("563421"), 10, Color("f1c57f"), 2))
-	button.add_theme_stylebox_override("disabled", _style(Color("3b302b"), 10, Color("574b45"), 1))
+	button.custom_minimum_size = Vector2(240, 56)
+	InkStyle.style_button(button, 21)
 	if callback.is_valid():
 		button.pressed.connect(callback)
 	return button

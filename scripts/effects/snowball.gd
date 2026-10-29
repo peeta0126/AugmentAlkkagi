@@ -13,6 +13,17 @@ extends Node2D
 @onready var target_ring: Line2D = %TargetRing
 
 
+func _ready() -> void:
+	# 기본 도형 대신 잉크 스타일 눈덩이 그림을 쓴다.
+	for child in projectile.get_children():
+		if child is Sprite2D:
+			child.visible = false
+	var sprite := Sprite2D.new()
+	sprite.texture = load("res://assets/effects/ink_snowball.png")
+	sprite.scale = Vector2.ONE * 0.42
+	projectile.add_child(sprite)
+
+
 func play(from: Vector2, to: Vector2) -> void:
 	position = from
 	rotation = (to - from).angle()

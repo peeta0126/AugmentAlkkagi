@@ -5,6 +5,21 @@ extends Node2D
 @onready var sword: Node2D = %Sword
 @onready var shockwave: Line2D = %Shockwave
 
+const INK_SWORD := preload("res://assets/effects/ink_sword.png")
+
+
+func _ready() -> void:
+	# 기본 도형 칼 대신 잉크 스타일 대검 그림을 쓴다.
+	for child in sword.get_children():
+		(child as CanvasItem).visible = false
+	var sprite := Sprite2D.new()
+	sprite.texture = INK_SWORD
+	sprite.scale = Vector2.ONE * 0.55
+	sprite.position = Vector2(0.0, -34.0)
+	sword.add_child(sprite)
+	shockwave.default_color = Color(InkStyle.ORANGE, 0.95)
+	shockwave.width = 10.0
+
 
 func play(from: Vector2, to: Vector2) -> void:
 	position = from.lerp(to, 0.5)

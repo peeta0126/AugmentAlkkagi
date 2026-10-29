@@ -9,19 +9,27 @@ const AugmentCardScene := preload("res://scenes/ui/augment_card.tscn")
 var grid: GridContainer
 
 func _ready() -> void:
-	var background := ColorRect.new()
-	background.color = Color(0.055, 0.035, 0.025, 0.98)
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(background)
+	InkStyle.board_backdrop(self, 0.62)
+	var swash := TextureRect.new()
+	swash.texture = InkStyle.SWASH_TEXTURE
+	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	swash.stretch_mode = TextureRect.STRETCH_SCALE
+	swash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swash.position = Vector2(640.0 - 400.0, 4.0)
+	swash.size = Vector2(800.0, 112.0)
+	swash.rotation_degrees = -1.5
+	swash.pivot_offset = swash.size * 0.5
+	add_child(swash)
 
 	var title := Label.new()
 	title.text = "개발자 모드 · 증강 선택"
 	title.position = Vector2(200, 28)
 	title.size = Vector2(880, 52)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_color_override("font_color", Color("f4d79a"))
-	title.add_theme_font_size_override("font_size", 34)
+	title.position = Vector2(200, 24)
+	InkStyle.brush_label(title, 40, InkStyle.CREAM, 12)
+	title.pivot_offset = title.size * 0.5
+	title.rotation_degrees = -1.5
 	add_child(title)
 
 	var instruction := Label.new()
@@ -29,8 +37,8 @@ func _ready() -> void:
 	instruction.position = Vector2(80, 82)
 	instruction.size = Vector2(1120, 30)
 	instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	instruction.add_theme_color_override("font_color", Color("dac7ae"))
-	instruction.add_theme_font_size_override("font_size", 17)
+	instruction.position = Vector2(80, 98)
+	InkStyle.outline_label(instruction, 18, InkStyle.CREAM_SOFT, 6)
 	add_child(instruction)
 
 	var scroll := ScrollContainer.new()
@@ -61,16 +69,9 @@ func _ready() -> void:
 	back.text = "메인 메뉴로"
 	back.position = Vector2(520, 650)
 	back.size = Vector2(240, 48)
-	back.add_theme_color_override("font_color", Color("f3e7d3"))
-	back.add_theme_font_size_override("font_size", 18)
-	for state in ["normal", "hover", "pressed"]:
-		var style := StyleBoxFlat.new()
-		style.set_corner_radius_all(4)
-		style.set_border_width_all(1)
-		style.bg_color = Color("2b2018") if state == "hover" else Color(0, 0, 0, 0)
-		style.border_color = Color("c9b99c") if state == "hover" else Color("6f5c3f")
-		back.add_theme_stylebox_override(state, style)
-	back.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	InkStyle.style_button(back, 22)
+	back.size = Vector2(260, 60)
+	back.position = Vector2(510, 648)
 	back.pressed.connect(func(): back_requested.emit())
 	add_child(back)
 

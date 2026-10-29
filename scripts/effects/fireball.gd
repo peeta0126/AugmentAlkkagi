@@ -12,6 +12,18 @@ extends Node2D
 var _travel_tween: Tween
 
 
+func _ready() -> void:
+	# 화염구 머리를 메인 화면 충돌 장면 같은 주황 폭발 그림으로 바꾼다.
+	visual_root.visible = false
+	var head := Sprite2D.new()
+	head.name = "InkHead"
+	head.texture = InkStyle.BURST_TEXTURE
+	head.scale = Vector2.ONE * 0.05
+	add_child(head)
+	var spin := create_tween().set_loops()
+	spin.tween_property(head, "rotation", TAU, 0.5).from(0.0)
+
+
 func play(from: Vector2, to: Vector2) -> void:
 	position = from
 	rotation = (to - from).angle()
@@ -24,7 +36,10 @@ func play(from: Vector2, to: Vector2) -> void:
 
 func _on_arrived() -> void:
 	trail_particles.emitting = false
+	var head := get_node_or_null("InkHead") as Sprite2D
 	var impact_tween := create_tween().set_parallel(true)
-	impact_tween.tween_property(visual_root, "scale", Vector2(1.65, 1.65), impact_fade_duration)
+	if head:
+		impact_tween.tween_property(head, "scale", Vector2.ONE * 0.13, impact_fade_duration + 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		impact_tween.tween_property(head, "modulate:a", 0.0, impact_fade_duration + 0.06)
 	impact_tween.tween_property(visual_root, "modulate:a", 0.0, impact_fade_duration)
 	impact_tween.chain().tween_callback(queue_free)

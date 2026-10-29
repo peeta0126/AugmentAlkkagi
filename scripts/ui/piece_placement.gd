@@ -14,6 +14,7 @@ signal menu_requested
 func _ready() -> void:
 	confirm_button.pressed.connect(func(): placement_confirmed.emit())
 	%MenuButton.pressed.connect(func(): menu_requested.emit())
+	_apply_ink_style()
 
 func configure(player_name: String, player_color: Color, modes_text: String) -> void:
 	title_label.text = "%s 배치 단계" % player_name
@@ -30,3 +31,25 @@ func update_state(my_done: bool, opponent_done: bool, editable: bool) -> void:
 		if my_done and opponent_done
 		else "자기 진영 안에서 돌을 드래그하세요. 겹치거나 경계를 벗어난 위치는 확정되지 않습니다."
 	)
+
+
+func _apply_ink_style() -> void:
+	var panel := $TopPanel as PanelContainer
+	panel.add_theme_stylebox_override("panel", InkStyle.panel(30.0, 0.0))
+	var margin := panel.get_node("Margin") as MarginContainer
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 4)
+	InkStyle.brush_label(title_label, 28, InkStyle.CREAM, 10)
+	InkStyle.outline_label(instruction_label, 15, InkStyle.CREAM_SOFT, 4)
+	InkStyle.outline_label(my_status_label, 17, InkStyle.CREAM, 5)
+	InkStyle.outline_label(opponent_status_label, 17, InkStyle.CREAM, 5)
+	InkStyle.outline_label(mode_label, 15, InkStyle.ORANGE, 4)
+	InkStyle.style_button(confirm_button, 22)
+	InkStyle.style_button(%MenuButton, 22)
+	confirm_button.custom_minimum_size = Vector2(190, 58)
+	%MenuButton.custom_minimum_size = Vector2(150, 58)
+	var actions := $Actions as HBoxContainer
+	actions.alignment = BoxContainer.ALIGNMENT_END
+	actions.offset_top = 650.0
+	actions.offset_bottom = 712.0
+	actions.add_theme_constant_override("separation", 14)
