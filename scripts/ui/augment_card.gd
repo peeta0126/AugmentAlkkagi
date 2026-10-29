@@ -98,11 +98,9 @@ func _update_background() -> void:
 	var rarity_color := _definition.rarity_color() if _definition else Color("d5c7ae")
 	var style := _box(PAPER_HOVER if _hovered else PAPER, rarity_color if _hovered else rarity_color.darkened(0.55), 1, 6)
 	if _hovered:
-		style.shadow_color = Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.28)
-		style.shadow_size = 18
-	elif _definition and _definition.rarity == AugmentDefinition.Rarity.LEGENDARY:
-		style.shadow_color = Color(rarity_color.r, rarity_color.g, rarity_color.b, 0.12)
-		style.shadow_size = 12
+		style.shadow_color = Color(0, 0, 0, 0.5)
+		style.shadow_size = 22
+		style.shadow_offset = Vector2(0, 8)
 	background.add_theme_stylebox_override("panel", style)
 
 
