@@ -12,7 +12,7 @@ signal augment_selected(augment_id: StringName)
 @onready var icon: AugmentIcon = %IconLabel
 @onready var name_label: Label = %NameLabel
 @onready var rarity_label: Label = %RarityLabel
-@onready var description_label: Label = %DescriptionLabel
+@onready var description_label: RichTextLabel = %DescriptionLabel
 @onready var trigger_label: Label = %TriggerLabel
 @onready var select_button: Button = %SelectButton
 
@@ -58,15 +58,12 @@ func _apply_style() -> void:
 	background.add_theme_stylebox_override("panel", InkStyle.panel(34.0, 0.0))
 	divider.color = Color(InkStyle.TAN, 0.4)
 	InkStyle.outline_label(name_label, 30, InkStyle.CREAM, 9)
-	description_label.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
-	# 한국어는 글자 중간에서 줄이 바뀌면 읽기 어려워서, 띄어쓰기 단위로만 줄을 바꾼다.
-	description_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	trigger_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	description_label.clip_text = false
+	description_label.add_theme_color_override("default_color", InkStyle.CREAM_SOFT)
+	description_label.add_theme_font_size_override("normal_font_size", 18)
+	description_label.add_theme_font_size_override("bold_font_size", 18)
+	description_label.add_theme_constant_override("line_separation", 8)
+	description_label.fit_content = false
 	description_label.resized.connect(_rewrap_description)
-	description_label.add_theme_font_size_override("font_size", 18)
-	description_label.add_theme_constant_override("line_spacing", 7)
-	description_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	trigger_label.add_theme_color_override("font_color", InkStyle.TAN)
 	InkStyle.style_button(select_button, 22)
 	InkStyle.button_icon_centered(select_button, InkStyle.ICON_SWORDS, 32.0)
@@ -197,8 +194,8 @@ func _rewrap_description() -> void:
 	var width := description_label.size.x
 	if width < 40.0:
 		return
-	var font := description_label.get_theme_font("font")
-	var font_size := description_label.get_theme_font_size("font_size")
+	var font := description_label.get_theme_font("normal_font")
+	var font_size := description_label.get_theme_font_size("normal_font_size")
 	var sentences := _definition.description.strip_edges().replace(". ", ".
 ").replace("! ", "!
 ").replace("? ", "?
@@ -216,7 +213,21 @@ func _rewrap_description() -> void:
 				line = word
 		if not line.is_empty():
 			lines.append(line)
-	var text := "
-".join(lines)
+	var text := _highlight("
+".join(lines))
 	if description_label.text != text:
 		description_label.text = text
+
+
+## 숫자와 단위(40%, 2회, 3턴, 60px, 1.6배 …)를 주황 굵은 글씨로 강조해서 핵심 수치가 먼저 눈에 들어오게 한다.
+func _highlight(text: String) -> String:
+	var pattern := RegEx.new()
+	pattern.compile(r"(\d+(?:\.\d+)?\s?(?:%|px|배|회|턴|사이클|개|초|도|번)?)")
+	var out := ""
+	var last := 0
+	for m in pattern.search_all(text):
+		out += text.substr(last, m.get_start() - last)
+		out += "[color=#f58a1f]%s[/color]" % m.get_string()
+		last = m.get_end()
+	out += text.substr(last)
+	return out
