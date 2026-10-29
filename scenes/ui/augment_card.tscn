@@ -4,11 +4,11 @@
 [ext_resource type="Script" path="res://scripts/ui/augment_icon.gd" id="2_icon"]
 
 [node name="AugmentCard" type="Control"]
-custom_minimum_size = Vector2(326, 404)
+custom_minimum_size = Vector2(326, 448)
 layout_mode = 3
 anchors_preset = 0
 offset_right = 326.0
-offset_bottom = 404.0
+offset_bottom = 448.0
 mouse_filter = 1
 script = ExtResource("1_script")
 
@@ -87,7 +87,7 @@ mouse_filter = 2
 
 [node name="DescriptionLabel" type="Label" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 96)
+custom_minimum_size = Vector2(0, 168)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/line_spacing = 6

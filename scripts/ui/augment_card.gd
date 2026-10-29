@@ -59,6 +59,14 @@ func _apply_style() -> void:
 	divider.color = Color(InkStyle.TAN, 0.4)
 	InkStyle.outline_label(name_label, 30, InkStyle.CREAM, 9)
 	description_label.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
+	# 한국어는 글자 중간에서 줄이 바뀌면 읽기 어려워서, 띄어쓰기 단위로만 줄을 바꾼다.
+	description_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	trigger_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	description_label.clip_text = false
+	description_label.resized.connect(_rewrap_description)
+	description_label.add_theme_font_size_override("font_size", 18)
+	description_label.add_theme_constant_override("line_spacing", 7)
+	description_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	trigger_label.add_theme_color_override("font_color", InkStyle.TAN)
 	InkStyle.style_button(select_button, 22)
 	InkStyle.button_icon(select_button, InkStyle.ICON_SWORDS, 30)
@@ -71,7 +79,7 @@ func _apply_definition() -> void:
 	var length := _definition.display_name.length()
 	InkStyle.outline_label(name_label, 30 if length <= 6 else (26 if length <= 9 else 22), InkStyle.CREAM, 9)
 	rarity_label.text = "%s · %s" % [_definition.rarity_name(), _definition.kind_name()]
-	description_label.text = _definition.description
+	_rewrap_description()
 	trigger_label.text = _definition.trigger_description
 	tooltip_text = _definition.description
 	select_button.tooltip_text = _definition.description
@@ -175,3 +183,35 @@ func _animate_to(target_scale: Vector2) -> void:
 		_hover_tween.kill()
 	_hover_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_hover_tween.tween_property(self, "scale", target_scale, hover_duration)
+
+
+## 문장마다 줄을 나누고, 줄이 넘치면 띄어쓰기에서만 바꾼다(엔진 자동 줄바꿈은 한국어를 글자 중간에서 끊는다).
+func _rewrap_description() -> void:
+	if _definition == null or description_label == null:
+		return
+	var width := description_label.size.x
+	if width < 40.0:
+		return
+	var font := description_label.get_theme_font("font")
+	var font_size := description_label.get_theme_font_size("font_size")
+	var sentences := _definition.description.strip_edges().replace(". ", ".
+").replace("! ", "!
+").replace("? ", "?
+").split("
+")
+	var lines: PackedStringArray = []
+	for sentence in sentences:
+		var line := ""
+		for word in sentence.split(" ", false):
+			var candidate := word if line.is_empty() else line + " " + word
+			if line.is_empty() or font.get_string_size(candidate, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width:
+				line = candidate
+			else:
+				lines.append(line)
+				line = word
+		if not line.is_empty():
+			lines.append(line)
+	var text := "
+".join(lines)
+	if description_label.text != text:
+		description_label.text = text
