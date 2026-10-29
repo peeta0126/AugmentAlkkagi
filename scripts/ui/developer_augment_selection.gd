@@ -42,21 +42,22 @@ func _ready() -> void:
 	add_child(instruction)
 
 	var scroll := ScrollContainer.new()
-	# 카드 3열(316×3 + 간격 36 = 984)에 양옆 여백 20씩을 더한 폭을 화면 가운데에 둔다.
-	const GRID_WIDTH := 984.0
-	const SIDE_MARGIN := 20.0
-	var scroll_width := GRID_WIDTH + SIDE_MARGIN * 2.0
-	scroll.position = Vector2((1280.0 - scroll_width) * 0.5, 124)
-	scroll.size = Vector2(scroll_width, 510)
+	# 스크롤 영역은 안쪽 내용을 잘라 내기 때문에, 카드 뒤로 튀는 폭발(카드 둘레 약 65px)이 잘리지 않게
+	# 화면 전체 폭을 쓰고 카드 둘레에 그만큼 여백을 둔다. 카드 3열 폭은 326×3 + 간격 36 = 1014.
+	const GRID_WIDTH := 1014.0
+	const BURST_ROOM := 72.0
+	var side_margin := (1280.0 - GRID_WIDTH) * 0.5
+	scroll.position = Vector2(0, 96)
+	scroll.size = Vector2(1280.0, 548)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(scroll)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", int(SIDE_MARGIN))
-	margin.add_theme_constant_override("margin_right", int(SIDE_MARGIN))
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
+	margin.add_theme_constant_override("margin_left", int(side_margin))
+	margin.add_theme_constant_override("margin_right", int(side_margin))
+	margin.add_theme_constant_override("margin_top", int(BURST_ROOM))
+	margin.add_theme_constant_override("margin_bottom", int(BURST_ROOM))
 	scroll.add_child(margin)
 
 	grid = GridContainer.new()
