@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://w5y8c20221m7"]
 
 [ext_resource type="Script" uid="uid://u3smx7u0wf5l" path="res://scripts/ui/augment_card.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/ui/augment_icon.gd" id="2_icon"]
 
 [node name="AugmentCard" type="Control"]
 custom_minimum_size = Vector2(316, 360)
@@ -39,15 +40,12 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 16
 
-[node name="IconLabel" type="Label" parent="Background/ContentMargin/Content/Header"]
+[node name="IconLabel" type="Control" parent="Background/ContentMargin/Content/Header"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(64, 64)
+custom_minimum_size = Vector2(80, 80)
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_font_sizes/font_size = 32
-text = "◆"
-horizontal_alignment = 1
-vertical_alignment = 1
+script = ExtResource("2_icon")
 
 [node name="Titles" type="VBoxContainer" parent="Background/ContentMargin/Content/Header"]
 layout_mode = 2

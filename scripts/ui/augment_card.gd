@@ -16,7 +16,7 @@ const INK_MUTED := Color("8f8068")
 @onready var background: PanelContainer = %Background
 @onready var accent_bar: ColorRect = %AccentBar
 @onready var divider: ColorRect = %Divider
-@onready var icon_label: Label = %IconLabel
+@onready var icon: AugmentIcon = %IconLabel
 @onready var name_label: Label = %NameLabel
 @onready var rarity_label: Label = %RarityLabel
 @onready var description_label: Label = %DescriptionLabel
@@ -64,7 +64,7 @@ func play_enter(delay: float) -> void:
 
 
 func _apply_definition() -> void:
-	icon_label.text = _definition.icon_text
+	icon.setup(_definition)
 	name_label.text = _definition.display_name
 	rarity_label.text = "%s · %s" % [_definition.rarity_name(), _definition.kind_name()]
 	description_label.text = _definition.description
@@ -82,10 +82,6 @@ func _apply_style(rarity_color: Color) -> void:
 	rarity_label.add_theme_color_override("font_color", rarity_color)
 	description_label.add_theme_color_override("font_color", INK_SOFT)
 	trigger_label.add_theme_color_override("font_color", INK_MUTED)
-
-	var seal := _box(rarity_color.darkened(0.78), rarity_color.darkened(0.15), 2, 32)
-	icon_label.add_theme_stylebox_override("normal", seal)
-	icon_label.add_theme_color_override("font_color", rarity_color.lightened(0.1))
 
 	_update_background()
 

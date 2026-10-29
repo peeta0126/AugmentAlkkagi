@@ -37,6 +37,7 @@ func _ready() -> void:
 	scroll.position = Vector2(70, 124)
 	scroll.size = Vector2(1140, 510)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(scroll)
 
 	grid = GridContainer.new()

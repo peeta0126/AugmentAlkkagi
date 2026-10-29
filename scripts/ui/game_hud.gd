@@ -43,22 +43,11 @@ func _augment_row(definition: AugmentDefinition) -> Control:
 	row.add_theme_constant_override("separation", 10)
 	row.tooltip_text = definition.description
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
-	var color := definition.rarity_color()
-	var seal := Label.new()
-	seal.text = definition.icon_text
-	seal.custom_minimum_size = Vector2(28, 28)
-	seal.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	seal.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	seal.add_theme_font_size_override("font_size", 15)
-	seal.add_theme_color_override("font_color", color.lightened(0.1))
-	var seal_style := StyleBoxFlat.new()
-	seal_style.bg_color = color.darkened(0.78)
-	seal_style.border_color = color.darkened(0.2)
-	seal_style.set_border_width_all(1)
-	seal_style.set_corner_radius_all(14)
-	seal.add_theme_stylebox_override("normal", seal_style)
-	seal.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(seal)
+	var icon := AugmentIcon.new()
+	icon.custom_minimum_size = Vector2(34, 34)
+	icon.size = Vector2(34, 34)
+	icon.setup(definition)
+	row.add_child(icon)
 	var name_label := Label.new()
 	name_label.text = definition.display_name
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
