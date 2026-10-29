@@ -492,8 +492,6 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, Color("c487ff") if transformation == "WIZARD" else Color("ff9a2e"), 2.2)
 		if transformation in ["WIZARD", "KNIGHT"]:
 			_draw_transformation_mark(mark_color)
-	if sonic_trail:
-		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
 
 func _sync_stealth_visual() -> void:
 	var should_show := hidden_from_player != 0 or stealth_effect_time > 0.0
@@ -509,3 +507,4 @@ func _draw_transformation_mark(_color: Color) -> void:
 	var icon: Texture2D = BADGE_KNIGHT if transformation == "KNIGHT" else BADGE_WIZARD
 	var height := visual_radius * 2.3
 	draw_texture_rect(icon, Rect2(Vector2(-height * 0.5, -visual_radius - height * 0.78), Vector2(height, height)), false)
+

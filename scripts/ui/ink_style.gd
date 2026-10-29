@@ -19,7 +19,7 @@ const TOGGLE_OFF := preload("res://assets/ui/ink/toggle_off.png")
 const ARROW_LEFT := preload("res://assets/ui/ink/arrow_left.png")
 const ARROW_RIGHT := preload("res://assets/ui/ink/arrow_right.png")
 const ICON_FLASK := preload("res://assets/ui/icon_developer.png")
-const SWASH_TEXTURE := preload("res://assets/ui/swash.png")
+const SWASH_TEXTURE: Texture2D = preload("res://assets/ui/ink/title_swash.png")
 const BURST_TEXTURE := preload("res://assets/ui/burst.png")
 const VIGNETTE_TEXTURE := preload("res://assets/ui/vignette.png")
 

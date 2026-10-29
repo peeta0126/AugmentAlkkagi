@@ -3,9 +3,8 @@ extends Control
 
 signal augment_selected(augment_id: StringName)
 
-@export_group("Interaction")
-@export var hover_scale := Vector2(1.06, 1.06)
-@export_range(0.01, 1.0, 0.01) var hover_duration := 0.14
+@export_group("Card Layout")
+@export var panel_size := Vector2(326.0, 454.0)
 
 @onready var background: PanelContainer = %Background
 @onready var divider: ColorRect = %Divider
@@ -20,11 +19,11 @@ var _definition: AugmentDefinition
 var _hovered := false
 var _burst: TextureRect
 var _burst_tween: Tween
-var _hover_tween: Tween
 var _enter_tween: Tween
 
 
 func _ready() -> void:
+	custom_minimum_size = panel_size
 	select_button.pressed.connect(_on_select_button_pressed)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
@@ -44,14 +43,12 @@ func setup(definition: AugmentDefinition) -> void:
 
 ## 선택 화면에서 카드를 순서대로 튀어나오게 한다(메인 메뉴 버튼과 같은 통통 튀는 느낌).
 func play_enter(delay: float) -> void:
-	pivot_offset = size * 0.5
-	scale = Vector2(0.86, 0.86)
+	scale = Vector2.ONE
 	modulate.a = 0.0
 	if _enter_tween:
 		_enter_tween.kill()
-	_enter_tween = create_tween().set_parallel(true)
+	_enter_tween = create_tween()
 	_enter_tween.tween_property(self, "modulate:a", 1.0, 0.16).set_delay(delay)
-	_enter_tween.tween_property(self, "scale", Vector2.ONE, 0.3).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _apply_style() -> void:
@@ -85,6 +82,9 @@ func _apply_definition() -> void:
 	var trigger := _definition.trigger_description
 	trigger_label.visible = trigger != "" and trigger != "획득 즉시"
 	trigger_label.text = "발동  %s" % trigger
+	# 발동 라벨이 좁은 세로 알약으로 줄바꿈되면 카드 높이가 늘어난다.
+	# 한 줄로 고정해 모든 증강 카드의 패널 크기를 동일하게 유지한다.
+	trigger_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	trigger_label.add_theme_stylebox_override("normal", InkStyle.pill(InkStyle.TAN))
 	trigger_label.add_theme_color_override("font_color", Color("241913"))
 	trigger_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -109,9 +109,9 @@ func _process(_delta: float) -> void:
 
 func _force_unhover() -> void:
 	_hovered = false
+	scale = Vector2.ONE
 	background.self_modulate = Color.WHITE
 	_hide_burst()
-	_animate_to(Vector2.ONE)
 
 
 func _build_burst() -> void:
@@ -154,7 +154,7 @@ func _keep_burst_on_screen() -> void:
 func _pop_burst(strength: float) -> void:
 	if _burst == null:
 		return
-	z_index = 10  # 옆 카드에 가리지 않고 폭발이 끝까지 보이게 맨 앞으로
+	z_index = 0
 	_keep_burst_on_screen()
 	if _burst_tween:
 		_burst_tween.kill()
@@ -181,7 +181,6 @@ func _on_mouse_entered() -> void:
 	_hovered = true
 	background.self_modulate = Color(1.12, 1.08, 1.02)
 	_pop_burst(1.0)
-	_animate_to(hover_scale)
 
 
 func _on_mouse_exited() -> void:
@@ -193,14 +192,6 @@ func _on_mouse_exited() -> void:
 func _on_select_button_mouse_exited() -> void:
 	if not get_global_rect().has_point(get_global_mouse_position()):
 		_on_mouse_exited()
-
-
-func _animate_to(target_scale: Vector2) -> void:
-	pivot_offset = size * 0.5
-	if _hover_tween:
-		_hover_tween.kill()
-	_hover_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_hover_tween.tween_property(self, "scale", target_scale, hover_duration)
 
 
 ## 문장마다 줄을 나누고, 줄이 넘치면 띄어쓰기에서만 바꾼다(엔진 자동 줄바꿈은 한국어를 글자 중간에서 끊는다).
