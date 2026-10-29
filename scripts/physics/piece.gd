@@ -9,6 +9,7 @@ const MergeScene := preload("res://scenes/effects/merge.tscn")
 const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 const StealthScene := preload("res://scenes/effects/stealth.tscn")
 const KingScene := preload("res://scenes/effects/king.tscn")
+const BLIZZARD_SHEET: Texture2D = preload("res://assets/effects/blizzard_sheet.png")
 const BADGE_KNIGHT := preload("res://assets/effects/badge_greatsword.png")
 const BADGE_WIZARD := preload("res://assets/effects/badge_wizard.png")
 
@@ -454,9 +455,18 @@ func _draw() -> void:
 	# 속도 잔상은 돌의 실제 반지름을 따라가며 음속 폭발만 금빛으로 강화한다.
 	for index in range(trail.size() - 1, -1, -1):
 		var local_point := to_local(trail[index])
-		var alpha := (0.045 if sonic_trail else 0.025) + float(trail.size() - index) * 0.012
-		var trail_color: Color = Color("ffe89a") if sonic_trail else OWNER_COLORS[owner_id]
+		var blizzard_active := field_damp_multiplier < 0.999
+		var alpha := (0.075 if blizzard_active else (0.045 if sonic_trail else 0.025)) + float(trail.size() - index) * 0.012
+		var trail_color: Color = Color("c9f3ff") if blizzard_active else (Color("ffe89a") if sonic_trail else OWNER_COLORS[owner_id])
 		draw_circle(local_point, visual_radius * 0.78, Color(trail_color.r, trail_color.g, trail_color.b, alpha))
+
+	# 눈보라 중에는 시트 하단의 서리 바람 조각이 알 뒤에 미끄럼 잔상을 남긴다.
+	if field_damp_multiplier < 0.999 and linear_velocity.length() > 55.0:
+		var travel_direction := linear_velocity.normalized()
+		var slide_scale := visual_radius / 13.3 * 0.2
+		draw_set_transform(-travel_direction * visual_radius * 0.9, linear_velocity.angle() + PI, Vector2.ONE * slide_scale)
+		draw_texture_rect_region(BLIZZARD_SHEET, Rect2(-195, -87, 390, 174), Rect2(0, 850, 390, 174), Color(0.88, 0.96, 1.0, 0.72))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 	# 접촉 그림자는 세로로 눌린 타원으로 그려 돌이 판 위에 놓인 느낌을 준다.
 	draw_set_transform(Vector2(2.2, 4.0), 0.0, Vector2(1.08, 0.58))
@@ -507,4 +517,5 @@ func _draw_transformation_mark(_color: Color) -> void:
 	var icon: Texture2D = BADGE_KNIGHT if transformation == "KNIGHT" else BADGE_WIZARD
 	var height := visual_radius * 2.3
 	draw_texture_rect(icon, Rect2(Vector2(-height * 0.5, -visual_radius - height * 0.78), Vector2(height, height)), false)
+
 

@@ -61,6 +61,7 @@ func set_blizzard(active: bool) -> void:
 	elif is_instance_valid(blizzard_visual):
 		blizzard_visual.stop()
 		blizzard_visual = null
+	queue_redraw()
 
 func set_field_visual(key: String, data: Dictionary) -> void:
 	field_visuals[key] = data
@@ -142,7 +143,9 @@ func _draw() -> void:
 	# 떠 있는 보드의 부드러운 그림자, 두께, 어두운 측면을 순서대로 그린다.
 	draw_style_box(_box(Color(0.06, 0.035, 0.018, 0.42), 13, Color.TRANSPARENT, 0), Rect2(BOARD_RECT.position + Vector2(9, 13), BOARD_RECT.size).grow(11))
 	draw_style_box(_box(Color("5a3419"), 10, Color("351d0f"), 4), Rect2(BOARD_RECT.position + Vector2(0, 7), BOARD_RECT.size).grow(9))
-	draw_style_box(_box(Color("d1a15f"), 7, Color("70431f"), 3), BOARD_RECT)
+	var board_fill := Color("bdb9a8") if blizzard_active else Color("d1a15f")
+	var board_border := Color("817967") if blizzard_active else Color("70431f")
+	draw_style_box(_box(board_fill, 7, board_border, 3), BOARD_RECT)
 	if placement_active:
 		var upper := Rect2(BOARD_RECT.position, Vector2(BOARD_RECT.size.x, BOARD_RECT.size.y * 0.5))
 		var lower := Rect2(Vector2(BOARD_RECT.position.x, BOARD_RECT.get_center().y), Vector2(BOARD_RECT.size.x, BOARD_RECT.size.y * 0.5))
@@ -153,7 +156,7 @@ func _draw() -> void:
 	# 폭이 다른 옅은 판재 밴드와 비주기 곡선으로 절차적 원목을 표현한다.
 	for band in 14:
 		var band_y := BOARD_RECT.position.y + float(band) * BOARD_RECT.size.y / 14.0
-		var tone := Color(0.44, 0.25, 0.09, 0.025 + float(band % 4) * 0.008)
+		var tone := Color(0.40, 0.39, 0.36, 0.018 + float(band % 4) * 0.006) if blizzard_active else Color(0.44, 0.25, 0.09, 0.025 + float(band % 4) * 0.008)
 		draw_rect(Rect2(BOARD_RECT.position.x + 3, band_y, BOARD_RECT.size.x - 6, BOARD_RECT.size.y / 14.0), tone)
 	for grain in 26:
 		var base_y := BOARD_RECT.position.y + 8.0 + float(grain) * 20.4
@@ -164,7 +167,8 @@ func _draw() -> void:
 			var wave := sin(ratio * 9.0 + grain * 1.73) * (1.0 + float(grain % 3) * 0.55)
 			wave += sin(ratio * 21.0 + grain * 0.41) * 0.55
 			points.append(Vector2(x, base_y + wave))
-		draw_polyline(points, Color(0.30, 0.15, 0.055, 0.075), 1.15, true)
+		var grain_color := Color(0.31, 0.32, 0.30, 0.055) if blizzard_active else Color(0.30, 0.15, 0.055, 0.075)
+		draw_polyline(points, grain_color, 1.15, true)
 	# 작은 옹이 두 개는 반복 무늬를 끊되 격자보다 앞서지 않게 매우 은은하게 둔다.
 	for knot in [Vector2(470, 174), Vector2(828, 548)]:
 		draw_arc(knot, 9.0, 0.0, TAU, 28, Color(0.28, 0.13, 0.04, 0.09), 1.2)
@@ -182,7 +186,8 @@ func _draw() -> void:
 			draw_circle(grid_point(column, row), 3.15, Color(0.09, 0.055, 0.028, 0.96))
 
 	# 위쪽 가장자리의 미세한 반사광으로 원목 코팅의 깊이를 더한다.
-	draw_line(BOARD_RECT.position + Vector2(8, 5), Vector2(BOARD_RECT.end.x - 8, BOARD_RECT.position.y + 5), Color(1, 0.88, 0.62, 0.20), 1.4)
+	var top_glint := Color(0.88, 0.95, 0.96, 0.24) if blizzard_active else Color(1, 0.88, 0.62, 0.20)
+	draw_line(BOARD_RECT.position + Vector2(8, 5), Vector2(BOARD_RECT.end.x - 8, BOARD_RECT.position.y + 5), top_glint, 1.4)
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	if show_aim:
@@ -273,3 +278,6 @@ func _draw_aim() -> void:
 	var label_pos := aim_origin + Vector2(-26.0, -ring - 14.0)
 	draw_string_outline(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, 7, AIM_INK)
 	draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, color)
+
+
+
