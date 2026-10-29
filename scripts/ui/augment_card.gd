@@ -17,6 +17,7 @@ signal augment_selected(augment_id: StringName)
 @onready var select_button: Button = %SelectButton
 
 var _definition: AugmentDefinition
+var _hovered := false
 var _burst: TextureRect
 var _burst_tween: Tween
 var _hover_tween: Tween
@@ -146,14 +147,18 @@ func _hide_burst() -> void:
 
 
 func _on_mouse_entered() -> void:
+	if _hovered:
+		return  # 카드 안에서 글자·버튼 위로 옮길 때마다 폭발이 처음부터 다시 터지지 않게 한다
+	_hovered = true
 	background.self_modulate = Color(1.12, 1.08, 1.02)
 	_pop_burst(1.0)
 	_animate_to(hover_scale)
 
 
 func _on_mouse_exited() -> void:
-	if select_button.is_hovered():
+	if select_button.is_hovered() or get_global_rect().has_point(get_global_mouse_position()):
 		return
+	_hovered = false
 	background.self_modulate = Color.WHITE
 	_hide_burst()
 	_animate_to(Vector2.ONE)
