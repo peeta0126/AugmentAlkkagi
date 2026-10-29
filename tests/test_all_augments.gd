@@ -33,11 +33,11 @@ func run_test() -> void:
 	var game := (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(game)
 	await process_frame
-	check(game.augment_manager.CATALOG.size() == 25, "catalog registers all 25 augments")
+	check(game.augment_manager.CATALOG.size() == 22, "catalog registers all 22 augments")
 	var ids := {}
 	for definition in game.augment_manager.CATALOG:
 		ids[definition.id] = true
-	check(ids.size() == 25, "all augment IDs are unique")
+	check(ids.size() == 22, "all augment IDs are unique")
 	game.augment_manager.reset_match()
 	for index in 3:
 		check(game.augment_manager.acquire(game, 1, game.augment_manager.CATALOG[index].id), "acquire succeeds within cap")
@@ -68,14 +68,13 @@ func run_test() -> void:
 			check(piece.sonic_trail, "triple-shot fragments inherit sonic trail")
 	check(not triple.armed, "triple shot disarms after the next shot")
 
-	# 02 존야: 실제 스킬 선택 상태, 동결, 무적, 지속 종료를 검증한다.
+	# 02 타임 프리즈: 동결, 무적, 지속 종료를 검증한다.
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"stasis")
 	var stasis := find_effect(game, 1, &"stasis")
 	stasis.begin_active(game, 1)
-	check(game.state_machine.current == GameStateMachine.State.SKILL_TARGETING, "active skill enters targeting state")
+	check(game.state_machine.current == GameStateMachine.State.PIECES_MOVING, "time freeze activates immediately")
 	var black := first_piece(game, 1)
-	game._on_piece_pressed(black)
 	check(black.freeze and black.invulnerable, "stasis freezes and protects its target")
 	check(stasis.uses_left == 0, "stasis has one use")
 	black.tick_status(1)
@@ -112,42 +111,6 @@ func run_test() -> void:
 	check(own[0].carried_count == GameplayRules.DEFAULT_PIECES - 1 and own[0].mass > 4.0, "merge absorbs every allied stone into a much heavier stack")
 	check(find_effect(game, 1, &"piggyback").definition.display_name == "합체", "merge keeps the compatible piggyback id with the new name")
 	check(game.count_owner(1) == 1, "piggyback leaves exactly one allied stone")
-
-	# 06 랜턴: 두 아군 사이 연결선과 실제 견인 속도를 만든다.
-	await reset_game(game)
-	game.augment_manager.acquire(game, 1, &"lantern")
-	own.clear()
-	for piece in game.get_pieces():
-		if piece.owner_id == 1:
-			own.append(piece)
-	var lantern: LanternAugmentEffect = find_effect(game, 1, &"lantern")
-	var lantern_position := AlkkagiBoard.BOARD_RECT.get_center()
-	check(lantern.on_position_target(game, 1, lantern_position), "lantern installs at a valid board position")
-	own[1].position = lantern_position
-	own[1].linear_velocity = Vector2.RIGHT * 20.0
-	lantern.on_physics_tick(game, 1, 0.016)
-	check(lantern.pieces_inside.has(own[1].piece_id), "lantern detects an allied stone entering its field")
-	await physics_frame
-	check(own[1].linear_velocity.length() > 20.0, "lantern accelerates an allied stone (velocity=%s)" % own[1].linear_velocity)
-	check(game.board.field_visuals.has("lantern_1"), "installed lantern remains visible on the board")
-
-	# 07 사목: 서로 다른 네 돌의 격자 연속 배치를 승리로 판정한다.
-	await reset_game(game)
-	game.augment_manager.acquire(game, 1, &"connect_four")
-	own.clear()
-	for piece in game.get_pieces():
-		if piece.owner_id == 1:
-			own.append(piece)
-	for index in 4:
-		own[index].position = game.board.grid_point(6 + index, 9)
-	check(find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four detects four consecutive grid points")
-	var flexible_origin := Vector2(500, 310)
-	for index in 4:
-		own[index].position = flexible_origin + Vector2(index * 45.0, [-7.0, 5.0, -4.0, 6.0][index])
-	check(find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four accepts near-linear stones with wider legal gaps")
-	check(game.board.field_visuals.has("connect_four_1"), "connect four exposes its winning line visual")
-	own[3].position.x += 80.0
-	check(not find_effect(game, 1, &"connect_four").check_special_victory(game, 1), "connect four rejects a sequence with an excessive gap")
 
 	# 08 눈덩이: 적에게 2턴 상태, 질량, 감속, 시각 상태를 적용하고 복원한다.
 	await reset_game(game)
@@ -238,7 +201,7 @@ func run_test() -> void:
 	game.swap_all_owners()
 	check(black.owner_id == 2 and is_equal_approx(black.base_radius, AlkkagiPiece.WHITE_RADIUS) and black.transformation == "HORSE", "coup swaps ownership while preserving transformation")
 
-	# 12 왕: 상대 끝 도달 후 귀환하면 왕 물리 효과를 얻는다.
+	# 12 왕: 상대 끝 도달 시 왕 물리 효과를 얻는다.
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"king")
 	black = first_piece(game, 1)
@@ -267,7 +230,11 @@ func run_test() -> void:
 		if parked_piece != black and parked_piece != white:
 			parked_piece.position = AlkkagiBoard.BOARD_RECT.position + Vector2(45 + parked_index * 48, 42)
 			parked_index += 1
-	find_effect(game, 1, &"greatsword").on_piece_target(game, 1, black)
+	var sword: GreatswordAugmentEffect = find_effect(game, 1, &"greatsword")
+	sword.on_piece_target(game, 1, black)
+	sword.cooldown_left = 0
+	sword.after_shot(game, 1, black)
+	sword.on_pieces_settled(game, 1)
 	await physics_frame
 	await physics_frame
 	check(white.linear_velocity.length() > 0.0, "greatsword knocks back an enemy in range (velocity=%s)" % white.linear_velocity)
@@ -296,31 +263,34 @@ func run_test() -> void:
 	check(train.phase == TrainAugmentEffect.Phase.PREVIEW and train.warned_path.is_empty() and not game.board.field_visuals.has("train_warning_1"), "warned train path passes and clears its preview")
 	check(not warned_path.is_empty(), "train warning retains a concrete host-selected route until passage")
 
-	# 16 눈보라: 획득 즉시 적용하고 게임이 끝날 때까지 유지한다.
+	# 16 눈보라: 획득 즉시 적용하고 세 사이클 뒤 종료한다.
 	await reset_game(game)
 	black = first_piece(game, 1)
 	var original_damp := black.linear_damp
 	check(game.augment_manager.acquire(game, 1, &"blizzard"), "blizzard acquisition succeeds")
 	check(game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.linear_damp < original_damp, "blizzard activates immediately on acquisition")
 	check(game.augment_manager.active_effects(1).is_empty(), "blizzard has no manual activation button")
-	for turn in 100:
-		game.tick_field_effects()
-	check(game.blizzard_turns == -1 and game.board.blizzard_active and black.field_damp_multiplier == 0.28, "blizzard never expires on turn completion")
+	game.current_player = 1
 	game.spawn_piece(1, 999, Vector2(600, 400))
-	check(game.find_piece(999).field_damp_multiplier == 0.28, "new stones inherit permanent blizzard")
+	check(game.find_piece(999).field_damp_multiplier == 0.28, "new stones inherit blizzard")
 	var blizzard_snapshot: Dictionary = game.create_network_snapshot()
 	game.reset_runtime_effects()
 	game.apply_network_snapshot(blizzard_snapshot)
-	check(game.blizzard_turns == -1 and game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.field_damp_multiplier == 0.28, "snapshot restores permanent blizzard visuals and physics")
+	check(game.blizzard_turns == -1 and game.board.blizzard_active and black.field_speed_multiplier == 1.15 and black.field_damp_multiplier == 0.28, "snapshot restores blizzard visuals and physics")
+	var blizzard: BlizzardAugmentEffect = find_effect(game, 1, &"blizzard")
+	blizzard.awaiting_first_turn = false
+	for cycle in 3:
+		game.augment_manager.start_player_turn(game, 1)
+	check(game.blizzard_turns == 0 and not game.board.blizzard_active and black.field_damp_multiplier == 1.0, "blizzard expires after three cycles")
 	await reset_game(game)
-	check(game.blizzard_turns == 0 and not game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 1.0, "new match clears permanent blizzard")
+	check(game.blizzard_turns == 0 and not game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 1.0, "new match clears blizzard")
 	game.clear_world()
 	game.augment_manager.reset_match()
 	game.reset_runtime_effects()
 	game.board = null
 	check(game.augment_manager.acquire(game, 1, &"blizzard"), "initial selection can acquire blizzard before board creation")
 	game.start_game_world()
-	check(game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 0.28, "initial board starts with permanent blizzard")
+	check(game.board.blizzard_active and first_piece(game, 1).field_damp_multiplier == 0.28, "initial board starts with blizzard")
 
 	# 17 실명: 상대에게만 턴 단위 시야 상태를 부여한다.
 	await reset_game(game)
@@ -370,23 +340,6 @@ func run_test() -> void:
 	game.tick_field_effects()
 	game.tick_field_effects()
 	check(game.temporary_walls.is_empty(), "wall collider is removed when duration expires")
-
-	# 20 명사수: 제한 각도 안의 적 쪽으로 드래그 방향을 약하게 보정한다.
-	await reset_game(game)
-	game.augment_manager.acquire(game, 1, &"marksman")
-	game.augment_manager.acquire(game, 1, &"scope")
-	black = first_piece(game, 1)
-	white = first_piece(game, 2)
-	white.position = black.position + Vector2(200, 20)
-	var raw_pointer := black.position - Vector2(120, 0)
-	var corrected := find_effect(game, 1, &"marksman").adjust_pointer(game, 1, black, raw_pointer)
-	var raw_angle := absf((black.position - raw_pointer).angle_to(white.position - black.position))
-	var corrected_angle := absf((black.position - corrected).angle_to(white.position - black.position))
-	check(corrected_angle < raw_angle and corrected_angle > 0.0, "marksman reduces aim error without guaranteeing a hit")
-	check(float(game.augment_manager.shot_profile(1).guide_multiplier) > 1.5, "scope and marksman combine their guide multipliers")
-	game.start_blizzard(2, 0.28, 1.15)
-	var corrected_in_snow := find_effect(game, 1, &"marksman").adjust_pointer(game, 1, black, raw_pointer)
-	check(corrected_in_snow.is_equal_approx(corrected), "blizzard does not corrupt marksman aim calculation")
 
 	game.begin_match()
 	check(game.augment_manager.owned[1].is_empty() and game.temporary_walls.is_empty(), "restart clears all augment and field state")

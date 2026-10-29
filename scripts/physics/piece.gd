@@ -22,7 +22,7 @@ const WHITE_RADIUS := WHITE_DIAMETER * 0.5
 const RADIUS := BLACK_RADIUS # 이전 테스트/확장 코드와의 호환용 기본값
 const OWNER_COLORS := {1: Color("d2a85f"), 2: Color("eee9dc")}
 const STONE_NAMES := {1: "흑돌", 2: "백돌"}
-const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD"]
+const TRANSFORM_NAMES := ["", "SOLDIER", "CHARIOT", "CANNON", "HORSE", "ELEPHANT", "GUARD", "KING", "WIZARD", "KNIGHT"]
 const TRANSFORM_SIZES := {"SOLDIER": 0.90, "CHARIOT": 1.15, "CANNON": 1.08, "HORSE": 0.96, "ELEPHANT": 1.20, "GUARD": 1.05, "KING": 1.0, "WIZARD": 1.0}
 const NETWORK_SNAP_DISTANCE := 100.0
 
@@ -146,7 +146,7 @@ func _sync_transformation_visuals() -> void:
 	elif carried_count <= 0 and is_instance_valid(merge_visual):
 		merge_visual.queue_free()
 		merge_visual = null
-	if transformation != "" and transformation not in ["WIZARD", "KING"]:
+	if transformation != "" and transformation not in ["WIZARD", "KING", "KNIGHT"]:
 		if not is_instance_valid(janggi_visual):
 			janggi_visual = JanggiScene.instantiate() as JanggiVisual
 			add_child(janggi_visual)
@@ -212,7 +212,7 @@ func tick_status(for_owner: int) -> void:
 	if stasis_turns > 0:
 		stasis_turns -= 1
 		if stasis_turns == 0:
-			freeze = false
+			freeze = snow_turns > 0
 			invulnerable = false
 	if snow_turns > 0:
 		snow_turns -= 1
@@ -473,7 +473,7 @@ func _draw() -> void:
 	if transformation != "":
 		var mark_color := Color("ff784f") if transformation == "WIZARD" else Color("f4ce73")
 		draw_arc(Vector2.ZERO, visual_radius + 2.8, 0.0, TAU, 20, mark_color, 1.8)
-		if transformation == "WIZARD":
+		if transformation in ["WIZARD", "KNIGHT"]:
 			_draw_transformation_mark(mark_color)
 	if sonic_trail:
 		draw_arc(Vector2.ZERO, visual_radius + 3.5, -0.75, 0.75, 12, Color("ffe89a"), 2.0)
@@ -490,6 +490,11 @@ func _sync_stealth_visual() -> void:
 func _draw_transformation_mark(color: Color) -> void:
 	var size := visual_radius * 0.48
 	match transformation:
+		"KNIGHT":
+			var top := Vector2(0, -visual_radius - 8.0)
+			draw_colored_polygon(PackedVector2Array([top + Vector2(-6, 3), top + Vector2(-5, -5), top + Vector2(0, -8), top + Vector2(5, -5), top + Vector2(6, 3), top + Vector2(0, 6)]), Color("93a9bd"))
+			draw_line(top + Vector2(-4, -1), top + Vector2(4, -1), Color("253344"), 2.0)
+			draw_line(top + Vector2(0, 0), top + Vector2(0, 4), Color("253344"), 1.5)
 		"SOLDIER":
 			draw_polyline(PackedVector2Array([Vector2(-size, -size * 0.3), Vector2.ZERO, Vector2(size, -size * 0.3)]), color, 1.8)
 		"CHARIOT":

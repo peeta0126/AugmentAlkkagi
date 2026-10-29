@@ -125,7 +125,7 @@ func run_test() -> void:
 	game.augment_manager.reset_match()
 	for augment_id in [&"tank", &"sonic_boom", &"scope"]:
 		check(game.augment_manager.acquire(game, 1, augment_id), "first three augments are accepted")
-	check(not game.augment_manager.acquire(game, 1, &"marksman"), "fourth augment is rejected")
+	check(not game.augment_manager.acquire(game, 1, &"scope"), "fourth augment is rejected")
 	check(game.augment_manager.get_choices(1, 3).is_empty(), "full inventory produces no card offer")
 
 	# 효과 획득 순서가 달라도 수치 곱 결과는 동일하다.

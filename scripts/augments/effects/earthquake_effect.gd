@@ -39,6 +39,8 @@ func on_physics_tick(game: Node, _player_id: int, delta: float) -> void:
 		return
 	var width := float(definition.values.get("width", 18.0))
 	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.invulnerable:
+			continue
 		for crack: Dictionary in cracks:
 			if _distance_to_segment(piece.position, crack.from, crack.to) <= width * 0.5 + piece.visual_radius * 0.35:
 				piece.queue_free()

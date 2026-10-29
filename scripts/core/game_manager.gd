@@ -801,7 +801,6 @@ func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 func update_aim(pointer: Vector2) -> void:
 	if selected_piece == null:
 		return
-	pointer = augment_manager.adjust_pointer(self, current_player, selected_piece, pointer)
 	var profile := _current_shot_profile()
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
 	var empowered := not is_equal_approx(float(profile.max_drag_multiplier), 1.0) or not is_equal_approx(float(profile.impulse_multiplier), 1.0)
@@ -898,7 +897,6 @@ func fire_selected(pointer: Vector2) -> void:
 	if not state_machine.allows_aiming() or selected_piece == null or not is_instance_valid(selected_piece):
 		cancel_aim()
 		return
-	pointer = augment_manager.adjust_pointer(self, current_player, selected_piece, pointer)
 	var profile := _current_shot_profile()
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
 	var impulse := GameplayRules.shot_impulse(selected_piece.global_position, pointer, max_drag, float(profile.impulse_multiplier))
@@ -965,7 +963,10 @@ func _physics_process(delta: float) -> void:
 			break
 	settle_time = settle_time + delta if all_still and shot_elapsed > 0.35 else 0.0
 	if settle_time >= 0.45:
-		resolve_turn()
+		if augment_manager.notify_pieces_settled(self):
+			settle_time = 0.0
+		else:
+			resolve_turn()
 
 func remove_out_of_bounds() -> void:
 	for piece in get_pieces():
@@ -989,7 +990,6 @@ func resolve_turn() -> void:
 		piece.stop_motion()
 		if not resuming_train_event:
 			piece.tick_status(current_player)
-			piece.tick_stealth(current_player)
 	if not resuming_train_event:
 		tick_field_effects()
 	var special_winner := augment_manager.check_special_victory(self)
@@ -1017,6 +1017,7 @@ func resolve_turn() -> void:
 		return
 	bonus_turn_active = false
 	var next_player := 2 if current_player == 1 else 1
+	augment_manager.start_player_turn(self, next_player)
 	augment_manager.finish_turn(self, completed_player)
 	round_actions[completed_player] = true
 	if bool(round_actions[1]) and bool(round_actions[2]):
@@ -1130,19 +1131,30 @@ func split_piece_and_launch(original: AlkkagiPiece, player_id: int, impulse: Vec
 	var origin := original.position
 	world.remove_child(original)
 	original.queue_free()
+	var fragments: Array[AlkkagiPiece] = []
 	for index in 3:
-		var angle := deg_to_rad((index - 1) * spread_degrees)
-		var direction := impulse.normalized().rotated(angle)
 		var fragment_spacing := original.visual_radius * 0.62 * 2.25
-		var perpendicular := direction.orthogonal() * float(index - 1) * fragment_spacing
+		var forward := impulse.normalized()
+		var perpendicular := Vector2(-forward.y, forward.x) * float(index - 1) * fragment_spacing
 		var piece_id := game_serial * 100000 + augment_manager.rng.randi_range(1000, 99999)
 		spawn_piece(player_id, piece_id, origin + perpendicular)
 		var fragment := world.get_node("Piece_%d" % piece_id) as AlkkagiPiece
 		fragment.set_fragment()
 		fragment.prepare_shot_speed_cap(original.speed_cap)
 		augment_manager.before_shot(player_id, fragment)
+		fragments.append(fragment)
+	for index in fragments.size():
+		for other_index in range(index + 1, fragments.size()):
+			fragments[index].add_collision_exception_with(fragments[other_index])
+			fragments[other_index].add_collision_exception_with(fragments[index])
+	for index in fragments.size():
+		var fragment := fragments[index]
+		var angle := deg_to_rad((index - 1) * spread_degrees)
+		var direction := impulse.normalized().rotated(angle)
 		fragment.sleeping = false
-		fragment.apply_launch_impulse(direction * impulse.length() * 0.70)
+		# New bodies have not integrated their changed mass yet. The launch
+		# reference impulse represents delta velocity; initialize it directly.
+		fragment.linear_velocity = direction * impulse.length() * 0.70
 	board.add_effect_line(origin - Vector2(24, 0), origin + Vector2(24, 0), Color("fff1ad"), 0.5, 5.0)
 
 func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: float, distance: float) -> bool:
@@ -1166,43 +1178,6 @@ func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: 
 	animate_projectile(best.position, destination, Color("75e7ff"), 4.0)
 	best.position = destination
 	return true
-
-func check_connect_four(player_id: int, tolerance: float) -> bool:
-	return find_connect_four(player_id, 2.0, tolerance, 0.65).size() == 2
-
-func find_connect_four(player_id: int, gap_multiplier: float, alignment_tolerance: float, minimum_gap_multiplier: float) -> PackedVector2Array:
-	var owned_pieces: Array[AlkkagiPiece] = []
-	for piece: AlkkagiPiece in get_pieces():
-		if piece.owner_id == player_id:
-			owned_pieces.append(piece)
-	if owned_pieces.size() < 4:
-		return PackedVector2Array()
-	var directions := [Vector2.RIGHT, Vector2.DOWN, Vector2(1, 1).normalized(), Vector2(1, -1).normalized()]
-	for direction: Vector2 in directions:
-		var normal := direction.orthogonal()
-		var sorted := owned_pieces.duplicate()
-		sorted.sort_custom(func(a: AlkkagiPiece, b: AlkkagiPiece): return a.position.dot(direction) < b.position.dot(direction))
-		for start in range(sorted.size() - 3):
-			var sequence: Array[AlkkagiPiece] = [sorted[start], sorted[start + 1], sorted[start + 2], sorted[start + 3]]
-			var normal_mean := 0.0
-			for candidate: AlkkagiPiece in sequence:
-				normal_mean += candidate.position.dot(normal) / 4.0
-			var aligned := true
-			for candidate: AlkkagiPiece in sequence:
-				if absf(candidate.position.dot(normal) - normal_mean) > alignment_tolerance:
-					aligned = false
-					break
-			if not aligned:
-				continue
-			for index in 3:
-				var gap := sequence[index + 1].position.dot(direction) - sequence[index].position.dot(direction)
-				var combined_radius := sequence[index].visual_radius + sequence[index + 1].visual_radius
-				if gap < combined_radius * minimum_gap_multiplier or gap > combined_radius * gap_multiplier:
-					aligned = false
-					break
-			if aligned:
-				return PackedVector2Array([sequence[0].position, sequence[3].position])
-	return PackedVector2Array()
 
 func swap_all_owners() -> void:
 	for piece in get_pieces():

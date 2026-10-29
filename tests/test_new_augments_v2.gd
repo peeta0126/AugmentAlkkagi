@@ -59,7 +59,7 @@ func run_test() -> void:
 	game.resolve_turn()
 	check(game.state_machine.current == GameStateMachine.State.GAME_OVER and game.network_winner == 1 and not game.bonus_turn_active, "victory takes priority over blood festival")
 
-	# 중력장: 발사 돌 주변의 양 팀 돌을 호스트 물리로 끌어당긴다.
+	# 중력장: 지정한 좌표 주변의 양 팀 돌을 호스트 물리로 끌어당긴다.
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"gravity_field")
 	var gravity: GravityFieldAugmentEffect = find_effect(game, 1, &"gravity_field")
@@ -68,13 +68,14 @@ func run_test() -> void:
 	own[0].position = AlkkagiBoard.BOARD_RECT.get_center()
 	own[1].position = own[0].position + Vector2(70, 0)
 	enemies[0].position = own[0].position + Vector2(-70, 0)
+	gravity.on_position_target(game, 1, own[0].position)
 	gravity.after_shot(game, 1, own[0])
 	gravity.on_physics_tick(game, 1, 0.016)
 	await physics_frame
 	check(own[1].linear_velocity.x < 0.0 and enemies[0].linear_velocity.x > 0.0, "gravity field attracts allied and enemy stones (ally=%s enemy=%s)" % [own[1].linear_velocity, enemies[0].linear_velocity])
 	check(game.board.field_visuals.has("gravity_1"), "gravity field has a synchronized circular visual")
 
-	# 은신: 상대 화면에서만 감추고 상대 턴 종료 후 복원한다.
+	# 은신: 상대 화면에서만 감추고 두 사이클 후 복원한다.
 	await reset_game(game)
 	game.augment_manager.acquire(game, 1, &"stealth")
 	var hidden_piece := pieces_for(game, 1)[0]
@@ -88,9 +89,11 @@ func run_test() -> void:
 	game.update_piece_visibility()
 	check(hidden_piece.visible, "stealthed stone remains visible to its owner")
 	hidden_piece.tick_stealth(2)
+	check(hidden_piece.hidden_from_player == 2, "stealth remains after one cycle")
+	hidden_piece.tick_stealth(2)
 	game.local_player_id = 2
 	game.update_piece_visibility()
-	check(hidden_piece.visible and hidden_piece.hidden_from_player == 0, "stealth ends after the opponent's next turn")
+	check(hidden_piece.visible and hidden_piece.hidden_from_player == 0, "stealth ends after two cycles")
 	game.online_mode = false
 
 	# 지진: 초기 돌과 겹치지 않는 균열을 만들고 진입한 돌만 제거한다.

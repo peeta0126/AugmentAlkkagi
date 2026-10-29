@@ -1,23 +1,23 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cjeu0h8dy02h7"]
 
 [ext_resource type="Script" path="res://scripts/effects/connect_four.gd" id="1"]
 
-[node name="ConnectFour" type="Node2D"]
+[node name="ConnectFour" type="Node2D" unique_id=217251778]
 script = ExtResource("1")
 
-[node name="GlowLine" type="Line2D" parent="."]
+[node name="GlowLine" type="Line2D" parent="." unique_id=344232766]
 unique_name_in_owner = true
 points = PackedVector2Array(-75, 0, 75, 0)
 width = 14.0
 default_color = Color(1, 0.72, 0.25, 0.32)
 
-[node name="CoreLine" type="Line2D" parent="."]
+[node name="CoreLine" type="Line2D" parent="." unique_id=369399691]
 unique_name_in_owner = true
 points = PackedVector2Array(-75, 0, 75, 0)
 width = 4.0
 default_color = Color(1, 0.9, 0.55, 1)
 
-[node name="VictoryLabel" type="Label" parent="."]
+[node name="VictoryLabel" type="Label" parent="." unique_id=1255689637]
 offset_left = -58.0
 offset_top = -38.0
 offset_right = 58.0

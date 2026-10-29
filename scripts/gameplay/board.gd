@@ -2,11 +2,9 @@ class_name AlkkagiBoard
 extends Node2D
 
 const BlizzardScene := preload("res://scenes/effects/blizzard.tscn")
-const LanternScene := preload("res://scenes/effects/lantern.tscn")
 const EarthquakeScene := preload("res://scenes/effects/earthquake.tscn")
 const GravityFieldScene := preload("res://scenes/effects/gravity_field.tscn")
 const WishScene := preload("res://scenes/effects/wish.tscn")
-const ConnectFourScene := preload("res://scenes/effects/connect_four.tscn")
 const TrainScene := preload("res://scenes/effects/train.tscn")
 
 # 한국 일반 바둑판 420×450mm를 1mm = 1.2px로 환산한 물리 규격이다.
@@ -64,14 +62,7 @@ func set_blizzard(active: bool) -> void:
 
 func set_field_visual(key: String, data: Dictionary) -> void:
 	field_visuals[key] = data
-	if str(data.get("type", "")) == "lantern":
-		var visual: LanternVisual = field_visual_nodes.get(key) as LanternVisual
-		if visual == null:
-			visual = LanternScene.instantiate() as LanternVisual
-			field_visual_nodes[key] = visual
-			add_child(visual)
-		visual.configure(data)
-	elif str(data.get("type", "")) == "cracks":
+	if str(data.get("type", "")) == "cracks":
 		var earthquake: EarthquakeVisual = field_visual_nodes.get(key) as EarthquakeVisual
 		if earthquake == null:
 			earthquake = EarthquakeScene.instantiate() as EarthquakeVisual
@@ -92,13 +83,6 @@ func set_field_visual(key: String, data: Dictionary) -> void:
 			field_visual_nodes[key] = wish
 			add_child(wish)
 		wish.configure(data)
-	elif str(data.get("type", "")) == "connect_four":
-		var connect_four: ConnectFourVisual = field_visual_nodes.get(key) as ConnectFourVisual
-		if connect_four == null:
-			connect_four = ConnectFourScene.instantiate() as ConnectFourVisual
-			field_visual_nodes[key] = connect_four
-			add_child(connect_four)
-		connect_four.configure(data)
 	elif str(data.get("type", "")) == "train_warning":
 		var train: TrainVisual = field_visual_nodes.get(key) as TrainVisual
 		if train == null:
