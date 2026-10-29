@@ -18,6 +18,7 @@ const STAR_INDICES := [3, 9, 15]
 var aim_origin := Vector2.ZERO
 var aim_pointer := Vector2.ZERO
 var show_aim := false
+var _aim_time := 0.0
 var active_color := Color("d6ad62")
 var aim_max_drag := GameplayRules.BALANCE.drag_distance
 var guide_multiplier := 1.0
@@ -42,7 +43,8 @@ func _process(delta: float) -> void:
 		item.time = float(item.time) - delta
 		changed = true
 	effect_lines = effect_lines.filter(func(item: Dictionary): return float(item.time) > 0.0)
-	if changed or blizzard_active:
+	_aim_time += delta
+	if changed or blizzard_active or show_aim:
 		queue_redraw()
 
 func add_effect_line(from: Vector2, to: Vector2, color: Color, duration: float = 0.45, width: float = 4.0) -> void:
@@ -184,15 +186,7 @@ func _draw() -> void:
 	for item in effect_lines:
 		draw_line(item.from, item.to, item.color, float(item.width), true)
 	if show_aim:
-		var impulse := GameplayRules.shot_impulse(aim_origin, aim_pointer, aim_max_drag)
-		var pull_end := aim_origin - impulse / GameplayRules.BALANCE.base_launch_impulse
-		var direction := impulse.normalized()
-		var displayed_max := GameplayRules.BALANCE.max_launch_impulse * (aim_max_drag / GameplayRules.BALANCE.drag_distance)
-		var power := impulse.length() / displayed_max
-		var guide_color := Color("ffe39a") if empowered_aim else active_color.lightened(0.18)
-		draw_dashed_line(aim_origin, aim_origin + direction * (62.0 + power * 82.0) * guide_multiplier, guide_color, 3.0 if not empowered_aim else 4.0, 8.0)
-		draw_line(aim_origin, pull_end, Color(1, 1, 1, 0.60), 2.0)
-		draw_arc(aim_origin, 22.0 + power * 6.0, 0.0, TAU * power, 28, guide_color, 3.0)
+		_draw_aim()
 	if placement_preview_visible:
 		var preview_color := Color(0.25, 1.0, 0.42, 0.75) if placement_preview_valid else Color(1.0, 0.22, 0.18, 0.78)
 		draw_circle(placement_preview_position, placement_preview_radius + 5.0, Color(preview_color, 0.18))
@@ -205,3 +199,77 @@ func _box(fill: Color, radius: int, border: Color, width: int) -> StyleBoxFlat:
 	style.set_border_width_all(width)
 	style.set_corner_radius_all(radius)
 	return style
+
+
+# ---- 바둑돌을 당길 때의 조준 표시: 새총 띠 + 점선 화살표 + 충전 고리. 잉크 외곽선에 평평한 색.
+const AIM_INK := Color("1c1512")
+const AIM_CREAM := Color("f7ecd6")
+const AIM_ORANGE := Color("f58a1f")
+const AIM_RED := Color("e0361a")
+
+
+func _power_color(power: float) -> Color:
+	return AIM_CREAM.lerp(AIM_ORANGE, clampf(power * 2.0, 0.0, 1.0)).lerp(AIM_RED, clampf((power - 0.6) * 2.5, 0.0, 1.0))
+
+
+func _draw_band(from: Vector2, to: Vector2, w_from: float, w_to: float, color: Color) -> void:
+	var dir := (to - from).normalized()
+	var side := Vector2(-dir.y, dir.x)
+	var outer := PackedVector2Array([
+		from + side * (w_from * 0.5 + 3.0), to + side * (w_to * 0.5 + 3.0),
+		to - side * (w_to * 0.5 + 3.0), from - side * (w_from * 0.5 + 3.0)])
+	draw_colored_polygon(outer, AIM_INK)
+	var inner := PackedVector2Array([
+		from + side * (w_from * 0.5), to + side * (w_to * 0.5),
+		to - side * (w_to * 0.5), from - side * (w_from * 0.5)])
+	draw_colored_polygon(inner, color)
+
+
+func _draw_aim() -> void:
+	var impulse := GameplayRules.shot_impulse(aim_origin, aim_pointer, aim_max_drag)
+	var pull_end := aim_origin - impulse / GameplayRules.BALANCE.base_launch_impulse
+	var direction := impulse.normalized()
+	var displayed_max := GameplayRules.BALANCE.max_launch_impulse * (aim_max_drag / GameplayRules.BALANCE.drag_distance)
+	var power := clampf(impulse.length() / displayed_max, 0.0, 1.0)
+	var color := Color("ffe39a") if empowered_aim else _power_color(power)
+	var pulse := 0.5 + 0.5 * sin(_aim_time * 9.0)
+
+	# 새총 띠: 돌에서 당긴 곳까지, 끝으로 갈수록 가늘다.
+	if pull_end.distance_to(aim_origin) > 6.0:
+		_draw_band(aim_origin, pull_end, 16.0, 7.0, color)
+		draw_circle(pull_end, 12.0, AIM_INK)
+		draw_circle(pull_end, 8.5, color)
+		draw_circle(pull_end + Vector2(-2.5, -2.5), 2.6, Color(1, 1, 1, 0.85))
+
+	# 발사 방향: 검정 테두리 점선과 화살촉. 길이는 힘에 비례한다.
+	var length := (62.0 + power * 82.0) * guide_multiplier
+	var start := 24.0
+	var at := start
+	while at < length:
+		var seg_end := minf(at + 11.0, length)
+		var p0 := aim_origin + direction * at
+		var p1 := aim_origin + direction * seg_end
+		draw_line(p0, p1, AIM_INK, 9.0, true)
+		draw_line(p0, p1, AIM_CREAM if not empowered_aim else color, 4.6, true)
+		at += 20.0
+	var tip := aim_origin + direction * (length + 16.0)
+	var side := Vector2(-direction.y, direction.x)
+	var base := aim_origin + direction * (length + 1.0)
+	var head_outer := PackedVector2Array([tip + direction * 4.0, base + side * 13.0, base - side * 13.0])
+	var head_inner := PackedVector2Array([tip, base + side * 9.0, base - side * 9.0])
+	draw_colored_polygon(head_outer, AIM_INK)
+	draw_colored_polygon(head_inner, color)
+
+	# 충전 고리: 힘만큼 시계 방향으로 찬다. 가득 차면 맥박처럼 커졌다 줄어든다.
+	var ring := 24.0 + power * 5.0 + (pulse * 2.5 if power > 0.97 else 0.0)
+	draw_arc(aim_origin, ring, 0.0, TAU, 40, Color(AIM_INK, 0.55), 8.0, true)
+	if power > 0.01:
+		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, AIM_INK, 8.0, true)
+		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, color, 4.2, true)
+
+	# 힘 숫자
+	var font := ThemeDB.fallback_font
+	var label := "%d%%" % int(round(power * 100.0))
+	var label_pos := aim_origin + Vector2(-26.0, -ring - 14.0)
+	draw_string_outline(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, 7, AIM_INK)
+	draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, color)

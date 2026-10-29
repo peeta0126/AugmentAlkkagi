@@ -250,3 +250,75 @@ static func center_panel(parent: Control, rect: Rect2) -> Panel:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(panel)
 	return panel
+
+
+## 주 행동 버튼(주황 판). 올리면 더 짙은 주황.
+static func style_button_primary(button: Button, font_size: int = 22) -> void:
+	style_button(button, font_size)
+	button.add_theme_stylebox_override("normal", _button_style(BUTTON_ORANGE))
+	button.add_theme_stylebox_override("hover", _button_style(BUTTON_ORANGE_DEEP))
+	button.add_theme_stylebox_override("pressed", _button_style(BUTTON_ORANGE_DEEP))
+	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(color_name, Color("241913"))
+
+
+## 화면 제목 배너: 붓 터치 위에 큰 제목. 가로 폭을 정하면 가운데 정렬로 쓸 수 있다.
+static func banner(text: String, font_size: int = 46, width: float = 640.0) -> Control:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(width, font_size * 2.1)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var swash := TextureRect.new()
+	swash.texture = SWASH_TEXTURE
+	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	swash.stretch_mode = TextureRect.STRETCH_SCALE
+	swash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	swash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(swash)
+	var label := Label.new()
+	label.text = text
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.offset_top = -4.0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	brush_label(label, font_size, CREAM, int(font_size * 0.32))
+	holder.add_child(label)
+	return holder
+
+
+## 화면 가운데에 놓는 판과 그 안의 세로 정렬 상자. 반환값은 내용을 넣을 VBoxContainer.
+static func centered_card(screen: Control, min_width: float, separation: int = 20) -> VBoxContainer:
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", InkStyle.panel(40.0, 22.0, true))
+	panel.custom_minimum_size = Vector2(min_width, 0.0)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", separation)
+	panel.add_child(box)
+	return box
+
+
+## 입력 칸: 어두운 판에 크림 글자, 가운데 정렬.
+static func style_line_edit(edit: LineEdit, font_size: int = 32) -> void:
+	var box := StyleBoxTexture.new()
+	box.texture = BUTTON_DARK
+	box.texture_margin_left = 34.0
+	box.texture_margin_right = 34.0
+	box.texture_margin_top = 26.0
+	box.texture_margin_bottom = 26.0
+	box.content_margin_left = 30.0
+	box.content_margin_right = 30.0
+	box.content_margin_top = 10.0
+	box.content_margin_bottom = 10.0
+	box.draw_center = true
+	for state in ["normal", "focus", "read_only"]:
+		edit.add_theme_stylebox_override(state, box)
+	edit.add_theme_color_override("font_color", CREAM)
+	edit.add_theme_color_override("font_placeholder_color", Color(CREAM, 0.35))
+	edit.add_theme_color_override("caret_color", ORANGE)
+	edit.add_theme_color_override("selection_color", Color(ORANGE, 0.45))
+	edit.add_theme_font_size_override("font_size", font_size)
+	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER

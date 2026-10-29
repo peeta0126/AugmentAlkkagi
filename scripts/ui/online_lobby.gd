@@ -31,6 +31,7 @@ var _interaction_tweens: Dictionary = {}
 
 
 func _ready() -> void:
+	_apply_ink_style()
 	_connect_interaction_animations()
 	%CreateRoomButton.pressed.connect(func(): room_create_requested.emit())
 	%JoinRoomButton.pressed.connect(_on_join_room_pressed)
@@ -162,3 +163,35 @@ func _update_mode_description(refresh_enabled: bool, chaos_enabled: bool) -> voi
 	var pick_text := "증강 2개 연속 선택" if chaos_enabled else "증강 1개 선택"
 	var refresh_text := " · 후보 새로고침 총 1회" if refresh_enabled else ""
 	mode_description_label.text = "%s%s" % [pick_text, refresh_text]
+
+
+## 방 참가 화면을 방 만들기(로비) 화면과 같은 숯색 판·붓 터치 제목·주황 버튼으로 맞춘다.
+func _apply_ink_style() -> void:
+	join_panel.add_theme_stylebox_override("panel", InkStyle.panel(40.0, 8.0, true))
+	var margin := join_panel.get_node("Margin") as MarginContainer
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 10)
+	var content := margin.get_node("Content") as VBoxContainer
+	content.add_theme_constant_override("separation", 20)
+	var old_title := content.get_node("JoinTitleLabel") as Label
+	var banner := InkStyle.banner("온라인 방 참가", 46, 480.0)
+	banner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	content.add_child(banner)
+	content.move_child(banner, old_title.get_index())
+	old_title.visible = false
+	var guide := content.get_node("JoinGuideLabel") as Label
+	guide.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	InkStyle.outline_label(guide, 20, InkStyle.CREAM_SOFT, 6)
+	InkStyle.style_line_edit(room_code_edit, 38)
+	room_code_edit.custom_minimum_size = Vector2(360.0, 70.0)
+	room_code_edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var actions := content.get_node("JoinActions") as HBoxContainer
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 18)
+	InkStyle.style_button(%CreateRoomButton, 21)
+	InkStyle.style_button_primary(%JoinRoomButton, 22)
+	InkStyle.style_button(%JoinBackButton, 21)
+	%JoinBackButton.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	InkStyle.outline_label(status_label, 18, InkStyle.CREAM_SOFT, 5)
+	InkStyle.style_toggle(refresh_mode_toggle, 21)
+	InkStyle.style_toggle(chaos_mode_toggle, 21)

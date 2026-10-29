@@ -82,18 +82,7 @@ func _apply_ink_style() -> void:
 	_passive_status_template.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
 	# 위쪽 줄 밑에 주황 선, 파워 막대는 검정 테두리에 주황 채움
 	(%TopBar as ColorRect).visible = false
-	var bar_back := StyleBoxFlat.new()
-	bar_back.bg_color = InkStyle.CHARCOAL
-	bar_back.border_color = InkStyle.INK
-	bar_back.set_border_width_all(3)
-	bar_back.set_corner_radius_all(9)
-	var bar_fill := StyleBoxFlat.new()
-	bar_fill.bg_color = InkStyle.ORANGE
-	bar_fill.set_corner_radius_all(6)
-	bar_fill.border_color = InkStyle.INK
-	bar_fill.set_border_width_all(2)
-	power_bar.add_theme_stylebox_override("background", bar_back)
-	power_bar.add_theme_stylebox_override("fill", bar_fill)
+	_build_power_gauge()
 
 
 ## 보유 증강 한 줄: 등급 색 인장 + 이름. 설명은 마우스를 올리면 나온다.
@@ -130,6 +119,7 @@ func set_hint(text: String) -> void:
 
 func set_power_percent(value: float) -> void:
 	power_bar.value = clampf(value, 0.0, 100.0)
+	_refresh_power_gauge()
 
 func set_mode_status(text: String) -> void:
 	mode_status_label.text = text
@@ -205,3 +195,62 @@ func _clear_children(container: Container, preserved_child: Node = null) -> void
 			continue
 		container.remove_child(child)
 		child.queue_free()
+
+
+var _power_fill: StyleBoxFlat
+var _power_fill_panel: Panel
+var _power_number: Label
+
+
+## 파워 게이지: 크림색 이중 테두리 판 안에 힘에 따라 크림 → 주황 → 빨강으로 변하는 막대와 큰 숫자.
+func _build_power_gauge() -> void:
+	var frame := StyleBoxTexture.new()
+	frame.texture = InkStyle.BUTTON_DARK
+	frame.texture_margin_left = 34.0
+	frame.texture_margin_right = 34.0
+	frame.texture_margin_top = 26.0
+	frame.texture_margin_bottom = 26.0
+	frame.content_margin_left = 20.0
+	frame.content_margin_right = 20.0
+	frame.content_margin_top = 14.0
+	frame.content_margin_bottom = 14.0
+	_power_fill = StyleBoxFlat.new()
+	_power_fill.set_corner_radius_all(7)
+	_power_fill.border_color = InkStyle.INK
+	_power_fill.set_border_width_all(3)
+	var empty := StyleBoxFlat.new()
+	empty.bg_color = Color(0, 0, 0, 0.35)
+	empty.set_corner_radius_all(7)
+	power_bar.custom_minimum_size = Vector2(290.0, 56.0)
+	power_bar.add_theme_stylebox_override("background", frame)
+	power_bar.add_theme_stylebox_override("fill", StyleBoxEmpty.new())
+	# 막대는 틀 안쪽에만 그린다(ProgressBar 기본 채움은 틀을 덮는다).
+	_power_fill_panel = Panel.new()
+	_power_fill_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_power_fill_panel.add_theme_stylebox_override("panel", _power_fill)
+	_power_fill_panel.position = Vector2(20.0, 15.0)
+	_power_fill_panel.size = Vector2(0.0, 26.0)
+	power_bar.add_child(_power_fill_panel)
+	var power_title := power_bar.get_parent().get_node_or_null("PowerLabel") as Label
+	if power_title:
+		InkStyle.outline_label(power_title, 20, InkStyle.ORANGE, 7)
+		power_title.text = "발사 힘"
+	_power_number = Label.new()
+	_power_number.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_power_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_power_number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_power_number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	InkStyle.outline_label(_power_number, 24, InkStyle.CREAM, 8)
+	power_bar.add_child(_power_number)
+	power_bar.show_percentage = false
+	_refresh_power_gauge()
+
+
+func _refresh_power_gauge() -> void:
+	if _power_fill == null:
+		return
+	var power := power_bar.value / 100.0
+	_power_fill_panel.size.x = maxf((power_bar.custom_minimum_size.x - 40.0) * power, 0.0)
+	_power_fill_panel.visible = power > 0.005
+	_power_fill.bg_color = InkStyle.CREAM.lerp(InkStyle.ORANGE, clampf(power * 2.0, 0.0, 1.0)).lerp(Color("e0361a"), clampf((power - 0.6) * 2.5, 0.0, 1.0))
+	_power_number.text = "%d%%" % int(round(power_bar.value)) if power_bar.value > 0.5 else "당겨서 발사"

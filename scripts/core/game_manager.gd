@@ -84,6 +84,7 @@ var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
 var blind_visual: BlindVisual
 var backdrop_layer: CanvasLayer
+var leave_dialog: Control
 var shot_opponent_count_before := -1
 var bonus_turn_active := false
 var train_followup_resolution := false
@@ -195,100 +196,88 @@ func _start_local_setup() -> void:
 	state_machine.transition(GameStateMachine.State.LOCAL_SETUP)
 	set_screen(_panel_root())
 	_add_background(screen_root)
-	InkStyle.center_panel(screen_root, Rect2(300, 70, 680, 580))
-	var title := _label("로컬 대전 설정", 42, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(390, 110)
-	title.size = Vector2(500, 60)
-	screen_root.add_child(title)
-	var info := _label("두 플레이어가 증강을 고른 뒤 번갈아 플레이합니다.", 20, Color("dac7ae"))
+	var box := InkStyle.centered_card(screen_root, 640.0, 24)
+	_center_child(box, InkStyle.banner("로컬 대전 설정", 46, 520.0))
+	var info := _label("두 플레이어가 증강을 고른 뒤 번갈아 플레이합니다.", 20, InkStyle.CREAM_SOFT)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.position = Vector2(340, 180)
-	info.size = Vector2(600, 35)
-	screen_root.add_child(info)
+	box.add_child(info)
 	var picker := HBoxContainer.new()
-	picker.position = Vector2(430, 250)
-	picker.size = Vector2(420, 70)
 	picker.alignment = BoxContainer.ALIGNMENT_CENTER
 	picker.add_theme_constant_override("separation", 22)
-	screen_root.add_child(picker)
+	box.add_child(picker)
 	picker.add_child(InkStyle.arrow_button(true, func(): _change_piece_count(-1)))
-	var value := _label("시작 바둑알: %d개" % starting_piece_count, 25, Color.WHITE)
+	var value := _label("시작 바둑알  %d개" % starting_piece_count, 28, Color.WHITE)
 	value.name = "PieceCount"
-	value.custom_minimum_size = Vector2(220, 58)
+	value.custom_minimum_size = Vector2(260, 58)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	picker.add_child(value)
 	picker.add_child(InkStyle.arrow_button(false, func(): _change_piece_count(1)))
-	var start := _button("증강 선택 시작", begin_match)
-	start.position = Vector2(480, 450)
-	start.size = Vector2(320, 66)
-	screen_root.add_child(start)
-	var back := _button("뒤로", show_main_menu)
-	back.position = Vector2(540, 540)
-	back.size = Vector2(200, 58)
-	screen_root.add_child(back)
 	var mode_row := HBoxContainer.new()
-	mode_row.position = Vector2(350, 360)
-	mode_row.size = Vector2(580, 60)
 	mode_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	mode_row.add_theme_constant_override("separation", 28)
-	screen_root.add_child(mode_row)
+	mode_row.add_theme_constant_override("separation", 44)
+	box.add_child(mode_row)
 	var refresh_toggle := CheckButton.new()
 	refresh_toggle.text = "새로고침 모드"
 	refresh_toggle.button_pressed = refresh_mode
 	refresh_toggle.toggled.connect(func(value: bool): refresh_mode = value)
-	InkStyle.style_toggle(refresh_toggle, 20)
+	InkStyle.style_toggle(refresh_toggle, 21)
 	mode_row.add_child(refresh_toggle)
 	var chaos_toggle := CheckButton.new()
 	chaos_toggle.text = "혼돈 모드"
 	chaos_toggle.button_pressed = chaos_mode
 	chaos_toggle.toggled.connect(func(value: bool): chaos_mode = value)
-	InkStyle.style_toggle(chaos_toggle, 20)
+	InkStyle.style_toggle(chaos_toggle, 21)
 	mode_row.add_child(chaos_toggle)
+	var start := _button("증강 선택 시작", begin_match)
+	InkStyle.style_button_primary(start, 24)
+	start.custom_minimum_size = Vector2(360, 66)
+	_center_child(box, start)
+	var back := _button("뒤로", show_main_menu)
+	back.custom_minimum_size = Vector2(200, 56)
+	_center_child(box, back)
+
+## 세로 정렬 상자 안에서 고정 크기 자식을 가운데에 놓는다.
+func _center_child(box: Container, child: Control) -> void:
+	child.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(child)
 
 func _change_piece_count(delta: int) -> void:
 	starting_piece_count = GameplayRules.clamp_piece_count(starting_piece_count + delta)
 	var value := screen_root.find_child("PieceCount", true, false) as Label
 	if value:
-		value.text = "시작 바둑알: %d개" % starting_piece_count
+		value.text = "시작 바둑알  %d개" % starting_piece_count
 
 func _show_settings() -> void:
 	state_machine.transition(GameStateMachine.State.PAUSED)
 	set_screen(_panel_root())
 	_add_background(screen_root)
-	InkStyle.center_panel(screen_root, Rect2(340, 90, 600, 470))
-	var title := _label("설정", 44, Color("f4d79a"))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(440, 120)
-	title.size = Vector2(400, 60)
-	screen_root.add_child(title)
+	var box := InkStyle.centered_card(screen_root, 600.0, 26)
+	_center_child(box, InkStyle.banner("설정", 46, 360.0))
 	var fullscreen := CheckBox.new()
 	fullscreen.text = "전체 화면"
 	fullscreen.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
-	fullscreen.position = Vector2(440, 260)
-	fullscreen.size = Vector2(430, 48)
-	fullscreen.add_theme_font_size_override("font_size", 19)
 	fullscreen.toggled.connect(_set_fullscreen)
-	InkStyle.style_toggle(fullscreen, 22)
-	screen_root.add_child(fullscreen)
-	var volume_text := _label("전체 음량", 19, Color("dac7ae"))
-	volume_text.position = Vector2(440, 335)
-	volume_text.size = Vector2(150, 35)
-	screen_root.add_child(volume_text)
+	InkStyle.style_toggle(fullscreen, 24)
+	_center_child(box, fullscreen)
+	var volume_row := HBoxContainer.new()
+	volume_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	volume_row.add_theme_constant_override("separation", 20)
+	box.add_child(volume_row)
+	var volume_text := _label("전체 음량", 24, InkStyle.CREAM)
+	volume_row.add_child(volume_text)
 	var volume := HSlider.new()
-	volume.position = Vector2(570, 333)
-	volume.size = Vector2(270, 36)
+	volume.custom_minimum_size = Vector2(320, 44)
 	volume.min_value = 0
 	volume.max_value = 100
 	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0)) * 100.0
 	volume.value_changed.connect(_set_master_volume)
 	InkStyle.style_slider(volume)
-	screen_root.add_child(volume)
+	volume_row.add_child(volume)
 	var back := _button("완료", show_main_menu)
-	back.position = Vector2(520, 430)
-	back.size = Vector2(240, 58)
-	screen_root.add_child(back)
+	InkStyle.style_button_primary(back, 24)
+	back.custom_minimum_size = Vector2(260, 62)
+	_center_child(box, back)
 
 func _set_fullscreen(enabled: bool) -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if enabled else DisplayServer.WINDOW_MODE_WINDOWED)
@@ -551,7 +540,7 @@ func _show_placement_ui() -> void:
 	set_screen(placement_ui)
 	placement_ui.configure(str(AlkkagiPiece.STONE_NAMES[placement_player]), AlkkagiPiece.OWNER_COLORS[placement_player], _mode_status_text())
 	placement_ui.placement_confirmed.connect(_confirm_placement)
-	placement_ui.menu_requested.connect(show_main_menu)
+	placement_ui.menu_requested.connect(show_leave_dialog)
 	_update_placement_ui()
 
 func _update_placement_ui() -> void:
@@ -656,7 +645,7 @@ func _on_piece_collision(piece: AlkkagiPiece, other: AlkkagiPiece) -> void:
 func build_hud() -> void:
 	update_piece_visibility()
 	var game_hud := GameHudScene.instantiate() as GameHud
-	game_hud.menu_requested.connect(show_main_menu)
+	game_hud.menu_requested.connect(show_leave_dialog)
 	game_hud.active_skill_requested.connect(_on_hud_active_skill_requested)
 	set_screen(game_hud)
 	hud = game_hud
@@ -1703,6 +1692,42 @@ func clear_world() -> void:
 	hint_label = null
 	power_bar = null
 
+## 대전 도중 메뉴 버튼: 바로 나가지 않고, 계속하기와 나가기를 고르는 창을 띄운다.
+func show_leave_dialog() -> void:
+	if leave_dialog and is_instance_valid(leave_dialog):
+		return
+	leave_dialog = Control.new()
+	leave_dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	leave_dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.02, 0.015, 0.7)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	leave_dialog.add_child(dim)
+	var box := InkStyle.centered_card(leave_dialog, 520.0, 20)
+	_center_child(box, InkStyle.banner("메뉴", 44, 300.0))
+	var message := "지금 대전을 끝내고 메인 메뉴로 나갑니다." if not online_mode else "방을 나가면 상대와의 연결이 끊깁니다."
+	var info := _label(message, 21, InkStyle.CREAM_SOFT)
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(info)
+	var resume := _button("계속하기", _close_leave_dialog)
+	InkStyle.style_button_primary(resume, 24)
+	resume.custom_minimum_size = Vector2(320, 62)
+	_center_child(box, resume)
+	var leave := _button("메인 메뉴로 나가기", show_main_menu)
+	leave.custom_minimum_size = Vector2(320, 58)
+	_center_child(box, leave)
+	ui.add_child(leave_dialog)
+	leave_dialog.modulate.a = 0.0
+	create_tween().tween_property(leave_dialog, "modulate:a", 1.0, 0.16)
+
+
+func _close_leave_dialog() -> void:
+	if leave_dialog and is_instance_valid(leave_dialog):
+		leave_dialog.queue_free()
+	leave_dialog = null
+
+
 func _build_game_backdrop() -> void:
 	# 메인 화면과 같은 나무 보드를 게임 화면 전체에 깔고, 가장자리를 어둡게 눌러 보드로 시선을 모은다.
 	var board := TextureRect.new()
@@ -1722,6 +1747,7 @@ func _build_game_backdrop() -> void:
 
 
 func set_screen(next_screen: Control) -> void:
+	_close_leave_dialog()
 	if backdrop_layer:
 		backdrop_layer.visible = next_screen is GameHud or (board != null and is_instance_valid(board) and board.placement_active)
 	if screen_root and is_instance_valid(screen_root):
@@ -1750,7 +1776,7 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text_value
 	if font_size >= 36:
-		InkStyle.brush_label(label, font_size, InkStyle.CREAM, 14)
+		InkStyle.outline_label(label, font_size, InkStyle.CREAM, 12)
 	elif font_size >= 22:
 		InkStyle.outline_label(label, font_size, color, 7)
 	else:
