@@ -94,6 +94,7 @@ func _build_burst() -> void:
 	_burst.show_behind_parent = true
 	_burst.size = Vector2(450.0, 530.0)
 	_burst.pivot_offset = _burst.size * 0.5
+	_burst.use_parent_material = false
 	_burst.modulate.a = 0.0
 	add_child(_burst)
 	move_child(_burst, 0)
@@ -106,10 +107,22 @@ func _center_burst() -> void:
 		_burst.position = size * 0.5 - _burst.size * 0.5
 
 
+## 폭발이 화면 밖으로 나가 잘리지 않도록, 카드 위치에서 화면 가장자리까지의 여유만큼으로 폭을 줄인다.
+func _fit_burst_to_screen() -> void:
+	var viewport_width := get_viewport_rect().size.x
+	var center_x := global_position.x + size.x * 0.5
+	var room := minf(center_x, viewport_width - center_x) - 6.0
+	var width := clampf(room * 2.0, size.x + 60.0, 560.0)
+	_burst.size = Vector2(width, width * 1.18)
+	_burst.pivot_offset = _burst.size * 0.5
+	_center_burst()
+
+
 func _pop_burst(strength: float) -> void:
 	if _burst == null:
 		return
 	z_index = 10  # 옆 카드에 가리지 않고 폭발이 끝까지 보이게 맨 앞으로
+	_fit_burst_to_screen()
 	if _burst_tween:
 		_burst_tween.kill()
 	_burst.scale = Vector2(0.55, 0.55)
