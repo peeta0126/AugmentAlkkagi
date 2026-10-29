@@ -195,3 +195,8 @@ func _apply_ink_style() -> void:
 	InkStyle.outline_label(status_label, 18, InkStyle.CREAM_SOFT, 5)
 	InkStyle.style_toggle(refresh_mode_toggle, 21)
 	InkStyle.style_toggle(chaos_mode_toggle, 21)
+	# 시트에서 잘라 둔 옛 버튼 그림은 가장자리가 잘려 있어서(특히 오른쪽 테두리) 온전한 조각으로 바꾼다.
+	InkStyle.style_button(ready_button, 23)
+	InkStyle.style_button(start_button, 23)
+	ready_button.add_theme_stylebox_override("pressed", InkStyle.button_box_orange())
+	start_button.add_theme_stylebox_override("hover", InkStyle.button_box_orange())

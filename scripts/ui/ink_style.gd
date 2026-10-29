@@ -322,3 +322,7 @@ static func style_line_edit(edit: LineEdit, font_size: int = 32) -> void:
 	edit.add_theme_color_override("selection_color", Color(ORANGE, 0.45))
 	edit.add_theme_font_size_override("font_size", font_size)
 	edit.alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+static func button_box_orange() -> StyleBoxTexture:
+	return _button_style(BUTTON_ORANGE)
