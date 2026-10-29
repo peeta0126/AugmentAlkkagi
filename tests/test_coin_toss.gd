@@ -30,7 +30,7 @@ func run_test() -> void:
 	check(winner in [1, 2], "coin toss picks the first shooter")
 	if toss != null:
 		await toss.finished
-		check(toss.caption.text == "%s 선공!" % AlkkagiPiece.STONE_NAMES[winner], "coin toss ends on the chosen side")
+		check(toss.caption.text == ("흑선!" if winner == 1 else "백선!"), "coin toss ends on the chosen side")
 		check(game.current_player == winner, "first shooter does not change after the animation")
 	if failures == 0:
 		print("PASS test_coin_toss")

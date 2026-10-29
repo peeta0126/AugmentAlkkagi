@@ -116,8 +116,8 @@ func play(get_result: Callable) -> void:
 	coin.position.y = GROUND_Y
 	coin.texture = FACES.get(winner, FACES[1])
 	_shadow.scale = Vector2.ONE
-	caption.text = "%s 선공!" % AlkkagiPiece.STONE_NAMES[winner]
-	_sub.text = "먼저 돌을 쏩니다"
+	caption.text = "흑선!" if winner == 1 else "백선!"
+	_sub.text = ""
 
 	# 착지: 동전이 통통 튀고 제목이 튀어나온다.
 	var pop := create_tween()
