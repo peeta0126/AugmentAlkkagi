@@ -48,7 +48,7 @@ func _ready() -> void:
 	const BURST_ROOM := 72.0
 	var side_margin := (1280.0 - GRID_WIDTH) * 0.5
 	scroll.position = Vector2(0, 96)
-	scroll.size = Vector2(1280.0, 548)
+	scroll.size = Vector2(1280.0, 524)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	add_child(scroll)
@@ -72,7 +72,7 @@ func _ready() -> void:
 	back.size = Vector2(240, 48)
 	InkStyle.style_button(back, 22)
 	back.size = Vector2(260, 60)
-	back.position = Vector2(510, 648)
+	back.position = Vector2(510, 626)
 	back.pressed.connect(func(): back_requested.emit())
 	add_child(back)
 
