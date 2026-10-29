@@ -138,7 +138,7 @@ anchor_right = 1.0
 offset_bottom = 84.0
 grow_horizontal = 2
 mouse_filter = 2
-color = Color(0.075, 0.055, 0.04, 0.94)
+color = Color(0.105, 0.09, 0.08, 0.97)
 
 [node name="TurnInfo" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -200,9 +200,9 @@ text = "메뉴"
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 18.0
-offset_top = 110.0
+offset_top = 108.0
 offset_right = 330.0
-offset_bottom = 300.0
+offset_bottom = 268.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_black_panel")
 
@@ -256,16 +256,16 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -330.0
-offset_top = 110.0
+offset_top = 108.0
 offset_right = -18.0
 offset_bottom = 640.0
 grow_horizontal = 0
 mouse_filter = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 
 [node name="WhiteAugmentPanel" type="PanelContainer" parent="RightColumn"]
 layout_mode = 2
-custom_minimum_size = Vector2(0, 190)
+custom_minimum_size = Vector2(0, 150)
 unique_name_in_owner = true
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_white_panel")

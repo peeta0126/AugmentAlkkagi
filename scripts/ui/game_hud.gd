@@ -32,9 +32,68 @@ func _ready() -> void:
 	_white_item_template = %WhiteAugmentItemTemplate
 	_active_button_template = %ActiveSkillButtonTemplate
 	_passive_status_template = %PassiveStatusTemplate
+	_apply_ink_style()
 	# 오른쪽 열은 증강 → 패시브 상태 → 액티브 스킬 순으로 쌓는다.
 	var right_column := active_skills_panel.get_parent()
 	right_column.move_child(passive_status_panel, active_skills_panel.get_index())
+
+
+## 메인 화면과 같은 스타일: 숯색 판 + 황갈색 테두리 + 검정 외곽선, 글자는 크림색.
+func _apply_ink_style() -> void:
+	for panel: PanelContainer in [%BlackAugmentPanel, %WhiteAugmentPanel, passive_status_panel, active_skills_panel]:
+		panel.add_theme_stylebox_override("panel", InkStyle.panel(30.0, 0.0))
+		var margin := panel.get_node_or_null("Margin") as MarginContainer
+		if margin:
+			margin.add_theme_constant_override("margin_left", 4)
+			margin.add_theme_constant_override("margin_right", 4)
+			margin.add_theme_constant_override("margin_top", 2)
+			margin.add_theme_constant_override("margin_bottom", 2)
+	InkStyle.style_button(%MenuButton, 20)
+	InkStyle.button_icon(%MenuButton, InkStyle.ICON_GEAR, 28)
+	InkStyle.style_button(_active_button_template, 19)
+	InkStyle.button_icon(_active_button_template, InkStyle.ICON_SWORDS, 28)
+	var logo := InkStyle.logo(self, Vector2(16.0, 6.0), 70.0)
+	logo.z_index = 1
+	mode_status_label.position = Vector2(22.0, 80.0)
+	mode_status_label.size = Vector2(300.0, 22.0)
+	InkStyle.brush_label(turn_label, 42, InkStyle.CREAM, 14)
+	turn_label.pivot_offset = Vector2(220.0, 19.0)
+	turn_label.rotation_degrees = -2.0
+	var swash := TextureRect.new()
+	swash.texture = InkStyle.SWASH_TEXTURE
+	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	swash.stretch_mode = TextureRect.STRETCH_SCALE
+	swash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swash.size = Vector2(500.0, 92.0)
+	swash.position = Vector2(640.0 - 250.0, -6.0)
+	swash.pivot_offset = swash.size * 0.5
+	swash.rotation_degrees = -2.0
+	add_child(swash)
+	move_child(swash, turn_label.get_parent().get_index())
+	count_label.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
+	mode_status_label.add_theme_color_override("font_color", InkStyle.TAN)
+	hint_label.add_theme_color_override("font_color", InkStyle.CREAM)
+	for title: Label in [black_augment_title, white_augment_title]:
+		InkStyle.swash_title(title, 21, InkStyle.CREAM, true)
+	black_augment_progress.add_theme_color_override("font_color", InkStyle.TAN)
+	white_augment_progress.add_theme_color_override("font_color", InkStyle.TAN)
+	for title: Label in [%ActiveSkillTitle, passive_status_panel.get_node("Margin/Content/PassiveStatusTitle")]:
+		InkStyle.swash_title(title, 19, InkStyle.CREAM, true)
+	_passive_status_template.add_theme_color_override("font_color", InkStyle.CREAM_SOFT)
+	# 위쪽 줄 밑에 주황 선, 파워 막대는 검정 테두리에 주황 채움
+	(%TopBar as ColorRect).visible = false
+	var bar_back := StyleBoxFlat.new()
+	bar_back.bg_color = InkStyle.CHARCOAL
+	bar_back.border_color = InkStyle.INK
+	bar_back.set_border_width_all(3)
+	bar_back.set_corner_radius_all(9)
+	var bar_fill := StyleBoxFlat.new()
+	bar_fill.bg_color = InkStyle.ORANGE
+	bar_fill.set_corner_radius_all(6)
+	bar_fill.border_color = InkStyle.INK
+	bar_fill.set_border_width_all(2)
+	power_bar.add_theme_stylebox_override("background", bar_back)
+	power_bar.add_theme_stylebox_override("fill", bar_fill)
 
 
 ## 보유 증강 한 줄: 등급 색 인장 + 이름. 설명은 마우스를 올리면 나온다.
@@ -52,7 +111,7 @@ func _augment_row(definition: AugmentDefinition) -> Control:
 	name_label.text = definition.display_name
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	name_label.add_theme_font_size_override("font_size", 16)
-	name_label.add_theme_color_override("font_color", Color("f3e7d0"))
+	name_label.add_theme_color_override("font_color", InkStyle.CREAM)
 	name_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(name_label)
 	return row
@@ -89,7 +148,7 @@ func set_player_augments(
 	var template := _black_item_template if player_id == 1 else _white_item_template
 
 	title.text = "%s 플레이어 증강" % player_name
-	title.add_theme_color_override("font_color", player_color.lightened(0.24))
+	pass
 	template.visible = false
 	_clear_children(items, template)
 	if definitions.is_empty():

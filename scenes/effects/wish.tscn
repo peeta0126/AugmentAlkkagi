@@ -7,26 +7,3 @@ script = ExtResource("1")
 
 [node name="DragonBalls" type="Node2D" parent="."]
 unique_name_in_owner = true
-
-[node name="DragonBallTemplate" type="Node2D" parent="DragonBalls"]
-unique_name_in_owner = true
-
-[node name="Ball" type="Polygon2D" parent="DragonBalls/DragonBallTemplate"]
-polygon = PackedVector2Array(11, 0, 7.78, 7.78, 0, 11, -7.78, 7.78, -11, 0, -7.78, -7.78, 0, -11, 7.78, -7.78)
-color = Color(0.95, 0.49, 0.1, 1)
-
-[node name="Highlight" type="Line2D" parent="DragonBalls/DragonBallTemplate"]
-points = PackedVector2Array(8, -3, 5, -7, 1, -9)
-width = 2.0
-default_color = Color(1, 0.85, 0.48, 0.9)
-
-[node name="NumberLabel" type="Label" parent="DragonBalls/DragonBallTemplate"]
-offset_left = -7.0
-offset_top = -9.0
-offset_right = 7.0
-offset_bottom = 9.0
-theme_override_colors/font_color = Color(0.72, 0.06, 0.1, 1)
-theme_override_font_sizes/font_size = 12
-text = "1"
-horizontal_alignment = 1
-vertical_alignment = 1

@@ -30,4 +30,4 @@ func kind_name() -> String:
 	return ["패시브", "발사", "필드", "액티브", "조건부"][kind]
 
 func rarity_color() -> Color:
-	return [Color("c9c0ae"), Color("7ea3c4"), Color("a68bc0"), Color("dcae52")][rarity]
+	return [Color("cfb88e"), Color("6ab0e0"), Color("a778d8"), Color("f28a2a")][rarity]

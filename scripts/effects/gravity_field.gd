@@ -12,5 +12,3 @@ func configure(data: Dictionary) -> void:
 	field_shape.scale = Vector2.ONE * radius / maxf(preview_radius, 1.0)
 
 
-func _process(delta: float) -> void:
-	field_shape.rotation += delta * rotation_speed

@@ -66,7 +66,6 @@ func setup(
 
 func _apply_content() -> void:
 	title_label.text = "%s · 증강 선택" % _player_name
-	_title_rule.color = _player_color.lightened(0.15)
 	instruction_label.text = (
 		"게임 시작 증강을 하나 선택하세요"
 		if _is_initial
@@ -91,57 +90,39 @@ func _apply_content() -> void:
 
 
 func _build_backdrop() -> void:
-	# 가장자리로 갈수록 어두워지는 배경. 화면 가운데에 시선이 모이게 한다.
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0.13, 0.09, 0.06, 1.0))
-	gradient.set_color(1, Color(0.035, 0.024, 0.017, 1.0))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.45)
-	texture.fill_to = Vector2(1.0, 1.0)
-	texture.width = 256
-	texture.height = 256
-	var backdrop := TextureRect.new()
-	backdrop.texture = texture
-	backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	backdrop.stretch_mode = TextureRect.STRETCH_SCALE
-	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(backdrop)
-	move_child(backdrop, 1)
+	# 메인 화면과 같은 나무 보드를 어둡게 깔아 카드가 도드라지게 한다.
+	var old_background := get_node_or_null("Background")
+	if old_background:
+		old_background.visible = false
+	InkStyle.board_backdrop(self, 0.6)
 
 
 func _style_chrome() -> void:
-	title_label.add_theme_font_size_override("font_size", 32)
-	title_label.add_theme_color_override("font_color", Color("f3e7d0"))
-	instruction_label.add_theme_font_size_override("font_size", 17)
-	instruction_label.add_theme_color_override("font_color", Color("a8987c"))
+	InkStyle.brush_label(title_label, 52, InkStyle.CREAM, 16)
+	title_label.pivot_offset = title_label.size * 0.5
+	title_label.rotation_degrees = -2.5
+	InkStyle.outline_label(instruction_label, 19, InkStyle.CREAM_SOFT, 6)
+	# 로고 밑줄처럼 제목 뒤에 크게 깔리는 주황 붓 터치.
+	var swash := TextureRect.new()
+	swash.texture = InkStyle.SWASH_TEXTURE
+	swash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	swash.stretch_mode = TextureRect.STRETCH_SCALE
+	swash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swash.position = Vector2(640.0 - 360.0, 26.0)
+	swash.size = Vector2(720.0, 118.0)
+	swash.pivot_offset = swash.size * 0.5
+	swash.rotation_degrees = -2.5
+	add_child(swash)
+	move_child(swash, title_label.get_index())
 	_title_rule = ColorRect.new()
-	_title_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_rule.position = Vector2(640.0 - 20.0, 100.0)
-	_title_rule.size = Vector2(40.0, 2.0)
-	add_child(_title_rule)
-	progress_label.add_theme_font_size_override("font_size", 22)
-	progress_label.add_theme_color_override("font_color", Color("c9b99c"))
+	InkStyle.outline_label(progress_label, 28, InkStyle.ORANGE, 8)
 	var footer := get_node_or_null("FooterLabel") as Label
 	if footer:
-		footer.add_theme_font_size_override("font_size", 14)
-		footer.add_theme_color_override("font_color", Color("6f6350"))
-	refresh_status_label.add_theme_color_override("font_color", Color("a8987c"))
-	for state in ["normal", "hover", "pressed", "disabled"]:
-		var style := StyleBoxFlat.new()
-		style.set_corner_radius_all(4)
-		style.set_border_width_all(1)
-		style.bg_color = Color(0, 0, 0, 0) if state != "hover" else Color("2b2018")
-		style.border_color = Color("6f5c3f") if state != "hover" else Color("c9b99c")
-		if state == "disabled":
-			style.border_color = Color("3d3226")
-		refresh_button.add_theme_stylebox_override(state, style)
-	refresh_button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	refresh_button.add_theme_color_override("font_color", Color("e0d2b6"))
-	refresh_button.add_theme_color_override("font_disabled_color", Color("6f6350"))
-	refresh_button.add_theme_font_size_override("font_size", 17)
+		InkStyle.outline_label(footer, 15, InkStyle.CREAM_SOFT, 5)
+	InkStyle.outline_label(refresh_status_label, 16, InkStyle.CREAM_SOFT, 5)
+	InkStyle.style_button(refresh_button, 19)
+	InkStyle.button_icon(refresh_button, InkStyle.ICON_LINK, 28)
+	InkStyle.logo(self, Vector2(18.0, 10.0), 78.0)
 
 
 func _on_card_selected(augment_id: StringName) -> void:

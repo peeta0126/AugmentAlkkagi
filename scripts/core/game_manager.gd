@@ -83,6 +83,7 @@ var next_wall_id := 1
 var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
 var blind_visual: BlindVisual
+var backdrop_layer: CanvasLayer
 var shot_opponent_count_before := -1
 var bonus_turn_active := false
 var train_followup_resolution := false
@@ -108,6 +109,10 @@ func _ready() -> void:
 	world = Node2D.new()
 	world.name = "GameWorld"
 	add_child(world)
+	backdrop_layer = CanvasLayer.new()
+	backdrop_layer.layer = -10
+	add_child(backdrop_layer)
+	_build_game_backdrop()
 	ui = CanvasLayer.new()
 	add_child(ui)
 	show_main_menu()
@@ -1666,7 +1671,27 @@ func clear_world() -> void:
 	hint_label = null
 	power_bar = null
 
+func _build_game_backdrop() -> void:
+	# 메인 화면과 같은 나무 보드를 게임 화면 전체에 깔고, 가장자리를 어둡게 눌러 보드로 시선을 모은다.
+	var board := TextureRect.new()
+	board.texture = InkStyle.BOARD_TEXTURE
+	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	board.stretch_mode = TextureRect.STRETCH_SCALE
+	board.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	board.modulate = Color(0.78, 0.7, 0.62)
+	backdrop_layer.add_child(board)
+	var vignette := TextureRect.new()
+	vignette.texture = InkStyle.VIGNETTE_TEXTURE
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop_layer.add_child(vignette)
+	backdrop_layer.visible = false
+
+
 func set_screen(next_screen: Control) -> void:
+	if backdrop_layer:
+		backdrop_layer.visible = next_screen is GameHud or (board != null and is_instance_valid(board) and board.placement_active)
 	if screen_root and is_instance_valid(screen_root):
 		if screen_root.get_parent() == ui:
 			ui.remove_child(screen_root)

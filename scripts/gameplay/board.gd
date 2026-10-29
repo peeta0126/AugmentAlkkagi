@@ -136,8 +136,7 @@ func grid_point(column: int, row: int) -> Vector2:
 	return GRID_RECT.position + Vector2(spacing.x * column, spacing.y * row)
 
 func _draw() -> void:
-	# 보드 밖 낙하 공간은 짙은 천/테이블 톤으로 두어 작은 흑백돌의 실루엣을 살린다.
-	draw_rect(Rect2(0, 0, 1280, 720), Color("17120f"))
+	# 보드 밖 배경은 게임 매니저가 깔아 둔 나무 보드 그림이 맡는다.
 	# 떠 있는 보드의 부드러운 그림자, 두께, 어두운 측면을 순서대로 그린다.
 	draw_style_box(_box(Color(0.06, 0.035, 0.018, 0.42), 13, Color.TRANSPARENT, 0), Rect2(BOARD_RECT.position + Vector2(9, 13), BOARD_RECT.size).grow(11))
 	draw_style_box(_box(Color("5a3419"), 10, Color("351d0f"), 4), Rect2(BOARD_RECT.position + Vector2(0, 7), BOARD_RECT.size).grow(9))

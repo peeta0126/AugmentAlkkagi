@@ -4,11 +4,11 @@
 [ext_resource type="Script" path="res://scripts/ui/augment_icon.gd" id="2_icon"]
 
 [node name="AugmentCard" type="Control"]
-custom_minimum_size = Vector2(316, 360)
+custom_minimum_size = Vector2(326, 404)
 layout_mode = 3
 anchors_preset = 0
-offset_right = 316.0
-offset_bottom = 360.0
+offset_right = 326.0
+offset_bottom = 404.0
 mouse_filter = 1
 script = ExtResource("1_script")
 
@@ -25,10 +25,10 @@ mouse_filter = 2
 [node name="ContentMargin" type="MarginContainer" parent="Background"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 26
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_left = 2
+theme_override_constants/margin_top = 2
+theme_override_constants/margin_right = 2
+theme_override_constants/margin_bottom = 2
 
 [node name="Content" type="VBoxContainer" parent="Background/ContentMargin"]
 layout_mode = 2
@@ -42,7 +42,7 @@ theme_override_constants/separation = 16
 
 [node name="IconLabel" type="Control" parent="Background/ContentMargin/Content/Header"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 80)
+custom_minimum_size = Vector2(92, 92)
 layout_mode = 2
 size_flags_vertical = 4
 script = ExtResource("2_icon")
@@ -57,13 +57,14 @@ theme_override_constants/separation = 4
 [node name="NameLabel" type="Label" parent="Background/ContentMargin/Content/Header/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 30
 text = "증강 이름"
 autowrap_mode = 2
 
 [node name="RarityLabel" type="Label" parent="Background/ContentMargin/Content/Header/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 14
 text = "일반"
 
@@ -86,13 +87,18 @@ mouse_filter = 2
 
 [node name="DescriptionLabel" type="Label" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
+custom_minimum_size = Vector2(0, 96)
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/line_spacing = 6
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 17
 text = "증강 효과 설명이 이 영역에 표시됩니다."
 autowrap_mode = 2
+
+[node name="GapDesc" type="Control" parent="Background/ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+mouse_filter = 2
 
 [node name="TriggerLabel" type="Label" parent="Background/ContentMargin/Content"]
 unique_name_in_owner = true
@@ -113,15 +119,3 @@ layout_mode = 2
 mouse_filter = 1
 theme_override_font_sizes/font_size = 16
 text = "선택"
-
-[node name="AccentBar" type="ColorRect" parent="."]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 14.0
-offset_right = -14.0
-offset_bottom = 3.0
-grow_horizontal = 2
-mouse_filter = 2
-color = Color(1, 1, 1, 1)
