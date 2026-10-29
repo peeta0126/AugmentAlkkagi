@@ -64,7 +64,6 @@ func _apply_style() -> void:
 	description_label.add_theme_constant_override("line_separation", 8)
 	description_label.fit_content = false
 	description_label.resized.connect(_rewrap_description)
-	trigger_label.add_theme_color_override("font_color", InkStyle.TAN)
 	InkStyle.style_button(select_button, 22)
 	InkStyle.button_icon_centered(select_button, InkStyle.ICON_SWORDS, 32.0)
 	select_button.custom_minimum_size = Vector2(0, 66)
@@ -82,7 +81,13 @@ func _apply_definition() -> void:
 	InkStyle.outline_label(name_label, name_size, InkStyle.CREAM, 9)
 	rarity_label.text = "%s · %s" % [_definition.rarity_name(), _definition.kind_name()]
 	_rewrap_description()
-	trigger_label.text = _definition.trigger_description
+	# "획득 즉시"는 대부분의 증강이 같아 군더더기라 숨기고, 다른 발동 시점(발사 직전·조준 및 발사 등)만 알약으로 보여 준다.
+	var trigger := _definition.trigger_description
+	trigger_label.visible = trigger != "" and trigger != "획득 즉시"
+	trigger_label.text = "발동  %s" % trigger
+	trigger_label.add_theme_stylebox_override("normal", InkStyle.pill(InkStyle.TAN))
+	trigger_label.add_theme_color_override("font_color", Color("241913"))
+	trigger_label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	tooltip_text = _definition.description
 	select_button.tooltip_text = _definition.description
 	rarity_label.add_theme_stylebox_override("normal", InkStyle.pill(_definition.rarity_color()))
@@ -93,6 +98,23 @@ func _apply_definition() -> void:
 func _on_select_button_pressed() -> void:
 	if _definition:
 		augment_selected.emit(_definition.id)
+
+
+## 목록(스크롤 영역) 안에서 카드가 아래·위에 걸쳐 있으면, 커지는 카드가 잘리지 않게 카드 전체가 보이도록 스크롤한다.
+func _reveal_in_scroll() -> void:
+	var node := get_parent()
+	while node != null and not node is ScrollContainer:
+		node = node.get_parent()
+	if node == null:
+		return
+	var scroll := node as ScrollContainer
+	var view := scroll.get_global_rect()
+	var rect := get_global_rect()
+	var pad := 14.0
+	if rect.position.y < view.position.y + pad:
+		scroll.scroll_vertical -= int(view.position.y + pad - rect.position.y)
+	elif rect.end.y > view.end.y - pad:
+		scroll.scroll_vertical += int(rect.end.y - (view.end.y - pad))
 
 
 func _build_burst() -> void:
@@ -160,6 +182,7 @@ func _on_mouse_entered() -> void:
 	if _hovered:
 		return  # 카드 안에서 글자·버튼 위로 옮길 때마다 폭발이 처음부터 다시 터지지 않게 한다
 	_hovered = true
+	_reveal_in_scroll()
 	background.self_modulate = Color(1.12, 1.08, 1.02)
 	_pop_burst(1.0)
 	_animate_to(hover_scale)

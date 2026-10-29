@@ -9,6 +9,8 @@ const MergeScene := preload("res://scenes/effects/merge.tscn")
 const JanggiScene := preload("res://scenes/effects/janggi.tscn")
 const StealthScene := preload("res://scenes/effects/stealth.tscn")
 const KingScene := preload("res://scenes/effects/king.tscn")
+const BADGE_KNIGHT := preload("res://assets/effects/badge_greatsword.png")
+const BADGE_WIZARD := preload("res://assets/effects/badge_wizard.png")
 
 signal sound_requested(kind: String, volume_db: float)
 signal selected(piece: AlkkagiPiece)
@@ -486,7 +488,8 @@ func _draw() -> void:
 			draw_circle(Vector2.from_angle(angle) * visual_radius * 0.72, visual_radius * 0.28, Color(0.88, 0.96, 1.0, 0.9))
 	if transformation != "":
 		var mark_color := Color("ff784f") if transformation == "WIZARD" else Color("f4ce73")
-		draw_arc(Vector2.ZERO, visual_radius + 2.8, 0.0, TAU, 20, mark_color, 1.8)
+		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, Color("1c1512"), 4.6)
+		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, Color("c487ff") if transformation == "WIZARD" else Color("ff9a2e"), 2.2)
 		if transformation in ["WIZARD", "KNIGHT"]:
 			_draw_transformation_mark(mark_color)
 	if sonic_trail:
@@ -501,29 +504,8 @@ func _sync_stealth_visual() -> void:
 		stealth_visual.queue_free()
 		stealth_visual = null
 
-func _draw_transformation_mark(color: Color) -> void:
-	var size := visual_radius * 0.48
-	match transformation:
-		"KNIGHT":
-			var top := Vector2(0, -visual_radius - 8.0)
-			draw_colored_polygon(PackedVector2Array([top + Vector2(-6, 3), top + Vector2(-5, -5), top + Vector2(0, -8), top + Vector2(5, -5), top + Vector2(6, 3), top + Vector2(0, 6)]), Color("93a9bd"))
-			draw_line(top + Vector2(-4, -1), top + Vector2(4, -1), Color("253344"), 2.0)
-			draw_line(top + Vector2(0, 0), top + Vector2(0, 4), Color("253344"), 1.5)
-		"SOLDIER":
-			draw_polyline(PackedVector2Array([Vector2(-size, -size * 0.3), Vector2.ZERO, Vector2(size, -size * 0.3)]), color, 1.8)
-		"CHARIOT":
-			draw_rect(Rect2(Vector2(-size, -size), Vector2.ONE * size * 2.0), color, false, 1.8)
-		"CANNON":
-			draw_circle(Vector2.ZERO, size, color, false, 1.8)
-			draw_circle(Vector2.ZERO, size * 0.35, color)
-		"HORSE":
-			draw_colored_polygon(PackedVector2Array([Vector2(0, -size), Vector2(size, size), Vector2(-size, size)]), Color(color.r, color.g, color.b, 0.72))
-		"ELEPHANT":
-			draw_colored_polygon(PackedVector2Array([Vector2(0, -size), Vector2(size, 0), Vector2(0, size), Vector2(-size, 0)]), Color(color.r, color.g, color.b, 0.72))
-		"GUARD":
-			draw_line(Vector2(-size, 0), Vector2(size, 0), color, 2.0)
-			draw_line(Vector2(0, -size), Vector2(0, size), color, 2.0)
-		"KING":
-			draw_polyline(PackedVector2Array([Vector2(-size, size * 0.65), Vector2(-size, -size * 0.35), Vector2(-size * 0.45, 0), Vector2(0, -size), Vector2(size * 0.45, 0), Vector2(size, -size * 0.35), Vector2(size, size * 0.65), Vector2(-size, size * 0.65)]), color, 1.8)
-		"WIZARD":
-			draw_colored_polygon(PackedVector2Array([Vector2(0, -size * 1.25), Vector2(size, size * 0.7), Vector2(-size, size * 0.7)]), Color(color.r, color.g, color.b, 0.68))
+func _draw_transformation_mark(_color: Color) -> void:
+	# 기사는 대검, 마법사는 모자 그림을 돌 위에 올린다(증강 아이콘과 같은 잉크 그림).
+	var icon: Texture2D = BADGE_KNIGHT if transformation == "KNIGHT" else BADGE_WIZARD
+	var height := visual_radius * 2.3
+	draw_texture_rect(icon, Rect2(Vector2(-height * 0.5, -visual_radius - height * 0.78), Vector2(height, height)), false)
