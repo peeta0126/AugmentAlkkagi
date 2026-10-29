@@ -9,8 +9,6 @@ const CATALOG: Array[AugmentDefinition] = [
 	preload("res://resources/augments/dodge.tres"),
 	preload("res://resources/augments/janggi.tres"),
 	preload("res://resources/augments/piggyback.tres"),
-	preload("res://resources/augments/lantern.tres"),
-	preload("res://resources/augments/connect_four.tres"),
 	preload("res://resources/augments/snowball.tres"),
 	preload("res://resources/augments/wizard.tres"),
 	preload("res://resources/augments/tank.tres"),
@@ -23,7 +21,6 @@ const CATALOG: Array[AugmentDefinition] = [
 	preload("res://resources/augments/blind.tres"),
 	preload("res://resources/augments/wall_maria.tres"),
 	preload("res://resources/augments/scope.tres"),
-	preload("res://resources/augments/marksman.tres"),
 	preload("res://resources/augments/blood_festival.tres"),
 	preload("res://resources/augments/gravity_field.tres"),
 	preload("res://resources/augments/stealth.tres"),
@@ -117,12 +114,6 @@ func grants_bonus_turn(game: Node, player_id: int, opponent_eliminated: int) -> 
 			return true
 	return false
 
-func adjust_pointer(game: Node, player_id: int, piece: AlkkagiPiece, pointer: Vector2) -> Vector2:
-	var result := pointer
-	for effect: AugmentEffect in effects[player_id]:
-		result = effect.adjust_pointer(game, player_id, piece, result)
-	return result
-
 func active_effects(player_id: int) -> Array[AugmentEffect]:
 	var result: Array[AugmentEffect] = []
 	for effect: AugmentEffect in effects[player_id]:
@@ -149,6 +140,14 @@ func has_pending_action() -> bool:
 				return true
 	return false
 
+func notify_pieces_settled(game: Node) -> bool:
+	var applied := false
+	for player_id in [1, 2]:
+		for effect: AugmentEffect in effects[player_id]:
+			if effect.on_pieces_settled(game, player_id):
+				applied = true
+	return applied
+
 func finish_turn(game: Node, player_id: int) -> void:
 	completed_turns[player_id] += 1
 	for effect: AugmentEffect in effects[player_id]:
@@ -158,6 +157,14 @@ func finish_global_turn(game: Node, completed_player: int) -> void:
 	for player_id in [1, 2]:
 		for effect: AugmentEffect in effects[player_id]:
 			effect.on_global_turn_ended(game, completed_player)
+
+func start_player_turn(game: Node, player_id: int) -> void:
+	for effect: AugmentEffect in effects[player_id]:
+		effect.on_owner_cycle(game)
+	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.owner_id == player_id:
+			piece.tick_stealth(2 if player_id == 1 else 1)
+	game.update_piece_visibility()
 
 func passive_hud_effects(player_id: int) -> Array[AugmentEffect]:
 	var result: Array[AugmentEffect] = []

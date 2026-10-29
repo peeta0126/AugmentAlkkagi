@@ -39,13 +39,14 @@ func on_physics_tick(game: Node, _player_id: int, delta: float) -> void:
 		return
 	var width := float(definition.values.get("width", 18.0))
 	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.invulnerable:
+			continue
 		for crack: Dictionary in cracks:
 			if _distance_to_segment(piece.position, crack.from, crack.to) <= width * 0.5 + piece.visual_radius * 0.35:
 				piece.queue_free()
 				break
 
-func on_turn_ended(game: Node, player_id: int) -> void:
-	super.on_turn_ended(game, player_id)
+func on_owner_cycle(game: Node) -> void:
 	if not active:
 		return
 	turns_left -= 1

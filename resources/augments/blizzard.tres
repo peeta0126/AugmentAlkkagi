@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"blizzard"
 display_name = "눈보라"
-description = "획득 즉시 눈보라가 시작되어 게임이 끝날 때까지 유지됩니다. 전체 보드의 돌이 더 미끄러워집니다."
+description = "획득 즉시 눈보라가 시작되어 3사이클 동안 전체 보드의 돌이 더 미끄러워집니다."
 rarity = 1
 icon_text = "※"
 kind = 0

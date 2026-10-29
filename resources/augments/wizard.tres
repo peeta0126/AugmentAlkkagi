@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"wizard"
 display_name = "마법사"
-description = "아군 돌을 마법사로 만들고 상대에게 화염구 넉백을 가합니다."
+description = "아군 돌 하나만 마법사로 지정하고 상대에게 화염구 넉백을 가합니다."
 rarity = 2
 icon_text = "✦"
 kind = 3

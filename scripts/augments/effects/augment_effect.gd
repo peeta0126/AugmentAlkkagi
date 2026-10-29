@@ -38,6 +38,9 @@ func on_turn_ended(_game: Node, _player_id: int) -> void:
 func on_global_turn_ended(_game: Node, _completed_player: int) -> void:
 	pass
 
+func on_owner_cycle(_game: Node) -> void:
+	pass
+
 func is_active() -> bool:
 	return definition.kind == AugmentDefinition.Kind.ACTIVE or definition.kind == AugmentDefinition.Kind.FIELD
 
@@ -112,14 +115,14 @@ func after_shot(_game: Node, _player_id: int, _shot_piece: AlkkagiPiece) -> void
 func grants_bonus_turn(_game: Node, _player_id: int, _opponent_eliminated: int) -> bool:
 	return false
 
-func adjust_pointer(_game: Node, _player_id: int, _piece: AlkkagiPiece, pointer: Vector2) -> Vector2:
-	return pointer
-
 func check_special_victory(_game: Node, _player_id: int) -> bool:
 	return false
 
 func on_physics_tick(_game: Node, _player_id: int, _delta: float) -> void:
 	pass
+
+func on_pieces_settled(_game: Node, _player_id: int) -> bool:
+	return false
 
 func network_state() -> Dictionary:
 	return {}

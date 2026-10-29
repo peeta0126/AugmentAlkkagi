@@ -44,25 +44,39 @@ func run_test() -> void:
 	root.add_child(guest)
 	await process_frame
 
-	# Existing changed field ability: lantern placement/runtime visual reaches the guest.
-	await reset_pair(host, guest)
-	host.augment_manager.acquire(host, 1, &"lantern")
-	var lantern: LanternAugmentEffect = find_effect(host, 1, &"lantern")
-	lantern.on_position_target(host, 1, AlkkagiBoard.BOARD_RECT.get_center())
-	await sync_snapshot(host, guest)
-	var guest_lantern: LanternAugmentEffect = find_effect(guest, 1, &"lantern")
-	check(guest_lantern != null and guest_lantern.installed, "lantern runtime state reaches guest")
-	check(guest.board.field_visuals.has("lantern_1"), "lantern field visual reaches guest")
-
 	# Gravity runtime and circular field use the same existing snapshot channel.
 	await reset_pair(host, guest)
 	host.augment_manager.acquire(host, 1, &"gravity_field")
 	var gravity: GravityFieldAugmentEffect = find_effect(host, 1, &"gravity_field")
-	gravity.after_shot(host, 1, host.get_pieces()[0])
+	gravity.on_position_target(host, 1, AlkkagiBoard.BOARD_RECT.get_center())
 	await sync_snapshot(host, guest)
 	var guest_gravity: GravityFieldAugmentEffect = find_effect(guest, 1, &"gravity_field")
+	check(guest_gravity.has_center and not guest_gravity.active and guest.board.field_visuals.has("gravity_1"), "installed gravity waits on guest")
+	gravity.after_shot(host, 1, host.get_pieces()[0])
+	await sync_snapshot(host, guest)
+	guest_gravity = find_effect(guest, 1, &"gravity_field")
 	check(guest_gravity != null and guest_gravity.active, "gravity field runtime reaches guest")
 	check(guest.board.field_visuals.has("gravity_1"), "gravity field visual reaches guest")
+	check(not guest_gravity.has_center and guest_gravity.center_position == gravity.center_position, "gravity selected center reaches guest")
+	gravity.on_physics_tick(host, 1, 2.0)
+	await sync_snapshot(host, guest)
+	check(not guest_gravity.active and not guest_gravity.has_center and not guest.board.field_visuals.has("gravity_1"), "completed gravity disappears on guest")
+
+	await reset_pair(host, guest)
+	host.augment_manager.acquire(host, 1, &"greatsword")
+	var host_knight: AlkkagiPiece = host.get_pieces().filter(func(p): return p.owner_id == 1)[0]
+	find_effect(host, 1, &"greatsword").on_piece_target(host, 1, host_knight)
+	await sync_snapshot(host, guest)
+	var guest_sword: GreatswordAugmentEffect = find_effect(guest, 1, &"greatsword")
+	check(guest_sword != null and host_knight.piece_id in guest_sword.knight_ids, "knight designation reaches guest")
+	var host_sword: GreatswordAugmentEffect = find_effect(host, 1, &"greatsword")
+	host_sword.cooldown_left = 0
+	host_sword.after_shot(host, 1, host_knight)
+	await sync_snapshot(host, guest)
+	check(guest_sword.pending_knight_id == host_knight.piece_id, "direct knight shot reaches guest")
+	host_sword.on_pieces_settled(host, 1)
+	await sync_snapshot(host, guest)
+	check(guest_sword.pending_knight_id == -1 and guest_sword.cooldown_left == host_sword.cooldown_left, "knight activation and cooldown reach guest")
 
 	# Stealth keeps physics data while only the opponent viewer hides the target.
 	await reset_pair(host, guest)
@@ -98,7 +112,7 @@ func run_test() -> void:
 	wish.activate_immediate(host, 1)
 	await sync_snapshot(host, guest)
 	var guest_wish: WishAugmentEffect = find_effect(guest, 1, &"wish")
-	check(guest_wish != null and guest_wish.balls == wish.balls and guest_wish.collected == 0, "dragon ball positions and collection count reach guest")
+	check(guest_wish != null and guest_wish.balls == wish.balls and guest_wish.collected == wish.collected, "dragon ball positions and collection count reach guest (host=%d guest=%d)" % [wish.collected, guest_wish.collected])
 	check(guest.board.field_visuals.has("wish_1"), "dragon ball visuals reach guest")
 
 	# Passive train phase and its host-selected warning path share the effect runtime snapshot.

@@ -1,17 +1,22 @@
-[gd_resource type="Resource" script_class="AugmentDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="AugmentDefinition" format=3 uid="uid://da7cduraxcp71"]
 
-[ext_resource type="Script" path="res://scripts/augments/augment_definition.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/augments/effects/gravity_field_effect.gd" id="2"]
+[ext_resource type="Script" uid="uid://v0uwoskghc0d" path="res://scripts/augments/augment_definition.gd" id="1"]
+[ext_resource type="Script" uid="uid://ddaaxk07ujcpl" path="res://scripts/augments/effects/gravity_field_effect.gd" id="2"]
 
 [resource]
 script = ExtResource("1")
 id = &"gravity_field"
 display_name = "중력장"
-description = "발사한 돌 주변에 모든 돌을 끌어당기는 짧은 중력장을 생성합니다."
+description = "턴을 소비하지 않고 중력장을 한 번 설치합니다. 다음 발사에서 반경 200px 안의 모든 돌을 끌어당긴 뒤 사라집니다."
 rarity = 2
 icon_text = "◎"
-kind = 1
-target_mode = 0
-max_uses = -1
-values = {"radius": 125.0, "duration_seconds": 1.6, "pull_force": 960.0}
+kind = 3
+target_mode = 4
+max_uses = 1
+consumes_turn = false
+values = {
+"duration_seconds": 1.6,
+"pull_force": 960.0,
+"radius": 200.0
+}
 effect_script = ExtResource("2")

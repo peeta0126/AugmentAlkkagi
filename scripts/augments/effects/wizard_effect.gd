@@ -2,11 +2,15 @@ class_name WizardAugmentEffect
 extends AugmentEffect
 
 var wizard: AlkkagiPiece
+var designated_id := -1
 
 func on_piece_target(game: Node, player_id: int, piece: AlkkagiPiece) -> bool:
 	if wizard == null:
 		if piece.owner_id != player_id:
 			return false
+		if designated_id != -1 and piece.piece_id != designated_id:
+			return false
+		designated_id = piece.piece_id
 		wizard = piece
 		wizard.transform_as("WIZARD")
 		game.set_skill_hint("화염구로 공격할 상대 알을 선택하세요.")
@@ -24,3 +28,9 @@ func on_piece_target(game: Node, player_id: int, piece: AlkkagiPiece) -> bool:
 
 func cancel_active() -> void:
 	wizard = null
+
+func network_state() -> Dictionary:
+	return {"designated_id": designated_id}
+
+func apply_network_state(_game: Node, state: Dictionary) -> void:
+	designated_id = int(state.get("designated_id", -1))

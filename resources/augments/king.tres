@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"king"
 display_name = "나는 왕이로소이다"
-description = "상대 진영 끝을 찍고 귀환한 돌이 거대한 왕으로 변신하며 첫 적 충돌에 충격파를 냅니다."
+description = "상대 진영 끝에 도착한 아군 돌 하나가 거대한 왕으로 변신하며 첫 적 충돌에 충격파를 냅니다."
 rarity = 2
 icon_text = "王"
 kind = 4
