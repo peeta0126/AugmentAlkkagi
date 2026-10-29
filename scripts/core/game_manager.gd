@@ -275,21 +275,8 @@ func _show_settings() -> void:
 	volume.value = db_to_linear(AudioServer.get_bus_volume_db(0)) * 100.0
 	volume.value_changed.connect(_set_master_volume)
 	screen_root.add_child(volume)
-	var blind_text := _label("실명 암막 세기", 19, Color("dac7ae"))
-	blind_text.position = Vector2(440, 395)
-	blind_text.size = Vector2(150, 35)
-	screen_root.add_child(blind_text)
-	var blind_level := OptionButton.new()
-	blind_level.name = "BlindLevelOption"
-	for level in BlindVisual.LEVELS:
-		blind_level.add_item(str(level.name))
-	blind_level.selected = BlindVisual.load_level()
-	blind_level.position = Vector2(600, 393)
-	blind_level.size = Vector2(240, 36)
-	blind_level.item_selected.connect(BlindVisual.save_level)
-	screen_root.add_child(blind_level)
 	var back := _button("완료", show_main_menu)
-	back.position = Vector2(520, 470)
+	back.position = Vector2(520, 430)
 	back.size = Vector2(240, 58)
 	screen_root.add_child(back)
 
