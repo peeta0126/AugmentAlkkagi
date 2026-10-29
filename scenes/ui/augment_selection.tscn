@@ -52,11 +52,11 @@ vertical_alignment = 1
 [node name="CardArea" type="HBoxContainer" parent="." unique_id=128811604]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 118.0
+offset_left = 40.0
 offset_top = 196.0
-offset_right = 1162.0
+offset_right = 1240.0
 offset_bottom = 606.0
-theme_override_constants/separation = 24
+theme_override_constants/separation = 66
 alignment = 1
 
 [node name="ProgressLabel" type="Label" parent="."]

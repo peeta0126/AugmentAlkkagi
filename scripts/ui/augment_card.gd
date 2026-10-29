@@ -92,7 +92,7 @@ func _build_burst() -> void:
 	_burst.stretch_mode = TextureRect.STRETCH_SCALE
 	_burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_burst.show_behind_parent = true
-	_burst.size = Vector2(470.0, 470.0)
+	_burst.size = Vector2(450.0, 530.0)
 	_burst.pivot_offset = _burst.size * 0.5
 	_burst.modulate.a = 0.0
 	add_child(_burst)
@@ -109,6 +109,7 @@ func _center_burst() -> void:
 func _pop_burst(strength: float) -> void:
 	if _burst == null:
 		return
+	z_index = 10  # 옆 카드에 가리지 않고 폭발이 끝까지 보이게 맨 앞으로
 	if _burst_tween:
 		_burst_tween.kill()
 	_burst.scale = Vector2(0.55, 0.55)
@@ -121,6 +122,7 @@ func _pop_burst(strength: float) -> void:
 func _hide_burst() -> void:
 	if _burst == null:
 		return
+	z_index = 0
 	if _burst_tween:
 		_burst_tween.kill()
 	_burst_tween = create_tween()

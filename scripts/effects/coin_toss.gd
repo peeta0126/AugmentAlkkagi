@@ -1,7 +1,7 @@
 class_name CoinTossVisual
 extends Control
 ## 시작 선공을 정하는 동전 던지기 연출. 결과는 이미 정해져 있고, 이 화면은 보여 주기만 한다.
-## 붓 터치 제목 아래에서 동전이 뒤집히다 떨어지면, 주황 폭발과 함께 선공이 크게 나온다.
+## 붓 터치 제목 아래에서 동전이 뒤집히다 떨어지면 선공이 크게 나온다.
 
 signal finished
 
@@ -22,7 +22,6 @@ var result_getter: Callable
 
 var _sub: Label
 var _swash: TextureRect
-var _burst: TextureRect
 var _shadow: Panel
 
 
@@ -41,17 +40,6 @@ func _ready() -> void:
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vignette)
-
-	_burst = TextureRect.new()
-	_burst.texture = InkStyle.BURST_TEXTURE
-	_burst.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_burst.stretch_mode = TextureRect.STRETCH_SCALE
-	_burst.size = Vector2(470.0, 470.0)
-	_burst.position = Vector2(640.0 - 235.0, GROUND_Y - 235.0 + COIN_SIZE * 0.5)
-	_burst.pivot_offset = _burst.size * 0.5
-	_burst.modulate.a = 0.0
-	_burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_burst)
 
 	_swash = TextureRect.new()
 	_swash.texture = InkStyle.SWASH_TEXTURE
@@ -131,14 +119,10 @@ func play(get_result: Callable) -> void:
 	caption.text = "%s 선공!" % AlkkagiPiece.STONE_NAMES[winner]
 	_sub.text = "먼저 돌을 쏩니다"
 
-	# 착지: 폭발이 터지고, 동전과 제목이 통통 튄다.
-	_burst.scale = Vector2(0.25, 0.25)
-	_burst.rotation = randf_range(-0.1, 0.1)
-	_burst.modulate.a = 1.0
-	var pop := create_tween().set_parallel(true)
-	pop.tween_property(_burst, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	pop.tween_property(coin, "scale", Vector2(1.3, 1.3), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	pop.chain().tween_property(coin, "scale", Vector2.ONE, 0.14)
+	# 착지: 동전이 통통 튀고 제목이 튀어나온다.
+	var pop := create_tween()
+	pop.tween_property(coin, "scale", Vector2(1.2, 1.2), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(coin, "scale", Vector2.ONE, 0.14)
 	var title_pop := create_tween().set_parallel(true)
 	caption.scale = Vector2(0.6, 0.6)
 	_swash.scale = Vector2(0.8, 0.8)
