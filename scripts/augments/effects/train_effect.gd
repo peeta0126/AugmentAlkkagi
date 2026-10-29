@@ -1,40 +1,43 @@
 class_name TrainAugmentEffect
 extends AugmentEffect
 
-enum Phase { FIRST_PASS, PREVIEW, WARNED_PASS }
+## 기차가 지나가기 전에 경로를 먼저 보여 주는 시간(초).
+const WARNING_SECONDS := 1.5
 
-var phase := Phase.FIRST_PASS
+enum Phase { IDLE, WARNING }
+
+var phase := Phase.IDLE
 var warned_path: Dictionary = {}
+var warning_left := 0.0
 
 func on_acquired(game: Node, _player_id: int) -> void:
-	phase = Phase.FIRST_PASS
-	warned_path.clear()
-	if game.board != null:
-		game.board.remove_field_visual(_warning_key())
+	_reset(game)
 
 func on_global_turn_ended(game: Node, _completed_player: int) -> void:
-	match phase:
-		Phase.FIRST_PASS:
-			game.run_train_event_path(game.choose_train_path(), float(definition.values.get("knockback", 760.0)))
-			game.begin_train_movement()
-			phase = Phase.PREVIEW
-		Phase.PREVIEW:
-			warned_path = game.choose_train_path()
-			_show_warning(game)
-			phase = Phase.WARNED_PASS
-		Phase.WARNED_PASS:
-			game.run_train_event_path(warned_path, float(definition.values.get("knockback", 760.0)))
-			game.begin_train_movement()
-			game.board.remove_field_visual(_warning_key())
-			warned_path.clear()
-			phase = Phase.PREVIEW
+	if phase == Phase.WARNING:
+		return
+	warned_path = game.choose_train_path()
+	warning_left = WARNING_SECONDS
+	phase = Phase.WARNING
+	_show_warning(game)
+	game.begin_train_movement()
+
+func on_physics_tick(game: Node, _player_id: int, delta: float) -> void:
+	if phase != Phase.WARNING:
+		return
+	warning_left -= delta
+	if warning_left > 0.0:
+		return
+	var path := warned_path.duplicate()
+	_reset(game)
+	game.run_train_event_path(path, float(definition.values.get("knockback", 760.0)))
+	game.begin_train_movement()
+
+func blocks_turn_resolution() -> bool:
+	return phase == Phase.WARNING
 
 func status_text() -> String:
-	if phase == Phase.WARNED_PASS:
-		return "다음 턴 종료: 예고 경로 통과"
-	if phase == Phase.FIRST_PASS:
-		return "다음 턴 종료: 첫 기차 통과"
-	return "다음 턴 종료: 경로 예고"
+	return "경로 예고 중 · 곧 통과" if phase == Phase.WARNING else "다음 턴 종료: 경로 예고 후 통과"
 
 func show_in_passive_hud() -> bool:
 	return true
@@ -43,11 +46,18 @@ func network_state() -> Dictionary:
 	return {"phase": phase, "path": warned_path.duplicate()}
 
 func apply_network_state(game: Node, state: Dictionary) -> void:
-	phase = int(state.get("phase", Phase.FIRST_PASS)) as Phase
+	phase = int(state.get("phase", Phase.IDLE)) as Phase
 	warned_path = state.get("path", {}).duplicate()
-	if phase == Phase.WARNED_PASS and not warned_path.is_empty():
+	if phase == Phase.WARNING and not warned_path.is_empty():
 		_show_warning(game)
 	else:
+		game.board.remove_field_visual(_warning_key())
+
+func _reset(game: Node) -> void:
+	phase = Phase.IDLE
+	warned_path.clear()
+	warning_left = 0.0
+	if game.board != null:
 		game.board.remove_field_visual(_warning_key())
 
 func _show_warning(game: Node) -> void:

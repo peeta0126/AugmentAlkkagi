@@ -28,6 +28,8 @@ func reset_pair(host: Node, guest: Node) -> void:
 	await process_frame
 
 func sync_snapshot(host: Node, guest: Node) -> void:
+	var was_processing := host.is_physics_processing()
+	host.set_physics_process(false)
 	var snapshot: Dictionary = host.create_network_snapshot()
 	var effects: Dictionary = snapshot["effects"]
 	var walls: PackedFloat32Array = snapshot["walls"]
@@ -36,6 +38,7 @@ func sync_snapshot(host: Node, guest: Node) -> void:
 	guest.apply_network_snapshot(snapshot, 0.05)
 	guest.apply_network_extras(effects, walls)
 	await process_frame
+	host.set_physics_process(was_processing)
 
 func run_test() -> void:
 	var host := (load("res://scenes/main.tscn") as PackedScene).instantiate()
@@ -120,10 +123,9 @@ func run_test() -> void:
 	host.augment_manager.acquire(host, 1, &"train")
 	var host_train: TrainAugmentEffect = find_effect(host, 1, &"train")
 	host_train.on_global_turn_ended(host, 1)
-	host_train.on_global_turn_ended(host, 2)
 	await sync_snapshot(host, guest)
 	var guest_train: TrainAugmentEffect = find_effect(guest, 1, &"train")
-	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNED_PASS, "train passive phase reaches guest")
+	check(guest_train != null and guest_train.phase == TrainAugmentEffect.Phase.WARNING, "train passive phase reaches guest")
 	check(guest_train.warned_path == host_train.warned_path and guest.board.field_visuals.has("train_warning_1"), "host-selected train warning path reaches guest")
 
 	# Blindness is synchronized as state but rendered only for the targeted local viewer.

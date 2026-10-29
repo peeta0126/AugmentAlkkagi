@@ -46,7 +46,7 @@ func run_test() -> void:
 	(find_effect(host, 1, &"earthquake") as EarthquakeAugmentEffect).activate_immediate(host, 1)
 	(find_effect(host, 1, &"wish") as WishAugmentEffect).activate_immediate(host, 1)
 	var train := find_effect(host, 1, &"train") as TrainAugmentEffect
-	train.phase = TrainAugmentEffect.Phase.PREVIEW
+	train.phase = TrainAugmentEffect.Phase.IDLE
 	train.on_global_turn_ended(host, 1)
 	var target: AlkkagiPiece
 	for piece in host.get_pieces():

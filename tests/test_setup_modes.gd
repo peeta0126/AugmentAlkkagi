@@ -69,13 +69,14 @@ func _test_mode_combination(refresh_enabled: bool, chaos_enabled: bool) -> void:
 				if refresh_enabled and player_id == 1:
 					check(game.selection_refresh_used, "refresh usage persists across chaos picks")
 	check(game.augment_manager.owned[1].size() == expected_picks and game.augment_manager.owned[2].size() == expected_picks, "mode grants exact augment count")
-	check(game.current_player == 1 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "selection completion preserves the shooter's turn")
+	var first_shooter: int = game.current_player
+	check(first_shooter in [1, 2] and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "selection completion starts with the coin-toss winner's turn")
 	# Isolate the ordinary turn transition from randomly selected active/passive effects.
 	game.augment_manager.effects[1].clear()
 	game.augment_manager.effects[2].clear()
 	game.state_machine.transition(GameStateMachine.State.PIECES_MOVING)
 	game.resolve_turn()
-	check(game.current_player == 2 and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "turn changes only after shot resolution")
+	check(game.current_player == (2 if first_shooter == 1 else 1) and game.state_machine.current == GameStateMachine.State.PLAYER_AIMING, "turn changes only after shot resolution")
 	game.queue_free()
 	await process_frame
 

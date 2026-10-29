@@ -67,6 +67,9 @@ func run_test() -> void:
 		if piece.owner_id == 1 and piece.fragment_factor < 1.0:
 			check(piece.sonic_trail, "triple-shot fragments inherit sonic trail")
 	check(not triple.armed, "triple shot disarms after the next shot")
+	for piece in game.get_pieces():
+		if piece.owner_id == 1 and piece.fragment_factor < 1.0:
+			check(piece.linear_velocity.length() > 200.0, "triple-shot fragments leave at about 70 percent of the shot speed")
 
 	# 02 타임 프리즈: 동결, 무적, 지속 종료를 검증한다.
 	await reset_game(game)
@@ -256,13 +259,14 @@ func run_test() -> void:
 	var train: TrainAugmentEffect = find_effect(game, 1, &"train")
 	check(not game.augment_manager.active_effects(1).has(train), "train is passive and is absent from active skill buttons")
 	train.on_global_turn_ended(game, 1)
-	check(train.phase == TrainAugmentEffect.Phase.PREVIEW, "train passes on the first global turn after acquisition")
-	train.on_global_turn_ended(game, 2)
-	check(train.phase == TrainAugmentEffect.Phase.WARNED_PASS and game.board.field_visuals.has("train_warning_1"), "train alternates into a synchronized route warning")
+	check(train.phase == TrainAugmentEffect.Phase.WARNING and game.board.field_visuals.has("train_warning_1"), "train shows its route before passing")
+	check(train.blocks_turn_resolution(), "turn does not resolve while the train route is being previewed")
 	var warned_path := train.warned_path.duplicate()
-	train.on_global_turn_ended(game, 1)
-	check(train.phase == TrainAugmentEffect.Phase.PREVIEW and train.warned_path.is_empty() and not game.board.field_visuals.has("train_warning_1"), "warned train path passes and clears its preview")
 	check(not warned_path.is_empty(), "train warning retains a concrete host-selected route until passage")
+	train.on_physics_tick(game, 1, TrainAugmentEffect.WARNING_SECONDS - 0.1)
+	check(train.phase == TrainAugmentEffect.Phase.WARNING, "train keeps warning until 1.5 seconds have passed")
+	train.on_physics_tick(game, 1, 0.2)
+	check(train.phase == TrainAugmentEffect.Phase.IDLE and train.warned_path.is_empty() and not game.board.field_visuals.has("train_warning_1"), "train passes after the warning and clears its preview")
 
 	# 16 눈보라: 획득 즉시 적용하고 세 사이클 뒤 종료한다.
 	await reset_game(game)

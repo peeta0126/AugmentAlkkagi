@@ -517,9 +517,23 @@ func activate_gameplay_after_placement() -> void:
 	for piece in get_pieces():
 		piece.modulate = Color.WHITE
 		piece.freeze = online_mode and not online_is_host
+	var toss_result := ""
+	if not online_mode or online_is_host:
+		# 동전 던지기: 먼저 쏘는 쪽을 호스트(또는 로컬)가 정하고, 참가자는 스냅샷으로 받는다.
+		current_player = 1 if augment_manager.rng.randi() % 2 == 0 else 2
+		toss_result = "동전 던지기 · %s 선공 · " % AlkkagiPiece.STONE_NAMES[current_player]
 	build_hud()
 	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
-	update_hud("증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
+	update_hud(toss_result + "증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
+	_play_coin_toss()
+
+# 동전이 도는 동안 화면 입력을 막고, 끝에서 정해진 선공을 보여 준다(참가자는 그 시점의 current_player를 읽는다).
+func _play_coin_toss() -> void:
+	if hud == null or not is_instance_valid(hud):
+		return
+	var toss := CoinTossVisual.new()
+	hud.add_child(toss)
+	toss.play(func() -> int: return current_player)
 
 func _show_placement_ui() -> void:
 	var placement_ui := PiecePlacementScene.instantiate()
