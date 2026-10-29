@@ -350,3 +350,31 @@ static func wrap_korean(text: String, font: Font, font_size: int, width: float) 
 static func set_wrapped(label: Label, text: String, width: float) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	label.text = wrap_korean(text, label.get_theme_font("font"), label.get_theme_font_size("font_size"), width)
+
+
+## 아이콘과 글자를 한 덩어리로 묶어 버튼 정중앙에 놓는다(글자가 바뀌지 않는 버튼 전용).
+static func button_icon_centered(button: Button, icon: Texture2D, icon_size: float = 34.0) -> void:
+	var text := button.text
+	button.text = ""
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var picture := TextureRect.new()
+	picture.texture = icon
+	picture.custom_minimum_size = Vector2(icon_size, icon_size)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(picture)
+	var label := Label.new()
+	label.text = text
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", button.get_theme_font_size("font_size"))
+	label.add_theme_color_override("font_color", button.get_theme_color("font_color"))
+	row.add_child(label)
+	button.add_child(row)
+	button.draw.connect(func(): row.modulate = Color(1, 1, 1, 0.45 if button.disabled else 1.0))

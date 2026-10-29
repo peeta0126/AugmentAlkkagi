@@ -69,15 +69,20 @@ func _apply_style() -> void:
 	description_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	trigger_label.add_theme_color_override("font_color", InkStyle.TAN)
 	InkStyle.style_button(select_button, 22)
-	InkStyle.button_icon(select_button, InkStyle.ICON_SWORDS, 30)
-	select_button.custom_minimum_size = Vector2(0, 56)
+	InkStyle.button_icon_centered(select_button, InkStyle.ICON_SWORDS, 32.0)
+	select_button.custom_minimum_size = Vector2(0, 66)
 
 
 func _apply_definition() -> void:
 	icon.setup(_definition)
 	name_label.text = _definition.display_name
-	var length := _definition.display_name.length()
-	InkStyle.outline_label(name_label, 30 if length <= 6 else (26 if length <= 9 else 22), InkStyle.CREAM, 9)
+	# 이름이 한 줄에 들어가는 가장 큰 글자 크기를 고른다(이름 중간에서 줄이 바뀌지 않게).
+	var name_font := name_label.get_theme_font("font")
+	var name_size := 30
+	while name_size > 18 and name_font.get_string_size(_definition.display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, name_size).x > 168.0:
+		name_size -= 1
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	InkStyle.outline_label(name_label, name_size, InkStyle.CREAM, 9)
 	rarity_label.text = "%s · %s" % [_definition.rarity_name(), _definition.kind_name()]
 	_rewrap_description()
 	trigger_label.text = _definition.trigger_description
