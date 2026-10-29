@@ -3,9 +3,9 @@ extends Control
 
 ## 접근성: 실명 암막의 세기. 내 화면에서 보이는 정도만 바꾸고 게임 규칙은 그대로다.
 const LEVELS := [
-	{"name": "약하게", "radius": 120.0, "alpha": 0.72},
-	{"name": "보통", "radius": 82.0, "alpha": 0.96},
-	{"name": "강하게", "radius": 60.0, "alpha": 0.99},
+	{"name": "약하게", "radius": 40.0, "alpha": 0.82},
+	{"name": "보통", "radius": 26.0, "alpha": 0.96},
+	{"name": "강하게", "radius": 20.0, "alpha": 0.995},
 ]
 const DEFAULT_LEVEL := 1
 const SETTINGS_PATH := "user://settings.cfg"

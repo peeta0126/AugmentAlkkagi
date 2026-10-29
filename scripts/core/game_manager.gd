@@ -83,6 +83,7 @@ var next_wall_id := 1
 var skill_targeting_snapshot_logged := false
 var blind_material: ShaderMaterial
 var blind_visual: BlindVisual
+var blind_hiding := false
 var shot_opponent_count_before := -1
 var bonus_turn_active := false
 var train_followup_resolution := false
@@ -534,6 +535,15 @@ func activate_gameplay_after_placement() -> void:
 	build_hud()
 	state_machine.transition(GameStateMachine.State.PLAYER_AIMING)
 	update_hud(toss_result + "증강 선택 완료 · 같은 플레이어가 돌을 발사합니다.")
+	_play_coin_toss()
+
+# 동전이 도는 동안 화면 입력을 막고, 끝에서 정해진 선공을 보여 준다(참가자는 그 시점의 current_player를 읽는다).
+func _play_coin_toss() -> void:
+	if hud == null or not is_instance_valid(hud):
+		return
+	var toss := CoinTossVisual.new()
+	hud.add_child(toss)
+	toss.play(func() -> int: return current_player)
 
 func _show_placement_ui() -> void:
 	var placement_ui := PiecePlacementScene.instantiate()
@@ -967,6 +977,10 @@ func cancel_aim() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_blind_centers()
+	var blind_now := blind_visual != null and is_instance_valid(blind_visual)
+	if blind_now or blind_hiding:
+		blind_hiding = blind_now
+		update_piece_visibility()
 	if state_machine == null or state_machine.current not in [GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
 		return
 	if online_mode and not online_is_host:
@@ -1628,8 +1642,10 @@ func _update_blind_centers() -> void:
 
 func update_piece_visibility() -> void:
 	var viewer := local_player_id if online_mode else current_player
+	# 실명 중에는 내 돌만 보이고 상대 돌은 모두 숨긴다.
+	var blinded := blind_visual != null and is_instance_valid(blind_visual)
 	for piece: AlkkagiPiece in get_pieces():
-		piece.visible = piece.hidden_from_player == 0 or piece.hidden_from_player != viewer
+		piece.visible = (piece.hidden_from_player == 0 or piece.hidden_from_player != viewer) and (not blinded or piece.owner_id == viewer)
 
 func _sync_network_walls(states: PackedFloat32Array) -> void:
 	var signature := str(states)

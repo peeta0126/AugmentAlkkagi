@@ -3,13 +3,13 @@
 [ext_resource type="Script" path="res://scripts/effects/blind.gd" id="1_script"]
 
 [sub_resource type="Shader" id="Shader_blind"]
-code = "shader_type canvas_item;\nuniform vec2 centers[16];\nuniform int center_count = 0;\nuniform vec2 board_size = vec2(504.0, 540.0);\nuniform float sight_radius : hint_range(35.0, 160.0, 1.0) = 82.0;\nuniform vec4 veil_color : source_color = vec4(0.005, 0.004, 0.003, 0.96);\nvoid fragment(){\n float visible_area = 0.0;\n for(int i = 0; i < 16; i++){\n  if(i < center_count){\n   float d = length((UV - centers[i]) * board_size);\n   visible_area = max(visible_area, 1.0 - smoothstep(sight_radius * 0.78, sight_radius, d));\n  }\n }\n COLOR = vec4(veil_color.rgb, veil_color.a * (1.0 - visible_area));\n}"
+code = "shader_type canvas_item;\nuniform vec2 centers[16];\nuniform int center_count = 0;\nuniform vec2 board_size = vec2(504.0, 540.0);\nuniform float sight_radius : hint_range(10.0, 160.0, 1.0) = 26.0;\nuniform vec4 veil_color : source_color = vec4(0.005, 0.004, 0.003, 0.96);\nvoid fragment(){\n float visible_area = 0.0;\n for(int i = 0; i < 16; i++){\n  if(i < center_count){\n   float d = length((UV - centers[i]) * board_size);\n   visible_area = max(visible_area, 1.0 - smoothstep(sight_radius * 0.85, sight_radius, d));\n  }\n }\n COLOR = vec4(veil_color.rgb, veil_color.a * (1.0 - visible_area));\n}"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_blind"]
 shader = SubResource("Shader_blind")
 shader_parameter/center_count = 0
 shader_parameter/board_size = Vector2(504, 540)
-shader_parameter/sight_radius = 82.0
+shader_parameter/sight_radius = 26.0
 shader_parameter/veil_color = Color(0.005, 0.004, 0.003, 0.96)
 
 [node name="Blind" type="Control"]
