@@ -286,18 +286,22 @@ func _set_master_volume(value: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(value / 100.0, 0.0001)))
 
 func _create_online_room() -> void:
-	if not screen_root is OnlineLobby:
-		state_machine.transition(GameStateMachine.State.JOIN_ROOM)
-		var lobby := _create_online_lobby_scene()
+	state_machine.transition(GameStateMachine.State.LOBBY)
+	var lobby: OnlineLobby
+	if screen_root is OnlineLobby:
+		lobby = screen_root as OnlineLobby
+	else:
+		lobby = _create_online_lobby_scene()
 		set_screen(lobby)
-		lobby.show_join()
-		network_status_label = lobby.status_label
+	lobby.show_lobby("------", true, "방장 · 흑돌", AlkkagiPiece.OWNER_COLORS[1])
+	network_status_label = lobby.status_label
 	var error: Error = network_manager.create_online_room()
 	if error == OK:
 		online_mode = true
 		online_is_host = true
 		local_player_id = 1
-		_show_network_lobby()
+		lobby.set_room_code(network_manager.get_room_code())
+		lobby.update_status("온라인 방 %s 생성 중…" % network_manager.get_room_code(), false)
 
 func _show_online_join_room() -> void:
 	state_machine.transition(GameStateMachine.State.JOIN_ROOM)

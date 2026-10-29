@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://cair2j0gxxgmx"]
 
 [ext_resource type="Script" uid="uid://beqavmvxtpn7v" path="res://scripts/ui/online_lobby.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://b827ajq371ovm" path="res://assets/ui/online_lobby_ui_sheet.png" id="2_ui_sheet"]
+[ext_resource type="Texture2D" uid="uid://ei38g3lkpwhy" path="res://assets/ui/lobby_board.png" id="3_board"]
+[ext_resource type="Texture2D" uid="uid://c7tgne50qrpcj" path="res://assets/ui/online_lobby_exit_button.png" id="4_exit_icon"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.180392, 0.109804, 0.0745098, 0.98)
@@ -28,67 +31,82 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
-bg_color = Color(0.439216, 0.27451, 0.180392, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.611765, 0.419608, 0.262745, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_button"]
+texture = ExtResource("2_ui_sheet")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+region_rect = Rect2(48, 418, 398, 90)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
-bg_color = Color(0.337255, 0.203922, 0.129412, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.945098, 0.772549, 0.498039, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_button_pressed"]
+texture = ExtResource("2_ui_sheet")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+region_rect = Rect2(466, 522, 403, 91)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-bg_color = Color(0.584314, 0.380392, 0.235294, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.878431, 0.678431, 0.407843, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_button_hover"]
+texture = ExtResource("2_ui_sheet")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+region_rect = Rect2(48, 522, 401, 91)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
-bg_color = Color(0.231373, 0.188235, 0.168627, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.341176, 0.294118, 0.270588, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_button_disabled"]
+texture = ExtResource("2_ui_sheet")
+texture_margin_left = 22.0
+texture_margin_top = 20.0
+texture_margin_right = 22.0
+texture_margin_bottom = 20.0
+region_rect = Rect2(1321, 418, 410, 90)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_players"]
-bg_color = Color(0.105882, 0.0705882, 0.054902, 0.9)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.356863, 0.25098, 0.180392, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+[sub_resource type="AtlasTexture" id="AtlasTexture_title"]
+atlas = ExtResource("2_ui_sheet")
+region = Rect2(18, 78, 818, 154)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_room_code"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.956863, 0.843137, 0.603922, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_nxppd"]
+load_path = "res://.godot/imported/online_lobby_ui_sheet.png-81972476e33c27cfaea651b6d7078a7f.ctex"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_copy"]
+atlas = SubResource("CompressedTexture2D_nxppd")
+region = Rect2(309, 744, 97.62393, 102.614624)
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_card"]
+texture = ExtResource("2_ui_sheet")
+texture_margin_left = 24.0
+texture_margin_top = 22.0
+texture_margin_right = 24.0
+texture_margin_bottom = 22.0
+region_rect = Rect2(47, 278, 522, 130)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_black_piece"]
+atlas = ExtResource("2_ui_sheet")
+region = Rect2(31, 744, 120, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_white_piece"]
+atlas = ExtResource("2_ui_sheet")
+region = Rect2(164, 744, 123, 112)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_start"]
+atlas = ExtResource("2_ui_sheet")
+region = Rect2(565, 744, 104.267456, 104.484375)
 
 [node name="OnlineLobby" type="Control" unique_id=137693115]
 layout_mode = 3
@@ -99,7 +117,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="." unique_id=1633963371]
+[node name="Background" type="TextureRect" parent="." unique_id=1633963371]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -108,7 +126,9 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.160784, 0.0980392, 0.0666667, 1)
+texture = ExtResource("3_board")
+expand_mode = 1
+stretch_mode = 6
 
 [node name="SafeMargin" type="MarginContainer" parent="." unique_id=2121578596]
 layout_mode = 1
@@ -117,19 +137,30 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 82
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
-[node name="ScreenCenter" type="CenterContainer" parent="SafeMargin" unique_id=601850299]
+[node name="ScreenCenter" type="Control" parent="SafeMargin" unique_id=601850299]
 layout_mode = 2
 
 [node name="JoinPanel" type="PanelContainer" parent="SafeMargin/ScreenCenter" unique_id=1376555428]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(560, 460)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -230.0
+offset_right = 280.0
+offset_bottom = 230.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="Margin" type="MarginContainer" parent="SafeMargin/ScreenCenter/JoinPanel" unique_id=1588500323]
@@ -187,10 +218,10 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(205, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "새 방 만들기"
 
@@ -199,10 +230,10 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(205, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "방 코드 참가"
 
@@ -212,181 +243,375 @@ custom_minimum_size = Vector2(240, 54)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "뒤로"
 
 [node name="LobbyPanel" type="PanelContainer" parent="SafeMargin/ScreenCenter" unique_id=728339991]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(680, 555)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_focus")
 
 [node name="Margin" type="MarginContainer" parent="SafeMargin/ScreenCenter/LobbyPanel" unique_id=1946735356]
 layout_mode = 2
-theme_override_constants/margin_left = 44
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 44
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
-[node name="Content" type="VBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin" unique_id=1791084048]
+[node name="Content" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin" unique_id=1791084048]
 layout_mode = 2
-theme_override_constants/separation = 10
+
+[node name="LobbyTitleArt" type="TextureRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=1831154420]
+custom_minimum_size = Vector2(1160, 170)
+layout_mode = 1
+offset_left = 60.0
+offset_top = 5.0
+offset_right = 1220.0
+offset_bottom = 175.0
+texture = SubResource("AtlasTexture_title")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="LobbyTitleLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=551658888]
 unique_name_in_owner = true
+visible = false
 custom_minimum_size = Vector2(0, 54)
-layout_mode = 2
+layout_mode = 1
+offset_right = 1280.0
+offset_bottom = 54.0
 theme_override_colors/font_color = Color(0.956863, 0.843137, 0.603922, 1)
 theme_override_font_sizes/font_size = 40
 text = "온라인 대전 로비"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="RoomCodeLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=1930247907]
+[node name="RoomCodeBox" type="Panel" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=812019331]
+custom_minimum_size = Vector2(420, 64)
+layout_mode = 1
+offset_left = 430.0
+offset_top = 180.0
+offset_right = 850.0
+offset_bottom = 244.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_room_code")
+
+[node name="RoomCodeLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/RoomCodeBox" unique_id=1930247907]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
+custom_minimum_size = Vector2(335, 64)
+layout_mode = 1
+offset_left = 8.0
+offset_right = 343.0
+offset_bottom = 64.0
 theme_override_colors/font_color = Color(1, 0.756863, 0.364706, 1)
-theme_override_font_sizes/font_size = 25
+theme_override_font_sizes/font_size = 27
 text = "방 코드  123456"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="RoomCodeDivider" type="ColorRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/RoomCodeBox" unique_id=812019332]
+custom_minimum_size = Vector2(2, 42)
+layout_mode = 1
+offset_left = 344.0
+offset_top = 11.0
+offset_right = 346.0
+offset_bottom = 53.0
+mouse_filter = 2
+color = Color(0.956863, 0.843137, 0.603922, 1)
+
+[node name="RoomCodeCopyButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/RoomCodeBox" unique_id=922857792]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 56)
+layout_mode = 1
+offset_left = 350.0
+offset_top = 4.0
+offset_right = 414.0
+offset_bottom = 60.0
+theme_override_styles/normal = SubResource("StyleBoxEmpty_focus")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_focus")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_focus")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_focus")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+flat = true
+
+[node name="RoomCodeCopyGlyph" type="TextureRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/RoomCodeBox/RoomCodeCopyButton" unique_id=812019333]
+custom_minimum_size = Vector2(36, 40)
+layout_mode = 1
+offset_left = 14.0
+offset_top = 8.0
+offset_right = 50.0
+offset_bottom = 48.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_copy")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LeaveButton" type="TextureButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=38175551]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 96)
+layout_mode = 1
+offset_left = 1164.0
+offset_top = 18.0
+offset_right = 1260.0
+offset_bottom = 114.0
+texture_normal = ExtResource("4_exit_icon")
+ignore_texture_size = true
+stretch_mode = 0
+
 [node name="RoleLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=441255826]
 unique_name_in_owner = true
+visible = false
 custom_minimum_size = Vector2(0, 34)
-layout_mode = 2
+layout_mode = 1
+offset_right = 1280.0
+offset_bottom = 34.0
 theme_override_colors/font_color = Color(1, 0.298039, 0.25098, 1)
 theme_override_font_sizes/font_size = 22
 text = "방장 · 흑돌"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="ParticipantsPanel" type="PanelContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=904459337]
-custom_minimum_size = Vector2(0, 100)
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_players")
+[node name="ParticipantsPanel" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=904459337]
+custom_minimum_size = Vector2(1080, 130)
+layout_mode = 1
+anchors_preset = 0
+offset_left = 100.0
+offset_top = 260.0
+offset_right = 1180.0
+offset_bottom = 390.0
 
-[node name="PlayersLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel" unique_id=192533741]
+[node name="HostPanel" type="Panel" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel" unique_id=218655240]
+custom_minimum_size = Vector2(525, 130)
+layout_mode = 1
+offset_right = 525.0
+offset_bottom = 130.0
+theme_override_styles/panel = SubResource("StyleBoxTexture_card")
+
+[node name="HostInfo" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/HostPanel" unique_id=2047005889]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="BlackPieceIcon" type="TextureRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/HostPanel/HostInfo" unique_id=1092053903]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 1
+offset_left = 22.0
+offset_top = 29.0
+offset_right = 106.0
+offset_bottom = 113.0
+texture = SubResource("AtlasTexture_black_piece")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BlackPlayerLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/HostPanel/HostInfo" unique_id=1553870642]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.933333, 0.890196, 0.811765, 1)
-theme_override_font_sizes/font_size = 20
-text = "방장  · 흑돌 · 준비
-참가자 · 백돌 · 접속 대기"
+custom_minimum_size = Vector2(390, 108)
+layout_mode = 1
+offset_left = 118.0
+offset_top = 11.0
+offset_right = 510.0
+offset_bottom = 119.0
+theme_override_colors/font_color = Color(0.968627, 0.92549, 0.839216, 1)
+theme_override_font_sizes/font_size = 27
+text = "방장 · 흑돌
+대기"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="PieceSettings" type="HBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=389428944]
+[node name="GuestPanel" type="Panel" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel" unique_id=506314635]
+custom_minimum_size = Vector2(525, 130)
+layout_mode = 1
+offset_left = 555.0
+offset_right = 1080.0
+offset_bottom = 130.0
+theme_override_styles/panel = SubResource("StyleBoxTexture_card")
+
+[node name="GuestInfo" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/GuestPanel" unique_id=548668022]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="WhitePieceIcon" type="TextureRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/GuestPanel/GuestInfo" unique_id=1292268124]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 1
+offset_left = 22.0
+offset_top = 29.0
+offset_right = 106.0
+offset_bottom = 113.0
+texture = SubResource("AtlasTexture_white_piece")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="WhitePlayerLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ParticipantsPanel/GuestPanel/GuestInfo" unique_id=1557470916]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 52)
-layout_mode = 2
-theme_override_constants/separation = 15
-alignment = 1
+custom_minimum_size = Vector2(390, 108)
+layout_mode = 1
+offset_left = 118.0
+offset_top = 11.0
+offset_right = 510.0
+offset_bottom = 119.0
+theme_override_colors/font_color = Color(0.968627, 0.92549, 0.839216, 1)
+theme_override_font_sizes/font_size = 27
+text = "참가자 · 백돌
+접속 대기"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="PieceSettings" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=389428944]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 60)
+layout_mode = 1
+anchors_preset = 0
+offset_left = 430.0
+offset_top = 400.0
+offset_right = 850.0
+offset_bottom = 460.0
 
 [node name="DecreasePieceButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/PieceSettings" unique_id=143915811]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(62, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+custom_minimum_size = Vector2(68, 56)
+layout_mode = 1
+offset_top = 2.0
+offset_right = 68.0
+offset_bottom = 58.0
+theme_override_font_sizes/font_size = 23
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "◀"
 
 [node name="PieceCountLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/PieceSettings" unique_id=1344204233]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 48)
-layout_mode = 2
+custom_minimum_size = Vector2(252, 56)
+layout_mode = 1
+offset_left = 84.0
+offset_top = 2.0
+offset_right = 336.0
+offset_bottom = 58.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 25
 text = "시작 바둑알 5개"
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="IncreasePieceButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/PieceSettings" unique_id=194727428]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(62, 48)
-layout_mode = 2
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+custom_minimum_size = Vector2(68, 56)
+layout_mode = 1
+offset_left = 352.0
+offset_top = 2.0
+offset_right = 420.0
+offset_bottom = 58.0
+theme_override_font_sizes/font_size = 23
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "▶"
 
-[node name="ModeSettings" type="HBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 24
+[node name="ModeSettings" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=1633243087]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 350.0
+offset_top = 470.0
+offset_right = 870.0
+offset_bottom = 520.0
 
-[node name="RefreshModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings"]
+[node name="RefreshModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings" unique_id=348123490]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(220, 42)
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
+custom_minimum_size = Vector2(260, 48)
+layout_mode = 1
+offset_right = 260.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 21
 text = "새로고침 모드"
 
-[node name="ChaosModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings"]
+[node name="ChaosModeToggle" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/ModeSettings" unique_id=494070549]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 42)
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
+custom_minimum_size = Vector2(220, 48)
+layout_mode = 1
+offset_left = 285.0
+offset_right = 505.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 21
 text = "혼돈 모드"
 
-[node name="ModeDescriptionLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content"]
+[node name="ModeDescriptionLabel" type="Label" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=481233599]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 30)
-layout_mode = 2
+visible = false
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 1
+offset_top = 530.0
+offset_right = 1280.0
+offset_bottom = 556.0
 theme_override_colors/font_color = Color(0.945, 0.772, 0.498, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 18
 text = "증강 1개 선택"
 horizontal_alignment = 1
 
-[node name="LobbyActions" type="HBoxContainer" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=452327282]
-layout_mode = 2
-theme_override_constants/separation = 20
-alignment = 1
+[node name="BottomActions" type="Control" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=448112177]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 360.0
+offset_top = 565.0
+offset_right = 920.0
+offset_bottom = 655.0
 
-[node name="ReadyButton" type="CheckButton" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/LobbyActions" unique_id=1688430085]
+[node name="ReadyButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/BottomActions" unique_id=1688430085]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 54)
-layout_mode = 2
-theme_override_font_sizes/font_size = 21
+layout_mode = 1
+offset_right = 270.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 23
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+toggle_mode = true
 text = "준비"
 
-[node name="LeaveButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=38175551]
+[node name="StartButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/BottomActions" unique_id=1315369687]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 54)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-text = "방 나가기"
-
-[node name="StartButton" type="Button" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content" unique_id=1315369687]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 54)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 19
-theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+layout_mode = 1
+offset_left = 290.0
+offset_right = 560.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 23
+theme_override_styles/normal = SubResource("StyleBoxTexture_button")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxTexture_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxTexture_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "게임 시작"
+
+[node name="StartIcon" type="TextureRect" parent="SafeMargin/ScreenCenter/LobbyPanel/Margin/Content/BottomActions/StartButton" unique_id=812019334]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 1
+offset_left = 18.0
+offset_top = 16.0
+offset_right = 66.0
+offset_bottom = 64.0
+mouse_filter = 2
+texture = SubResource("AtlasTexture_start")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="StatusLabel" type="Label" parent="." unique_id=1435887270]
 unique_name_in_owner = true
@@ -396,13 +621,13 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 220.0
-offset_top = -68.0
+offset_top = -30.0
 offset_right = -220.0
-offset_bottom = -28.0
+offset_bottom = -6.0
 grow_horizontal = 2
 grow_vertical = 0
 theme_override_colors/font_color = Color(0.913725, 0.788235, 0.603922, 1)
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 16
 text = "GD-Sync 온라인 · 최대 2명"
 horizontal_alignment = 1
 vertical_alignment = 1
