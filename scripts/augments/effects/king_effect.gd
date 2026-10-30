@@ -4,6 +4,7 @@ extends AugmentEffect
 var transformed_once := false
 
 func on_physics_tick(game: Node, player_id: int, _delta: float) -> void:
+	_check_touching_enemy(game, player_id)
 	if transformed_once:
 		return
 	var rect: Rect2 = AlkkagiBoard.BOARD_RECT
@@ -25,9 +26,34 @@ func network_state() -> Dictionary:
 func apply_network_state(_game: Node, state: Dictionary) -> void:
 	transformed_once = bool(state.get("transformed_once", false))
 
+## 내 차례가 시작될 때마다 왕의 충격파가 다시 채워진다(차례마다 첫 적 충돌에서 한 번).
+func on_owner_cycle(game: Node) -> void:
+	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.owner_id == owner_id and piece.transformation == "KING" and not piece.king_shockwave_available:
+			piece.king_shockwave_available = true
+			piece.refresh_physics()
+
 func on_piece_collision(game: Node, player_id: int, piece: AlkkagiPiece, other: AlkkagiPiece) -> void:
 	if piece.owner_id != player_id or other.owner_id == player_id or piece.transformation != "KING" or not piece.king_shockwave_available:
 		return
+	_trigger_shockwave(game, piece)
+
+## 왕이 움직이는 도중 이미 맞닿아 있던 적 돌을 밀 때는 새 접촉 신호가 오지 않는다.
+## 그래서 움직이는 왕이 적 돌에 닿아 있으면 첫 충돌로 보고 충격파를 터뜨린다.
+func _check_touching_enemy(game: Node, player_id: int) -> void:
+	for piece: AlkkagiPiece in game.get_pieces():
+		if piece.owner_id != player_id or piece.transformation != "KING" or not piece.king_shockwave_available:
+			continue
+		if piece.linear_velocity.length() < 30.0:
+			continue
+		for other: AlkkagiPiece in game.get_pieces():
+			if other.owner_id == player_id:
+				continue
+			if piece.position.distance_to(other.position) <= piece.visual_radius + other.visual_radius + 3.0:
+				_trigger_shockwave(game, piece)
+				break
+
+func _trigger_shockwave(game: Node, piece: AlkkagiPiece) -> void:
 	piece.king_shockwave_available = false
 	piece.refresh_physics()
 	var radius := float(definition.values.get("shockwave_radius", 78.0))

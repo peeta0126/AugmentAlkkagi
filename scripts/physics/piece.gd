@@ -499,7 +499,12 @@ func _draw() -> void:
 	if transformation != "":
 		var mark_color := Color("ff784f") if transformation == "WIZARD" else Color("f4ce73")
 		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, Color("1c1512"), 4.6)
-		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, Color("c487ff") if transformation == "WIZARD" else Color("ff9a2e"), 2.2)
+		var ring_color := Color("ff9a2e")
+		if transformation == "WIZARD":
+			ring_color = Color("c487ff")
+		elif transformation not in ["KING", "KNIGHT"]:
+			ring_color = Color("2f8a55") if owner_id == 1 else Color("c93a2b")  # 장기말: 초는 초록, 한은 붉은색
+		draw_arc(Vector2.ZERO, visual_radius + 3.0, 0.0, TAU, 28, ring_color, 2.2)
 		if transformation in ["WIZARD", "KNIGHT"]:
 			_draw_transformation_mark(mark_color)
 

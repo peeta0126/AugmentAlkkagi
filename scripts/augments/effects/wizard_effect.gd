@@ -21,7 +21,6 @@ func on_piece_target(game: Node, player_id: int, piece: AlkkagiPiece) -> bool:
 	piece.sleeping = false
 	piece.apply_central_impulse(direction * float(definition.values.get("knockback", 420.0)))
 	game.animate_projectile(wizard.position, piece.position, Color("ff642e"), 8.0)
-	game.board.add_effect_line(wizard.position, piece.position, Color("ff642e"), 0.55, 7.0)
 	wizard = null
 	commit_use(game, player_id)
 	return true

@@ -129,7 +129,6 @@ func _style_chrome() -> void:
 	InkStyle.outline_label(refresh_status_label, 16, InkStyle.CREAM_SOFT, 5)
 	InkStyle.style_button(refresh_button, 19)
 	InkStyle.button_icon(refresh_button, InkStyle.ICON_LINK, 28)
-	InkStyle.logo($Layout, Vector2(18.0, 10.0), 78.0)
 
 
 func _on_card_selected(augment_id: StringName) -> void:

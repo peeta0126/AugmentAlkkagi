@@ -21,6 +21,7 @@ const WHITE_TEXTURE := preload("res://assets/tank/tank_white.png")
 @onready var sprite: Sprite2D = $Sprite
 var stone_radius := 13.32
 var visual_owner_id := 0
+var _facing_set := false
 
 func _ready() -> void:
 	_update_scale()
@@ -32,6 +33,10 @@ func configure(owner_id: int, radius: float) -> void:
 	if not is_instance_valid(sprite):
 		return
 	visual_owner_id = owner_id
+	# 처음에만 상대 진영을 본다: 흑돌은 판 위쪽에 있어 아래를, 백돌은 아래쪽에 있어 위를 본다. 이후엔 움직이는 방향을 따른다.
+	if not _facing_set:
+		_facing_set = true
+		rotation = PI if owner_id == 1 else 0.0
 	sprite.texture = BLACK_TEXTURE if owner_id == 1 else WHITE_TEXTURE
 	_update_scale()
 

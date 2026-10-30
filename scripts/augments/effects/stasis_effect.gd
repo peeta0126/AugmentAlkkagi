@@ -10,7 +10,6 @@ func activate_immediate(game: Node, player_id: int) -> void:
 		piece.set_stasis(int(definition.duration_turns))
 		piece.stasis_cycle_based = true
 		target_ids.append(piece.piece_id)
-		game.board.add_effect_line(piece.position + Vector2(-18, 0), piece.position + Vector2(18, 0), Color("ffd76a"), 0.7, 5.0)
 	commit_use(game, player_id)
 
 func on_owner_cycle(game: Node) -> void:

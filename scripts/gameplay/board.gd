@@ -23,6 +23,9 @@ var active_color := Color("d6ad62")
 var aim_max_drag := GameplayRules.BALANCE.drag_distance
 var guide_multiplier := 1.0
 var empowered_aim := false
+var scope_active := false
+var scope_target := Vector2.ZERO
+const SCOPE_RETICLE: Texture2D = preload("res://assets/effects/scope_reticle.png")
 var effect_lines: Array[Dictionary] = []
 var blizzard_active := false
 var blizzard_visual: BlizzardVisual
@@ -113,8 +116,14 @@ func set_aim(origin: Vector2, pointer: Vector2, color: Color, max_drag: float = 
 	show_aim = true
 	queue_redraw()
 
+func set_scope_target(point: Vector2) -> void:
+	scope_active = true
+	scope_target = point
+	queue_redraw()
+
 func clear_aim() -> void:
 	show_aim = false
+	scope_active = false
 	queue_redraw()
 
 func set_placement_active(value: bool) -> void:
@@ -236,7 +245,8 @@ func _draw_aim() -> void:
 	var direction := impulse.normalized()
 	var displayed_max := GameplayRules.BALANCE.max_launch_impulse * (aim_max_drag / GameplayRules.BALANCE.drag_distance)
 	var power := clampf(impulse.length() / displayed_max, 0.0, 1.0)
-	var color := Color("ffe39a") if empowered_aim else _power_color(power)
+	# 강화 상태(조준경·음속 폭발)여도 색은 힘에 따라 크림 → 주황 → 빨강으로 변한다.
+	var color := _power_color(power)
 	var pulse := 0.5 + 0.5 * sin(_aim_time * 9.0)
 
 	# 새총 띠: 돌에서 당긴 곳까지, 끝으로 갈수록 가늘다.
@@ -268,9 +278,17 @@ func _draw_aim() -> void:
 	# 충전 고리: 힘만큼 시계 방향으로 찬다. 가득 차면 맥박처럼 커졌다 줄어든다.
 	var ring := 24.0 + power * 5.0 + (pulse * 2.5 if power > 0.97 else 0.0)
 	draw_arc(aim_origin, ring, 0.0, TAU, 40, Color(AIM_INK, 0.55), 8.0, true)
+	if empowered_aim:
+		draw_arc(aim_origin, ring + 7.0, 0.0, TAU, 40, Color(Color("ffe39a"), 0.8), 2.0, true)
 	if power > 0.01:
 		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, AIM_INK, 8.0, true)
 		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, color, 4.2, true)
+
+	# 조준경: 돌이 닿을 수 있는 끝(돌·벽·판 가장자리에 막히는 곳)에 저격 조준점이 잡힌다.
+	if scope_active:
+		var scope_pulse := 1.0 + 0.05 * sin(_aim_time * 6.0)
+		var scope_size := 78.0 * scope_pulse
+		draw_texture_rect(SCOPE_RETICLE, Rect2(scope_target - Vector2.ONE * scope_size * 0.5, Vector2.ONE * scope_size), false)
 
 	# 힘 숫자
 	var font := ThemeDB.fallback_font

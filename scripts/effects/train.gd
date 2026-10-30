@@ -1,8 +1,8 @@
 class_name TrainVisual
 extends Node2D
-## 칙칙폭폭 연출: 먼저 철도와 위험 구간이 깔리고(예고), 만화 같은 증기기관차가 연기를 뿜으며 지나간다.
+## 칙칙폭폭 연출: 먼저 철도와 위험 구간이 깔리고(예고), 위에서 내려다본 증기기관차가 연기를 뿜으며 지나간다.
 
-const LOCO := preload("res://assets/effects/ink_train.png")
+const LOCO := preload("res://assets/effects/painted_train.png")
 const PUFF := preload("res://assets/effects/smoke_puff.png")
 const LOCO_SCALE := 0.4
 const LANE_HALF := 38.0
@@ -25,7 +25,7 @@ func _ready() -> void:
 	train_body.name = "TrainBody"
 	train_body.texture = LOCO
 	train_body.scale = Vector2.ONE * LOCO_SCALE
-	train_body.offset = Vector2(0.0, -12.0)
+	train_body.offset = Vector2.ZERO  # 위에서 내려다본 그림이라 어느 방향으로 달려도 자연스럽다
 	train_body.visible = false
 	train_body.z_index = 1
 	add_child(train_body)
@@ -71,12 +71,12 @@ func _process(delta: float) -> void:
 func _spawn_puff() -> void:
 	var puff := Sprite2D.new()
 	puff.texture = PUFF
-	puff.position = train_body.position + Vector2(34.0, -44.0)
+	puff.position = train_body.position + Vector2(31.0, 0.0)  # 굴뚝 위치
 	puff.scale = Vector2.ONE * 0.14
 	puff.modulate = Color(1, 1, 1, 0.9)
 	puff.z_index = 2
 	add_child(puff)
-	var drift := Vector2(randf_range(-56.0, -26.0), randf_range(-54.0, -32.0))
+	var drift := Vector2(randf_range(-80.0, -40.0), randf_range(-30.0, 30.0))
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(puff, "position", puff.position + drift, 0.85).set_ease(Tween.EASE_OUT)
 	tween.tween_property(puff, "scale", Vector2.ONE * randf_range(0.36, 0.5), 0.85)

@@ -1,6 +1,8 @@
 class_name FireballVisual
 extends Node2D
 
+const SHEET: Texture2D = preload("res://assets/effects/wizard_sheet.png")
+
 @export_group("Travel")
 @export_range(0.01, 2.0, 0.01) var travel_duration := 0.24
 @export_range(0.0, 2.0, 0.01) var impact_fade_duration := 0.12
@@ -13,15 +15,23 @@ var _travel_tween: Tween
 
 
 func _ready() -> void:
-	# 화염구 머리를 메인 화면 충돌 장면 같은 주황 폭발 그림으로 바꾼다.
+	# 화염구 머리를 마법사 시트의 빛나는 불덩이(꼬리 달린 4프레임)로 바꾼다.
 	visual_root.visible = false
+	trail_particles.visible = false
 	var head := Sprite2D.new()
 	head.name = "InkHead"
-	head.texture = InkStyle.BURST_TEXTURE
-	head.scale = Vector2.ONE * 0.05
+	head.texture = SHEET
+	head.hframes = 4
+	head.vframes = 2
+	head.frame = 0
+	head.scale = Vector2.ONE * 0.1  # 씬 루트가 5배라 실제로는 0.5배
+	head.offset = Vector2(-62.0, 0.0)  # 시트 안에서 머리가 오른쪽으로 치우쳐 있어 중심을 머리에 맞춘다.
+	head.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	add_child(head)
-	var spin := create_tween().set_loops()
-	spin.tween_property(head, "rotation", TAU, 0.5).from(0.0)
+	var flicker := create_tween().set_loops()
+	for i in 4:
+		flicker.tween_callback(func(): head.frame = 0 + i)
+		flicker.tween_interval(0.05)
 
 
 func play(from: Vector2, to: Vector2) -> void:
@@ -37,9 +47,19 @@ func play(from: Vector2, to: Vector2) -> void:
 func _on_arrived() -> void:
 	trail_particles.emitting = false
 	var head := get_node_or_null("InkHead") as Sprite2D
-	var impact_tween := create_tween().set_parallel(true)
 	if head:
-		impact_tween.tween_property(head, "scale", Vector2.ONE * 0.13, impact_fade_duration + 0.06).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		impact_tween.tween_property(head, "modulate:a", 0.0, impact_fade_duration + 0.06)
-	impact_tween.tween_property(visual_root, "modulate:a", 0.0, impact_fade_duration)
-	impact_tween.chain().tween_callback(queue_free)
+		head.visible = false
+	var blast := Sprite2D.new()
+	blast.texture = SHEET
+	blast.hframes = 4
+	blast.vframes = 2
+	blast.frame = 4
+	blast.rotation = -rotation  # 폭발은 방향과 상관없이 바로 서게 한다.
+	blast.scale = Vector2.ONE * 0.1  # 루트 5배 → 실제 0.5배
+	blast.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	add_child(blast)
+	var tween := create_tween()
+	for i in 4:
+		tween.tween_callback(func(): blast.frame = 4 + i)
+		tween.tween_interval(0.07)
+	tween.tween_callback(queue_free)

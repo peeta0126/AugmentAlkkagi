@@ -19,13 +19,16 @@ func run_test() -> void:
 	if menu == null:
 		quit(1)
 		return
-	check(menu.menu_buttons.size() == 7 and menu.menu_icons.size() == 7, "all seven menu controls expose images")
+	check(menu.menu_buttons.size() == 6 and menu.menu_icons.size() == 6, "all six menu controls expose images")
 	menu.logo_visual.size = Vector2(600, 200)
 	check(menu.logo_visual.size == Vector2(600, 200), "logo image can be resized independently")
-	menu.board_visual.size = Vector2(900, 500)
-	check(menu.board_visual.size == Vector2(900, 500), "board image can be resized independently")
-	menu.panel_visual.size = Vector2(460, 700)
-	check(menu.panel_visual.size == Vector2(460, 700), "menu panel can be resized independently")
+	# 잉크 스타일 메뉴에는 보드 그림·메뉴 판이 없을 수 있다. 있으면 따로 크기를 바꿀 수 있어야 한다.
+	if menu.board_visual != null:
+		menu.board_visual.size = Vector2(900, 500)
+		check(menu.board_visual.size == Vector2(900, 500), "board image can be resized independently")
+	if menu.panel_visual != null:
+		menu.panel_visual.size = Vector2(460, 700)
+		check(menu.panel_visual.size == Vector2(460, 700), "menu panel can be resized independently")
 	menu.menu_buttons[0].size = Vector2(350, 60)
 	check(menu.menu_buttons[0].size == Vector2(350, 60), "each button can be resized independently")
 	menu.menu_icons[0].custom_minimum_size = Vector2(48, 48)

@@ -5,7 +5,6 @@ var armed := false
 
 func activate_immediate(game: Node, player_id: int) -> void:
 	armed = true
-	game.board.add_effect_line(game.player_center(player_id) + Vector2(-30, 0), game.player_center(player_id) + Vector2(30, 0), Color("ff8d70"), 0.8, 5.0)
 	commit_use(game, player_id)
 
 func transform_shot(game: Node, player_id: int, piece: AlkkagiPiece, impulse: Vector2) -> bool:

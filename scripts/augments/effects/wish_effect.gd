@@ -37,7 +37,7 @@ func on_physics_tick(game: Node, player_id: int, _delta: float) -> void:
 			if piece.owner_id == player_id and piece.position.distance_to(ball.position) <= piece.visual_radius + radius:
 				balls.erase(ball)
 				collected += 1
-				game.board.add_effect_line(ball.position + Vector2(-12, 0), ball.position + Vector2(12, 0), Color("ffae35"), 0.7, 6.0)
+				game.play_wish_collect(ball.position)
 				break
 	if collected >= 7:
 		active = false

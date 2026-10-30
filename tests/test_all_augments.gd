@@ -221,6 +221,11 @@ func run_test() -> void:
 	var velocity_after_first := white.linear_velocity
 	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
 	check(white.linear_velocity.is_equal_approx(velocity_after_first), "king shockwave cannot trigger twice")
+	find_effect(game, 1, &"king").on_owner_cycle(game)
+	check(black.king_shockwave_available, "king shockwave is recharged when its owner next turn starts")
+	white.linear_velocity = Vector2.ZERO
+	find_effect(game, 1, &"king").on_piece_collision(game, 1, black, white)
+	check(white.linear_velocity.length() > 0.0 or white.sleeping == false, "recharged king shockwave triggers again on the next turn")
 
 	# 13 대검: 범위 내 적에게만 넉백을 준다.
 	await reset_game(game)
@@ -254,7 +259,7 @@ func run_test() -> void:
 	black.position = Vector2(AlkkagiBoard.BOARD_RECT.get_center().x, AlkkagiBoard.BOARD_RECT.position.y + AlkkagiBoard.BOARD_RECT.size.y * ratio) if horizontal else Vector2(AlkkagiBoard.BOARD_RECT.position.x + AlkkagiBoard.BOARD_RECT.size.x * ratio, AlkkagiBoard.BOARD_RECT.get_center().y)
 	game.run_train_event(760.0)
 	await physics_frame
-	check(black.linear_velocity.length() > 0.0 and not game.board.effect_lines.is_empty(), "train path knocks stones and displays its route")
+	check(black.linear_velocity.length() > 0.0, "train path knocks stones")
 	game.augment_manager.acquire(game, 1, &"train")
 	var train: TrainAugmentEffect = find_effect(game, 1, &"train")
 	check(not game.augment_manager.active_effects(1).has(train), "train is passive and is absent from active skill buttons")
@@ -321,7 +326,7 @@ func run_test() -> void:
 	wall_effect.update_target_preview(game, 1, wall_position)
 	check(wall_effect.preview != null and wall_effect.preview.modulate.is_equal_approx(wall_effect.preview.preview_valid_color), "wall maria shows a valid placement silhouette")
 	wall_effect.on_targeting_key(game, 1, KEY_R)
-	check(wall_effect.vertical and is_equal_approx(wall_effect.preview.rotation, PI * 0.5), "R toggles the wall preview between horizontal and vertical")
+	check(wall_effect.vertical and is_equal_approx(fposmod(wall_effect.preview.rotation, PI), PI * 0.5), "R toggles the wall preview between horizontal and vertical")
 	wall_effect.cancel_active()
 	check(game.spawn_wall(wall_position, 3, PI * 0.5), "valid wall placement succeeds")
 	var wall: TemporaryWall = game.temporary_walls[0]

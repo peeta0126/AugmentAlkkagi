@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://by2jqjkb8m1kb"
-path="res://.godot/imported/ink_train.png-e463c4670c7af74f7c2e87f018a89a17.ctex"
+uid="uid://ba7o7bo5d6icd"
+path="res://.godot/imported/painted_wall.png-3aec60ee771b84ff6979b8e0602ce897.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/effects/ink_train.png"
-dest_files=["res://.godot/imported/ink_train.png-e463c4670c7af74f7c2e87f018a89a17.ctex"]
+source_file="res://assets/effects/painted_wall.png"
+dest_files=["res://.godot/imported/painted_wall.png-3aec60ee771b84ff6979b8e0602ce897.ctex"]
 
 [params]
 

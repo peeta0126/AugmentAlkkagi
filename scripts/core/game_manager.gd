@@ -826,9 +826,58 @@ func update_aim(pointer: Vector2) -> void:
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
 	var empowered := not is_equal_approx(float(profile.max_drag_multiplier), 1.0) or not is_equal_approx(float(profile.impulse_multiplier), 1.0)
 	board.set_aim(selected_piece.global_position, pointer, AlkkagiPiece.OWNER_COLORS[current_player], max_drag, float(profile.guide_multiplier), empowered)
+	var pull := selected_piece.global_position - pointer
+	if augment_manager.has_augment(current_player, &"scope") and pull.length() > 1.0:
+		board.set_scope_target(_scope_hit_point(selected_piece, pull.normalized()))
 	var game_hud := _get_game_hud()
 	if game_hud:
 		game_hud.set_power_percent(selected_piece.global_position.distance_to(pointer) / max_drag * 100.0)
+
+## 조준 방향으로 쏜 선이 처음 막히는 점: 다른 돌, 임시 벽, 판 가장자리 중 가장 가까운 곳.
+func _scope_hit_point(piece: AlkkagiPiece, dir: Vector2) -> Vector2:
+	var origin := piece.global_position
+	var best := 1600.0
+	var rect := AlkkagiBoard.BOARD_RECT
+	var tx := INF
+	var ty := INF
+	if absf(dir.x) > 0.0001:
+		tx = ((rect.end.x if dir.x > 0.0 else rect.position.x) - origin.x) / dir.x
+	if absf(dir.y) > 0.0001:
+		ty = ((rect.end.y if dir.y > 0.0 else rect.position.y) - origin.y) / dir.y
+	best = minf(best, minf(tx, ty))
+	for other: AlkkagiPiece in get_pieces():
+		if other == piece:
+			continue
+		var offset := origin - other.global_position
+		var b := offset.dot(dir)
+		var c := offset.length_squared() - other.visual_radius * other.visual_radius
+		var discriminant := b * b - c
+		if discriminant >= 0.0:
+			var t := -b - sqrt(discriminant)
+			if t > 0.0:
+				best = minf(best, t)
+	for wall: TemporaryWall in temporary_walls:
+		if not is_instance_valid(wall):
+			continue
+		var local_origin := (origin - wall.position).rotated(-wall.rotation)
+		var local_dir := dir.rotated(-wall.rotation)
+		var half := wall.wall_size * 0.5
+		var t_enter := -INF
+		var t_exit := INF
+		for axis in 2:
+			var o := local_origin[axis]
+			var d := local_dir[axis]
+			if absf(d) < 0.0001:
+				if absf(o) > half[axis]:
+					t_enter = INF
+				continue
+			var t1 := (-half[axis] - o) / d
+			var t2 := (half[axis] - o) / d
+			t_enter = maxf(t_enter, minf(t1, t2))
+			t_exit = minf(t_exit, maxf(t1, t2))
+		if t_enter <= t_exit and t_enter > 0.0:
+			best = minf(best, t_enter)
+	return origin + dir * best
 
 func _unhandled_input(event: InputEvent) -> void:
 	if state_machine != null and state_machine.current == GameStateMachine.State.PIECE_PLACEMENT:
@@ -1173,7 +1222,7 @@ func split_piece_and_launch(original: AlkkagiPiece, player_id: int, impulse: Vec
 		# New bodies have not integrated their changed mass yet. The launch
 		# reference impulse represents delta velocity; initialize it directly.
 		fragment.linear_velocity = direction * impulse.length() * 0.70
-	board.add_effect_line(origin - Vector2(24, 0), origin + Vector2(24, 0), Color("fff1ad"), 0.5, 5.0)
+	_play_triple_fan(origin, impulse.normalized(), spread_degrees)
 
 func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: float, distance: float) -> bool:
 	var best: AlkkagiPiece
@@ -1197,10 +1246,38 @@ func try_dodge(player_id: int, ray_origin: Vector2, direction: Vector2, chance: 
 	best.position = destination
 	return true
 
+const SheetPopScript := preload("res://scripts/effects/sheet_pop.gd")
+const DODGE_SHEET: Texture2D = preload("res://assets/effects/dodge_sheet.png")
+const MERGE_SHEET: Texture2D = preload("res://assets/effects/merge_sheet.png")
+const COUP_SHEET: Texture2D = preload("res://assets/effects/coup_sheet.png")
+
+
+func _play_triple_fan(origin: Vector2, direction: Vector2, spread_degrees: float) -> void:
+	# 삼연발: 갈라지는 세 방향으로 바람 줄기가 뻗는다.
+	var size := 0.38
+	for index in 3:
+		var angle := deg_to_rad((index - 1) * spread_degrees)
+		var dir := direction.rotated(angle)
+		SheetPopScript.spawn(world, origin - dir * 84.0 * size, DODGE_SHEET, 2, 0, size, dir.angle(), 0.05)
+
+
+func play_wish_collect(at: Vector2) -> void:
+	# 소원: 드래곤볼을 모으면 금빛 먼지가 터진다.
+	SheetPopScript.spawn(world, at, MERGE_SHEET, 2, 1, 0.28, 0.0, 0.06)
+
+
+func _play_coup_flip() -> void:
+	# 쿠데타: 모든 돌 위에서 먹물 태극이 뒤집히며 흑백이 바뀐다. 판 가운데에서 바깥으로 물결처럼 번진다.
+	var center := AlkkagiBoard.BOARD_RECT.get_center()
+	for piece in get_pieces():
+		var delay := piece.position.distance_to(center) * 0.0007
+		SheetPopScript.spawn(world, piece.position, COUP_SHEET, 1, 0, piece.visual_radius * 2.4 / 90.0, 0.0, 0.08, delay)
+
+
 func swap_all_owners() -> void:
 	for piece in get_pieces():
 		piece.change_player_owner(2 if piece.owner_id == 1 else 1)
-	board.add_effect_line(AlkkagiBoard.BOARD_RECT.position, AlkkagiBoard.BOARD_RECT.end, Color("d48cff"), 0.9, 7.0)
+	_play_coup_flip()
 
 func choose_train_path() -> Dictionary:
 	var horizontal := augment_manager.rng.randi() % 2 == 0
@@ -1222,7 +1299,6 @@ func run_train_event_path(path: Dictionary, knockback: float) -> void:
 	var to: Vector2 = path.get("to", AlkkagiBoard.BOARD_RECT.end)
 	var direction: Vector2 = path.get("direction", (to - from).normalized())
 	var horizontal := bool(path.get("horizontal", absf(to.x - from.x) >= absf(to.y - from.y)))
-	board.add_effect_line(from, to, Color(1.0, 0.81, 0.33, 0.18), 1.25, 18.0)
 	animate_projectile(from, to, Color("ffcf55"), 18.0)
 	for piece in get_pieces():
 		var distance_to_path := absf(piece.position.y - from.y) if horizontal else absf(piece.position.x - from.x)
@@ -1318,6 +1394,7 @@ func spawn_wall(position: Vector2, duration: int, wall_rotation: float = 0.0) ->
 	var wall := TemporaryWallScript.new() as TemporaryWall
 	world.add_child(wall)
 	wall.setup(position, wall_rotation, duration, next_wall_id)
+	wall.play_dust()
 	next_wall_id += 1
 	temporary_walls.append(wall)
 	return true
@@ -1660,8 +1737,10 @@ func _sync_network_walls(states: PackedFloat32Array) -> void:
 	if signature == network_wall_signature:
 		return
 	network_wall_signature = signature
+	var known_wall_ids := {}
 	for wall in temporary_walls:
 		if is_instance_valid(wall):
+			known_wall_ids[wall.wall_id] = true
 			wall.queue_free()
 	temporary_walls.clear()
 	for offset in range(0, states.size(), 5):
@@ -1670,6 +1749,8 @@ func _sync_network_walls(states: PackedFloat32Array) -> void:
 		var wall := TemporaryWallScript.new() as TemporaryWall
 		world.add_child(wall)
 		wall.setup(Vector2(states[offset + 1], states[offset + 2]), states[offset + 3], int(states[offset + 4]), int(states[offset]))
+		if not known_wall_ids.has(wall.wall_id):
+			wall.play_dust()
 		temporary_walls.append(wall)
 
 func _mode_status_text() -> String:

@@ -53,9 +53,7 @@ func _apply_ink_style() -> void:
 	InkStyle.button_icon(%MenuButton, InkStyle.ICON_GEAR, 28)
 	InkStyle.style_button(_active_button_template, 19)
 	InkStyle.button_icon(_active_button_template, InkStyle.ICON_SWORDS, 28)
-	var logo := InkStyle.logo(self, Vector2(16.0, 6.0), 70.0)
-	logo.z_index = 1
-	mode_status_label.position = Vector2(22.0, 80.0)
+	mode_status_label.position = Vector2(22.0, 16.0)
 	mode_status_label.size = Vector2(300.0, 22.0)
 	InkStyle.brush_label(turn_label, 42, InkStyle.CREAM, 14)
 	turn_label.pivot_offset = Vector2(220.0, 19.0)
@@ -244,6 +242,7 @@ func _build_power_gauge() -> void:
 	InkStyle.outline_label(_power_number, 24, InkStyle.CREAM, 8)
 	power_bar.add_child(_power_number)
 	power_bar.show_percentage = false
+	power_bar.resized.connect(_refresh_power_gauge)
 	_refresh_power_gauge()
 
 
@@ -251,7 +250,12 @@ func _refresh_power_gauge() -> void:
 	if _power_fill == null:
 		return
 	var power := power_bar.value / 100.0
-	_power_fill_panel.size.x = maxf((power_bar.custom_minimum_size.x - 40.0) * power, 0.0)
+	# 막대 실제 폭을 따른다(레이아웃이 최소 폭보다 넓혀도 100%에서 끝까지 찬다).
+	var inner_width := maxf(power_bar.size.x, power_bar.custom_minimum_size.x) - 31.0
+	var inner_height := maxf(power_bar.size.y, power_bar.custom_minimum_size.y) - 25.0
+	_power_fill_panel.position = Vector2(15.5, 12.5)
+	_power_fill.set_corner_radius_all(int(inner_height * 0.5)) # 틀처럼 양 끝이 둥근 알약 모양
+	_power_fill_panel.size = Vector2(maxf(inner_width * power, 0.0), inner_height)
 	_power_fill_panel.visible = power > 0.005
 	_power_fill.bg_color = InkStyle.CREAM.lerp(InkStyle.ORANGE, clampf(power * 2.0, 0.0, 1.0)).lerp(Color("e0361a"), clampf((power - 0.6) * 2.5, 0.0, 1.0))
 	_power_number.text = "%d%%" % int(round(power_bar.value))
