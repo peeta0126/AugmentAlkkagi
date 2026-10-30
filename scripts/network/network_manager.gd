@@ -11,7 +11,7 @@ const SNAPSHOT_REPEATS := 2
 const SNAPSHOT_IDLE_GAP := 0.3
 const ACTIVE_REQUEST_TIMEOUT := 8.0
 # v4 separates reliable world extras from throttled movement snapshots.
-const PROTOCOL_VERSION := 5
+const PROTOCOL_VERSION := 6
 const ROOM_PREFIX := "AA-"
 const ROOM_CODE_LENGTH := 6
 const ROOM_CREATE_ATTEMPTS := 5
@@ -38,6 +38,8 @@ var pending_choices: Dictionary = {}
 var placement_completed: Dictionary = {1: false, 2: false}
 var last_sequences: Dictionary = {}
 var pending_active_sequence := 0
+var pending_pass_sequence := 0
+var pending_pass_seconds := 0.0
 var pending_active_seconds := 0.0
 var active_response_context := false
 var active_response_reason := ""
@@ -70,6 +72,8 @@ func _ready() -> void:
 	GDSync.disconnected.connect(_on_gdsync_disconnected)
 	GDSync.expose_func(request_lobby_ready, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_shot, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(request_pass_turn, ENUMS.EXPOSE_PERMISSION.CLIENT)
+	GDSync.expose_func(receive_pass_turn_result, ENUMS.EXPOSE_PERMISSION.HOST)
 	GDSync.expose_func(request_augment_choice, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_augment_refresh, ENUMS.EXPOSE_PERMISSION.CLIENT)
 	GDSync.expose_func(request_piece_placement, ENUMS.EXPOSE_PERMISSION.CLIENT)
@@ -142,6 +146,7 @@ func _reset_lobby_state() -> void:
 	last_sequences.clear()
 	active_results.clear()
 	pending_active_sequence = 0
+	pending_pass_sequence = 0
 	local_sequence = 0
 	peer_to_player.clear()
 	ready_state = {1: false, 2: false}
@@ -165,6 +170,7 @@ func shutdown(notify: bool = true) -> void:
 	last_sequences.clear()
 	active_results.clear()
 	pending_active_sequence = 0
+	pending_pass_sequence = 0
 	local_sequence = 0
 	peer_to_player = {1: 1}
 	ready_state = {1: false, 2: false}
@@ -334,7 +340,7 @@ func submit_shot(piece_id: int, pull_vector: Vector2) -> void:
 		GDSync.call_func_on(gdsync_host_id, request_shot, piece_id, pull_vector, local_sequence)
 
 func submit_active_skill(augment_id: StringName, target_ids: Array[int], board_position: Vector2 = Vector2.ZERO, targeting_option: int = 0) -> void:
-	if pending_active_sequence != 0:
+	if pending_active_sequence != 0 or pending_pass_sequence != 0:
 		return
 	local_sequence += 1
 	if is_host():
@@ -359,6 +365,7 @@ func _tick_active_request(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_tick_active_request(delta)
+	_tick_pass_request(delta)
 	if not is_host() or not match_active or game().board == null:
 		return
 	if game().state_machine.current in [GameStateMachine.State.INITIAL_AUGMENT_SELECTION, GameStateMachine.State.AUGMENT_SELECTION]:
@@ -475,6 +482,61 @@ func request_shot(piece_id: int, pull_vector: Vector2, sequence: int) -> void:
 	var sender := _remote_sender_id()
 	if _valid_sequence(sender, sequence, "shot"):
 		_host_process_shot(_player_for_peer(sender), piece_id, pull_vector, sequence)
+
+func submit_pass_turn(expected_revision: int) -> void:
+	if pending_pass_sequence != 0 or pending_active_sequence != 0 or not match_active:
+		return
+	local_sequence += 1
+	if is_host():
+		_host_process_pass(1, expected_revision)
+	elif mode == Mode.CLIENT:
+		pending_pass_sequence = local_sequence
+		pending_pass_seconds = 0.0
+		GDSync.call_func_on(gdsync_host_id, request_pass_turn, expected_revision, local_sequence)
+
+func request_pass_turn(expected_revision: int, sequence: int) -> void:
+	if not is_host():
+		return
+	var sender := _remote_sender_id()
+	var player_id := _player_for_peer(sender)
+	if player_id != 2:
+		return
+	var accepted := false
+	if _valid_sequence(sender, sequence, "pass turn"):
+		accepted = _host_process_pass(player_id, expected_revision)
+	_send_pass_result(sender, sequence, accepted, game().create_network_snapshot())
+
+func _host_process_pass(player_id: int, expected_revision: int) -> bool:
+	if not is_host() or not match_active or player_id not in [1, 2]:
+		return false
+	return game().execute_pass_turn(player_id, expected_revision)
+
+func _send_pass_result(peer_id: int, sequence: int, accepted: bool, snapshot: Dictionary) -> void:
+	GDSync.call_func_on(peer_id, receive_pass_turn_result, sequence, accepted, snapshot)
+
+func receive_pass_turn_result(sequence: int, accepted: bool, snapshot: Dictionary) -> void:
+	if GDSync.get_sender_id() != gdsync_host_id:
+		return
+	_apply_pass_result(sequence, accepted, snapshot)
+
+func _apply_pass_result(sequence: int, accepted: bool, snapshot: Dictionary) -> void:
+	if mode != Mode.CLIENT or pending_pass_sequence == 0 or sequence != pending_pass_sequence:
+		return
+	pending_pass_sequence = 0
+	if not snapshot.is_empty() and int(snapshot.get("turn_revision", game().turn_revision)) >= game().turn_revision:
+		game().apply_network_extras(snapshot.get("effects", {}), snapshot.get("walls", PackedFloat32Array()))
+		game().apply_network_snapshot(snapshot)
+	game()._refresh_pass_turn_hud()
+	if not accepted:
+		game().update_hud("턴 넘기기가 거절되었습니다. 현재 턴 상태를 확인하세요")
+
+func _tick_pass_request(delta: float) -> void:
+	if pending_pass_sequence == 0:
+		return
+	pending_pass_seconds += delta
+	if mode != Mode.CLIENT or not match_active or pending_pass_seconds >= ACTIVE_REQUEST_TIMEOUT:
+		pending_pass_sequence = 0
+		game().update_hud("턴 넘기기 응답을 받지 못했습니다. 다시 시도하세요")
 
 func _host_process_shot(player_id: int, piece_id: int, pull_vector: Vector2, _sequence: int) -> void:
 	if not is_host() or player_id == 0 or not match_active:

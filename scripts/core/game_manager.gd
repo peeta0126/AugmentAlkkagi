@@ -64,6 +64,7 @@ var placement_drag_piece: AlkkagiPiece
 var placement_drag_origin := Vector2.ZERO
 var placement_drag_valid := false
 var active_skill: AugmentEffect
+var turn_revision := 0
 var active_skill_player := 0
 var blizzard_turns := 0
 var blizzard_damp_multiplier := 1.0
@@ -100,6 +101,7 @@ func _ready() -> void:
 	GDSync.start_multiplayer()
 	state_machine = StateMachineScript.new()
 	add_child(state_machine)
+	state_machine.state_changed.connect(func(_previous, _current): _refresh_pass_turn_hud())
 	augment_manager = AugmentManagerScript.new()
 	add_child(augment_manager)
 	network_manager = NetworkManagerScript.new()
@@ -483,6 +485,8 @@ func _refresh_augment_choices() -> void:
 func start_game_world(placement_only: bool = false) -> void:
 	clear_world()
 	game_serial += 1
+	# A guest may previously have played more local turns than this host.
+	turn_revision = 0 if online_mode and not online_is_host else turn_revision + 1
 	current_player = 1
 	settle_time = 0.0
 	shot_elapsed = 0.0
@@ -649,6 +653,7 @@ func build_hud() -> void:
 	var game_hud := GameHudScene.instantiate() as GameHud
 	game_hud.menu_requested.connect(show_leave_dialog)
 	game_hud.active_skill_requested.connect(_on_hud_active_skill_requested)
+	game_hud.pass_turn_requested.connect(_on_pass_turn_requested.bind(turn_revision, current_player))
 	set_screen(game_hud)
 	hud = game_hud
 	turn_label = game_hud.turn_label
@@ -660,6 +665,7 @@ func build_hud() -> void:
 	_add_augment_hud(2)
 	_add_active_skill_hud()
 	_add_passive_status_hud()
+	_refresh_pass_turn_hud()
 	var viewer := local_player_id if online_mode and local_player_id in [1, 2] else current_player
 	if int(blind_turns[viewer]) > 0:
 		_add_blind_overlay()
@@ -720,6 +726,8 @@ func _add_blind_overlay() -> void:
 	_update_blind_centers()
 
 func _activate_skill(effect: AugmentEffect) -> void:
+	if network_manager.pending_pass_sequence != 0:
+		return
 	var can_use := effect.can_activate(self, current_player)
 	_skill_debug("button pressed: augment=%s current_player=%d local_player=%d state=%s can_activate=%s" % [effect.definition.id, current_player, local_player_id, GameStateMachine.State.keys()[state_machine.current], can_use])
 	if not state_machine.allows_aiming():
@@ -789,6 +797,54 @@ func _get_game_hud() -> GameHud:
 func _current_shot_profile() -> Dictionary:
 	return augment_manager.shot_profile(current_player)
 
+# Status counters, unlike RigidBody.freeze, are authoritative on clients too.
+func piece_can_launch(piece: AlkkagiPiece) -> bool:
+	return is_instance_valid(piece) and piece.stasis_turns <= 0 and piece.snow_turns <= 0
+
+func turn_launch_block_reason(player_id: int) -> StringName:
+	var found := false
+	for piece in get_pieces():
+		if piece.owner_id != player_id:
+			continue
+		found = true
+		if piece.stasis_turns <= 0:
+			return &""
+	return &"stasis" if found else &""
+
+func can_pass_turn(player_id: int) -> bool:
+	return player_id in [1, 2] and current_player == player_id and state_machine.allows_aiming() and turn_launch_block_reason(player_id) == &"stasis" and count_owner(1) > 0 and count_owner(2) > 0 and not augment_manager.has_pending_action()
+
+func _refresh_pass_turn_hud() -> void:
+	var game_hud := _get_game_hud()
+	if game_hud == null or state_machine == null:
+		return
+	var player_id := local_player_id if online_mode else current_player
+	var pending: bool = network_manager != null and (network_manager.pending_pass_sequence != 0 or network_manager.pending_active_sequence != 0)
+	game_hud.set_pass_turn_available(can_pass_turn(player_id) and not pending)
+	if is_instance_valid(selected_piece) and not piece_can_launch(selected_piece):
+		cancel_aim()
+	if turn_launch_block_reason(current_player) == &"stasis":
+		game_hud.set_power_percent(0.0)
+
+func _on_pass_turn_requested(expected_revision: int, displayed_player: int) -> void:
+	var player_id := local_player_id if online_mode else current_player
+	if expected_revision != turn_revision or displayed_player != player_id or not can_pass_turn(player_id):
+		return
+	cancel_aim()
+	if online_mode:
+		network_manager.submit_pass_turn(turn_revision)
+	else:
+		execute_pass_turn(player_id, turn_revision)
+	_refresh_pass_turn_hud()
+
+func execute_pass_turn(player_id: int, expected_revision: int) -> bool:
+	if (online_mode and not online_is_host) or expected_revision != turn_revision or not can_pass_turn(player_id):
+		return false
+	cancel_aim()
+	shot_opponent_count_before = -1
+	_resolve_completed_action()
+	return true
+
 func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 	if state_machine.current == GameStateMachine.State.PIECE_PLACEMENT:
 		var editable_player := local_player_id if online_mode else placement_player
@@ -811,6 +867,9 @@ func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 		return
 	if online_mode and current_player != local_player_id:
 		return
+	if not piece_can_launch(piece):
+		cancel_aim()
+		return
 	if selected_piece:
 		selected_piece.set_selected(false)
 	selected_piece = piece
@@ -820,6 +879,9 @@ func _on_piece_pressed(piece: AlkkagiPiece) -> void:
 	update_hud("ESC / 우클릭: 발사 취소")
 
 func update_aim(pointer: Vector2) -> void:
+	if is_instance_valid(selected_piece) and not piece_can_launch(selected_piece):
+		cancel_aim()
+		return
 	if not dragging or not state_machine.allows_aiming() or not is_instance_valid(selected_piece):
 		return
 	var profile := _current_shot_profile()
@@ -964,6 +1026,9 @@ func confirm_board_position_skill(board_position: Vector2) -> void:
 		active_skill.on_position_target(self, active_skill_player, board_position)
 
 func fire_selected(pointer: Vector2) -> void:
+	if is_instance_valid(selected_piece) and not piece_can_launch(selected_piece):
+		cancel_aim()
+		return
 	if not state_machine.allows_aiming() or selected_piece == null or not is_instance_valid(selected_piece):
 		cancel_aim()
 		return
@@ -1011,6 +1076,7 @@ func cancel_aim() -> void:
 		game_hud.set_power_percent(0.0)
 
 func _physics_process(delta: float) -> void:
+	_refresh_pass_turn_hud()
 	_update_blind_centers()
 	if state_machine == null or state_machine.current not in [GameStateMachine.State.PLAYER_AIMING, GameStateMachine.State.PIECES_MOVING]:
 		return
@@ -1043,6 +1109,10 @@ func resolve_turn() -> void:
 	# makes duplicate callbacks/RPC-driven attempts idempotent.
 	if state_machine.current != GameStateMachine.State.PIECES_MOVING:
 		return
+	_resolve_completed_action()
+
+func _resolve_completed_action() -> void:
+	turn_revision += 1
 	state_machine.transition(GameStateMachine.State.TURN_RESOLUTION)
 	var resuming_train_event := train_followup_resolution
 	train_followup_resolution = false
@@ -1543,7 +1613,7 @@ func network_execute_shot(player_id: int, piece_id: int, pull_vector: Vector2) -
 	if not online_is_host or state_machine.current != GameStateMachine.State.PLAYER_AIMING or current_player != player_id:
 		return
 	var piece := find_piece(piece_id)
-	if piece == null or piece.owner_id != player_id or piece.freeze:
+	if piece == null or piece.owner_id != player_id or piece.freeze or not piece_can_launch(piece):
 		return
 	var profile := augment_manager.shot_profile(player_id)
 	var max_drag := GameplayRules.BALANCE.drag_distance * float(profile.max_drag_multiplier)
@@ -1586,6 +1656,7 @@ func create_network_snapshot() -> Dictionary:
 			effect_states[player_id].append({"id": str(effect.definition.id), "uses": effect.uses_left, "cooldown": effect.cooldown_left, "runtime": effect.network_state()})
 	return {
 		"state": int(state_machine.current),
+		"turn_revision": turn_revision,
 		"current_player": current_player,
 		"winner": network_winner,
 		"pieces": piece_states,
@@ -1604,6 +1675,10 @@ func create_network_snapshot() -> Dictionary:
 func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float = 0.05) -> void:
 	if online_is_host or board == null:
 		return
+	if int(snapshot.get("turn_revision", turn_revision)) < turn_revision:
+		return
+	var previous_revision := turn_revision
+	turn_revision = int(snapshot.get("turn_revision", turn_revision))
 	var seen := {}
 	var piece_states: PackedFloat32Array = snapshot.get("pieces", PackedFloat32Array())
 	for offset in range(0, piece_states.size(), 19):
@@ -1658,7 +1733,7 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 	if remote_state == GameStateMachine.State.PIECE_PLACEMENT:
 		_update_placement_ui()
 		return
-	if previous_player != current_player or turn_label == null:
+	if previous_player != current_player or previous_revision != turn_revision or turn_label == null:
 		build_hud()
 	if bonus_turn_active:
 		update_hud("피의 축제 발동 · 추가 발사 기회")
@@ -1763,6 +1838,7 @@ func _mode_status_text() -> String:
 	return "새로고침 OFF · 혼돈 OFF"
 
 func update_hud(hint: String) -> void:
+	_refresh_pass_turn_hud()
 	var game_hud := _get_game_hud()
 	if game_hud == null:
 		return

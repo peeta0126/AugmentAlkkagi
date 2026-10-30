@@ -3,6 +3,7 @@ extends Control
 
 signal menu_requested
 signal active_skill_requested(augment_id: StringName)
+signal pass_turn_requested
 
 @onready var turn_label: Label = %TurnLabel
 @onready var count_label: Label = %CountLabel
@@ -24,6 +25,8 @@ var _black_item_template: Label
 var _white_item_template: Label
 var _active_button_template: Button
 var _passive_status_template: Label
+var pass_turn_panel: VBoxContainer
+var pass_turn_button: Button
 
 
 func _ready() -> void:
@@ -37,6 +40,39 @@ func _ready() -> void:
 	# 오른쪽 열은 증강 → 패시브 상태 → 액티브 스킬 순으로 쌓는다.
 	var right_column := active_skills_panel.get_parent()
 	right_column.move_child(passive_status_panel, active_skills_panel.get_index())
+	pass_turn_panel = VBoxContainer.new()
+	pass_turn_panel.visible = false
+	right_column.add_child(pass_turn_panel)
+	var notice := Label.new()
+	notice.text = "모든 돌이 동결되어 발사할 수 없습니다"
+	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	notice.add_theme_font_size_override("font_size", 16)
+	notice.add_theme_color_override("font_color", InkStyle.ORANGE)
+	pass_turn_panel.add_child(notice)
+	pass_turn_button = Button.new()
+	pass_turn_button.text = "턴 넘기기"
+	pass_turn_button.custom_minimum_size.y = 46
+	InkStyle.style_button(pass_turn_button, 20)
+	pass_turn_button.pressed.connect(func(): pass_turn_requested.emit())
+	pass_turn_panel.add_child(pass_turn_button)
+	# Keep the action below skills even with many augments or a short viewport.
+	var scroll := ScrollContainer.new()
+	scroll.name = "RightColumnScroll"
+	scroll.anchor_left = 1.0
+	scroll.anchor_right = 1.0
+	scroll.anchor_bottom = 1.0
+	scroll.offset_left = -330.0
+	scroll.offset_right = -18.0
+	scroll.offset_top = 108.0
+	scroll.offset_bottom = -20.0
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+	right_column.reparent(scroll)
+	(right_column as Control).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+func set_pass_turn_available(available: bool) -> void:
+	if pass_turn_panel:
+		pass_turn_panel.visible = available
 
 
 ## 메인 화면과 같은 스타일: 숯색 판 + 황갈색 테두리 + 검정 외곽선, 글자는 크림색.
