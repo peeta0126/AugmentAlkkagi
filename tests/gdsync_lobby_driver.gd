@@ -101,6 +101,24 @@ func run_host_gameplay() -> void:
 	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null, 10.0):
 		fail("host placement start timeout")
 		return
+	var initial_positions := {}
+	for piece in game.get_pieces():
+		if piece.owner_id == 2:
+			initial_positions[piece.piece_id] = piece.position
+	# 참가자가 돌 하나를 옮기면 호스트에도 반영되어야 한다(거절된 요청은 반영되지 않는다).
+	if not await wait_until(func():
+		for piece in game.get_pieces():
+			if piece.owner_id == 2 and piece.position.distance_to(initial_positions[piece.piece_id]) > 1.0:
+				return true
+		return false, 12.0):
+		fail("guest piece placement was not applied on host")
+		return
+	await get_tree().create_timer(1.0).timeout
+	for piece in game.get_pieces():
+		if piece.owner_id == 2 and not game.is_valid_piece_placement(piece, piece.position):
+			fail("host holds invalid guest piece position")
+			return
+	print("PASS: guest placement applied on host, invalid request not applied")
 	game._confirm_placement()
 	if not await wait_until(func(): return bool(game.network_manager.placement_completed[2]), 10.0):
 		fail("client placement completion timeout")
@@ -150,6 +168,26 @@ func run_client_gameplay() -> void:
 	if not await wait_until(func(): return game.state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and game.board != null, 12.0):
 		fail("client placement start timeout")
 		return
+	var mine: Array[AlkkagiPiece] = []
+	for piece in game.get_pieces():
+		if piece.owner_id == 2:
+			mine.append(piece)
+	var valid_piece := mine[0]
+	var valid_target := Vector2.ZERO
+	for offset in [Vector2(0, 40), Vector2(0, -40), Vector2(40, 0), Vector2(-40, 0), Vector2(0, 80), Vector2(0, -80)]:
+		if game.is_valid_piece_placement(valid_piece, valid_piece.position + offset):
+			valid_target = valid_piece.position + offset
+			break
+	if valid_target == Vector2.ZERO:
+		fail("no valid placement target found")
+		return
+	valid_piece.position = valid_target
+	game.network_manager.submit_piece_placement(valid_piece.piece_id, valid_target)
+	# 호스트가 거절할 요청(다른 돌과 겹치는 자리)도 보낸다. 호스트는 반영하지 않고 실제 자리를 돌려 보낸다.
+	var bad_piece := mine[mine.size() - 1]
+	game.network_manager.submit_piece_placement(bad_piece.piece_id, mine[1].position + Vector2(3, 0))
+	await get_tree().create_timer(2.0).timeout
+	print("PASS: rejected placement request did not break the flow")
 	game._confirm_placement()
 	if not await wait_until(func(): return game.selection_player == 2 and not game.current_choices.is_empty(), 12.0):
 		fail("client augment offer timeout")

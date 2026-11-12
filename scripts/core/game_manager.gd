@@ -298,14 +298,18 @@ func _create_online_room() -> void:
 	network_status_label = lobby.status_label
 	# 방을 먼저 만들어 실제 방 코드를 받은 뒤에 화면에 보여 준다(코드 자리에 자리표시자를 띄우지 않는다).
 	var error: Error = network_manager.create_online_room()
-	if error == OK:
-		online_mode = true
-		online_is_host = true
-		local_player_id = 1
+	if error != OK:
+		# 서버에 연결되지 않았으면 빈 방 코드의 방장 화면 대신 방 만들기·참가 화면에 머물고 이유를 보여 준다.
+		state_machine.transition(GameStateMachine.State.JOIN_ROOM)
+		lobby.show_join()
+		lobby.update_status("온라인 서버에 연결되지 않았습니다. 인터넷 연결을 확인하고 잠시 뒤 다시 시도하세요.", true)
+		return
+	online_mode = true
+	online_is_host = true
+	local_player_id = 1
 	lobby.show_lobby(network_manager.get_room_code(), true, "방장 · 흑돌", AlkkagiPiece.OWNER_COLORS[1])
 	network_status_label = lobby.status_label
-	if error == OK:
-		lobby.update_status("온라인 방 %s 생성 중…" % network_manager.get_room_code(), false)
+	lobby.update_status("온라인 방 %s 생성 중…" % network_manager.get_room_code(), false)
 
 func _show_online_join_room() -> void:
 	state_machine.transition(GameStateMachine.State.JOIN_ROOM)
@@ -1690,6 +1694,9 @@ func apply_network_snapshot(snapshot: Dictionary, interpolation_duration: float 
 		if piece == null:
 			spawn_piece(int(piece_states[offset + 1]), piece_id, Vector2(piece_states[offset + 2], piece_states[offset + 3]))
 			piece = find_piece(piece_id)
+		# 배치 중 내 돌의 자리는 내가 끌어 정하고 호스트가 확정 신호로 알려 준다. 늦게 온 스냅샷이 끌던 돌을 옛 자리로 되돌리지 않게 건너뛴다.
+		if state_machine.current == GameStateMachine.State.PIECE_PLACEMENT and piece.owner_id == local_player_id:
+			continue
 		piece.apply_compact_network_state(piece_states, offset, true, interpolation_duration)
 	update_piece_visibility()
 	for piece in get_pieces():
