@@ -596,11 +596,24 @@ func request_piece_placement(piece_id: int, position: Vector2, sequence: int) ->
 		_host_process_piece_placement(_player_for_peer(sender), piece_id, position)
 
 func _host_process_piece_placement(player_id: int, piece_id: int, position: Vector2) -> void:
-	if not is_host() or not match_active or bool(placement_completed.get(player_id, false)):
+	if not is_host() or not match_active:
 		return
-	if not game().network_validate_and_place_piece(player_id, piece_id, position):
+	if bool(placement_completed.get(player_id, false)) or not game().network_validate_and_place_piece(player_id, piece_id, position):
+		# 거절한 요청은 참가자 화면에만 새 자리가 남아 어긋나므로, 호스트가 가진 실제 자리를 돌려 보낸다.
+		_resync_placement(player_id, piece_id)
 		return
 	_broadcast_placement_state(piece_id, position)
+
+# 호스트가 거절한 참가자의 배치 요청을 되돌린다. piece_id가 -1이면 그 플레이어의 돌 전부를 맞춘다.
+func _resync_placement(player_id: int, piece_id: int) -> void:
+	if player_id != 2:
+		return
+	var peer := _peer_for_player(2)
+	if peer <= 0:
+		return
+	for piece in game().get_pieces():
+		if piece.owner_id == 2 and (piece_id < 0 or piece.piece_id == piece_id):
+			GDSync.call_func_on(peer, receive_placement_state, piece.piece_id, piece.position, placement_completed.duplicate())
 
 func request_placement_complete(sequence: int) -> void:
 	if not is_host():
@@ -612,7 +625,10 @@ func request_placement_complete(sequence: int) -> void:
 func _host_process_placement_complete(player_id: int) -> void:
 	if not is_host() or not match_active or player_id not in [1, 2]:
 		return
-	if bool(placement_completed.get(player_id, false)) or not game().validate_player_placement(player_id):
+	if bool(placement_completed.get(player_id, false)):
+		return
+	if not game().validate_player_placement(player_id):
+		_resync_placement(player_id, -1)
 		return
 	placement_completed[player_id] = true
 	_broadcast_placement_state(-1, Vector2.ZERO)
@@ -975,6 +991,8 @@ func _on_gdsync_client_joined(client_id: int) -> void:
 			GDSync.lobby_kick_client(client_id, "이 방은 2인 전용입니다.")
 			return
 		peer_to_player[client_id] = 2
+		# 같은 번호로 다시 들어온 참가자의 요청 번호는 1부터 다시 시작하므로 예전 기록을 지운다.
+		last_sequences.erase(client_id)
 		connected_players[2] = true
 		ready_state[2] = false
 		connection_message.emit("친구가 온라인 방에 참가했습니다.", false)
@@ -985,6 +1003,7 @@ func _on_gdsync_client_left(client_id: int) -> void:
 		return
 	var player_id := _player_for_peer(client_id)
 	peer_to_player.erase(client_id)
+	last_sequences.erase(client_id)
 	if mode == Mode.HOST and player_id == 2:
 		connected_players[2] = false
 		ready_state[2] = false

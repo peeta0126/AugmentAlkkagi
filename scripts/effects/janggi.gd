@@ -90,7 +90,7 @@ func _draw() -> void:
 	var land := clampf(_pop / 0.35, 0.0, 1.0)
 	var token_scale := lerpf(1.9, 1.0, land * land * (3.0 - 2.0 * land)) if _pop < 0.35 else 1.0
 	var token_alpha := clampf(_pop / 0.12, 0.0, 1.0)
-	var r := radius * 0.78 * token_scale
+	var r := radius * 0.9 * token_scale
 	# 그림자 → 먹 테두리 → 종이 → 안쪽 팀색 선 순서로 쌓는다.
 	draw_colored_polygon(_octagon(r + 4.0 + (3.0 if token_scale > 1.0 else 0.0)), Color(INK, 0.35 * token_alpha))
 	draw_colored_polygon(_octagon(r + 2.5), Color(INK, token_alpha))
@@ -101,7 +101,9 @@ func _draw() -> void:
 	var symbols := SYMBOLS_CHO if _owner_id() == 1 else SYMBOLS_HAN
 	var glyph := str(symbols.get(kind, kind.left(1)))
 	var font := ThemeDB.fallback_font
-	var size := int(r * 1.35)
-	var glyph_pos := Vector2(-r, size * 0.34)
-	draw_string(font, glyph_pos + Vector2(0.8, 1.0), glyph, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, size, Color(PAPER_SHADE, token_alpha * 0.9))
-	draw_string(font, glyph_pos, glyph, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, size, Color(team.darkened(0.2), token_alpha))
+	var size := int(r * 1.5)
+	var glyph_pos := Vector2(-r, size * 0.35)
+	var glyph_color := team.darkened(0.25)
+	# 한자를 살짝 굵게 보이도록 0.7px 옆으로 한 번 더 겹쳐 쓴다(외곽선은 작은 글자를 뭉개서 쓰지 않는다).
+	draw_string(font, glyph_pos + Vector2(0.7, 0.0), glyph, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, size, Color(glyph_color, token_alpha))
+	draw_string(font, glyph_pos, glyph, HORIZONTAL_ALIGNMENT_CENTER, r * 2.0, size, Color(glyph_color, token_alpha))

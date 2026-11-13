@@ -249,40 +249,36 @@ func _draw_aim() -> void:
 	var color := _power_color(power)
 	var pulse := 0.5 + 0.5 * sin(_aim_time * 9.0)
 
-	# 새총 띠: 돌에서 당긴 곳까지, 끝으로 갈수록 가늘다.
+	# 당긴 줄: 돌에서 당긴 곳까지 가는 선 하나와 손잡이 점.
 	if pull_end.distance_to(aim_origin) > 6.0:
-		_draw_band(aim_origin, pull_end, 16.0, 7.0, color)
-		draw_circle(pull_end, 12.0, AIM_INK)
-		draw_circle(pull_end, 8.5, color)
-		draw_circle(pull_end + Vector2(-2.5, -2.5), 2.6, Color(1, 1, 1, 0.85))
+		draw_line(aim_origin, pull_end, Color(AIM_INK, 0.8), 6.0, true)
+		draw_line(aim_origin, pull_end, color, 3.0, true)
+		draw_circle(pull_end, 8.0, AIM_INK)
+		draw_circle(pull_end, 5.5, color)
 
-	# 발사 방향: 검정 테두리 점선과 화살촉. 길이는 힘에 비례한다.
-	var length := (62.0 + power * 82.0) * guide_multiplier
-	var start := 24.0
-	var at := start
-	while at < length:
-		var seg_end := minf(at + 11.0, length)
-		var p0 := aim_origin + direction * at
-		var p1 := aim_origin + direction * seg_end
-		draw_line(p0, p1, AIM_INK, 9.0, true)
-		draw_line(p0, p1, AIM_CREAM if not empowered_aim else color, 4.6, true)
-		at += 20.0
-	var tip := aim_origin + direction * (length + 16.0)
-	var side := Vector2(-direction.y, direction.x)
-	var base := aim_origin + direction * (length + 1.0)
-	var head_outer := PackedVector2Array([tip + direction * 4.0, base + side * 13.0, base - side * 13.0])
-	var head_inner := PackedVector2Array([tip, base + side * 9.0, base - side * 9.0])
-	draw_colored_polygon(head_outer, AIM_INK)
-	draw_colored_polygon(head_inner, color)
-
-	# 충전 고리: 힘만큼 시계 방향으로 찬다. 가득 차면 맥박처럼 커졌다 줄어든다.
-	var ring := 24.0 + power * 5.0 + (pulse * 2.5 if power > 0.97 else 0.0)
-	draw_arc(aim_origin, ring, 0.0, TAU, 40, Color(AIM_INK, 0.55), 8.0, true)
+	# 발사 방향: 점 궤적. 흑돌은 검은 점, 백돌은 흰 점이고, 멀어질수록 작고 옅어진다.
+	var white_stone := active_color.get_luminance() > 0.7
+	var dot_fill := Color("f4f1ea") if white_stone else Color("17120f")
+	var dot_edge := Color("17120f") if white_stone else Color("f4ead2")
 	if empowered_aim:
-		draw_arc(aim_origin, ring + 7.0, 0.0, TAU, 40, Color(Color("ffe39a"), 0.8), 2.0, true)
+		dot_fill = dot_fill.lerp(color, 0.55)
+	var length := (62.0 + power * 82.0) * guide_multiplier
+	var count := int(length / 14.0)
+	for index in count:
+		var t := float(index) / float(maxi(count - 1, 1))
+		var at := 26.0 + t * (length - 26.0)
+		var dot := aim_origin + direction * at
+		var dot_radius := lerpf(5.2, 2.8, t)
+		draw_circle(dot, dot_radius + 1.8, Color(dot_edge, lerpf(0.9, 0.45, t)))
+		draw_circle(dot, dot_radius, Color(dot_fill, lerpf(1.0, 0.6, t)))
+
+	# 힘 표시: 돌 둘레에 힘만큼 시계 방향으로 차오르는 얇은 호. 가득 차면 맥박처럼 커졌다 줄어든다.
+	var ring := 22.0 + power * 3.0 + (pulse * 2.0 if power > 0.97 else 0.0)
+	draw_arc(aim_origin, ring, 0.0, TAU, 40, Color(AIM_INK, 0.35), 4.0, true)
+	if empowered_aim:
+		draw_arc(aim_origin, ring + 6.0, 0.0, TAU, 40, Color(Color("ffe39a"), 0.8), 2.0, true)
 	if power > 0.01:
-		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, AIM_INK, 8.0, true)
-		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, color, 4.2, true)
+		draw_arc(aim_origin, ring, -PI * 0.5, -PI * 0.5 + TAU * power, 40, color, 4.0, true)
 
 	# 조준경: 돌이 닿을 수 있는 끝(돌·벽·판 가장자리에 막히는 곳)에 저격 조준점이 잡힌다.
 	if scope_active:
@@ -290,12 +286,6 @@ func _draw_aim() -> void:
 		var scope_size := 78.0 * scope_pulse
 		draw_texture_rect(SCOPE_RETICLE, Rect2(scope_target - Vector2.ONE * scope_size * 0.5, Vector2.ONE * scope_size), false)
 
-	# 힘 숫자
-	var font := ThemeDB.fallback_font
-	var label := "%d%%" % int(round(power * 100.0))
-	var label_pos := aim_origin + Vector2(-26.0, -ring - 14.0)
-	draw_string_outline(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, 7, AIM_INK)
-	draw_string(font, label_pos, label, HORIZONTAL_ALIGNMENT_CENTER, 52.0, 20, color)
 
 
 

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://booosffthon7d"]
 
 [ext_resource type="Script" uid="uid://damgidh8h1d3v" path="res://scripts/effects/tank_visual.gd" id="1"]
-[ext_resource type="Texture2D" uid="uid://bbjvs6t3gsqp0" path="res://assets/tank/tank_black.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://r13pud4n8d5p" path="res://assets/tank/tank_black.png" id="2"]
 
 [node name="Tank" type="Node2D" unique_id=641885008]
 script = ExtResource("1")
